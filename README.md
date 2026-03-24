@@ -40,21 +40,29 @@ With prltc: **~45,000 tokens** → **70% reduction**
 
 ## Installation
 
+### Quick Install (Linux/macOS)
+```bash
+curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/main/install.sh | sh
+```
+
 ### Homebrew (macOS)
 ```bash
 brew tap pszymkowiak/prltc
 brew install prltc
 ```
 
-### Script (Linux/macOS)
-```bash
-curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/main/install.sh | sh
-```
-
 ### Cargo
 ```bash
 cargo install prltc
 ```
+
+### Manual Download
+Download binaries from [Releases](https://github.com/pszymkowiak/prltc/releases):
+- macOS: `prltc-x86_64-apple-darwin.tar.gz` / `prltc-aarch64-apple-darwin.tar.gz`
+- Linux: `prltc-x86_64-unknown-linux-gnu.tar.gz` / `prltc-aarch64-unknown-linux-gnu.tar.gz`
+- Windows: `prltc-x86_64-pc-windows-msvc.zip`
+- Debian/Ubuntu: `prltc_*.deb`
+- Fedora/RHEL: `prltc-*.rpm`
 
 ## Quick Start
 
@@ -100,6 +108,9 @@ prltc log app.log                 # Deduplicated logs
 prltc json config.json            # Structure without values
 prltc deps                        # Dependencies summary
 prltc env -f AWS                  # Filtered env vars
+prltc gain                        # Token savings stats
+prltc gain --graph                # With ASCII graph
+prltc gain --history              # With command history
 ```
 
 ### Containers
