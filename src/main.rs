@@ -23,7 +23,6 @@ mod read;
 mod runner;
 mod summary;
 mod tracking;
-mod vitest_cmd;
 mod wget_cmd;
 
 use anyhow::Result;
@@ -239,27 +238,25 @@ enum Commands {
         #[arg(long)]
         create: bool,
     },
-
-    /// Vitest commands with compact output
-    Vitest {
-        #[command(subcommand)]
-        command: VitestCommands,
-    },
 }
 
 #[derive(Subcommand)]
 enum GitCommands {
     /// Condensed diff output
     Diff {
-        /// Git arguments (supports all git diff flags like --stat, --cached, etc)
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        #[arg(trailing_var_arg = true)]
         args: Vec<String>,
+        /// Max lines
+        #[arg(short, long)]
+        max_lines: Option<usize>,
     },
     /// One-line commit history
     Log {
-        /// Git arguments (supports all git log flags like --oneline, --graph, --all)
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        #[arg(trailing_var_arg = true)]
         args: Vec<String>,
+        /// Number of commits
+        #[arg(short = 'n', long, default_value = "10")]
+        count: usize,
     },
     /// Compact status
     Status,
@@ -319,16 +316,6 @@ enum KubectlCommands {
     },
 }
 
-#[derive(Subcommand)]
-enum VitestCommands {
-    /// Run tests with filtered output (90% token reduction)
-    Run {
-        /// Additional vitest arguments
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-}
-
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -346,11 +333,11 @@ fn main() -> Result<()> {
         }
 
         Commands::Git { command } => match command {
-            GitCommands::Diff { args } => {
-                git::run(git::GitCommand::Diff, &args, None, cli.verbose)?;
+            GitCommands::Diff { args, max_lines } => {
+                git::run(git::GitCommand::Diff, &args, max_lines, cli.verbose)?;
             }
-            GitCommands::Log { args } => {
-                git::run(git::GitCommand::Log, &args, None, cli.verbose)?;
+            GitCommands::Log { args, count } => {
+                git::run(git::GitCommand::Log, &args, Some(count), cli.verbose)?;
             }
             GitCommands::Status => {
                 git::run(git::GitCommand::Status, &[], None, cli.verbose)?;
@@ -491,12 +478,6 @@ fn main() -> Result<()> {
                 config::show_config()?;
             }
         }
-
-        Commands::Vitest { command } => match command {
-            VitestCommands::Run { args } => {
-                vitest_cmd::run(vitest_cmd::VitestCommand::Run, &args, cli.verbose)?;
-            }
-        },
     }
 
     Ok(())
