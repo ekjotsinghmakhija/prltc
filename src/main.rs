@@ -11,6 +11,7 @@ mod env_cmd;
 mod filter;
 mod find_cmd;
 mod git;
+mod init;
 mod json_cmd;
 mod local_llm;
 mod log_cmd;
@@ -154,6 +155,17 @@ enum Commands {
     Summary {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         command: Vec<String>,
+    },
+
+    /// Initialize prltc instructions in CLAUDE.md
+    Init {
+        /// Add to global ~/CLAUDE.md instead of local
+        #[arg(short, long)]
+        global: bool,
+
+        /// Show current configuration
+        #[arg(long)]
+        show: bool,
     },
 }
 
@@ -310,6 +322,14 @@ fn main() -> Result<()> {
         Commands::Summary { command } => {
             let cmd = command.join(" ");
             summary::run(&cmd, cli.verbose)?;
+        }
+
+        Commands::Init { global, show } => {
+            if show {
+                init::show_config()?;
+            } else {
+                init::run(global, cli.verbose)?;
+            }
         }
     }
 
