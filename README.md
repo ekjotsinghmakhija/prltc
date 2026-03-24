@@ -6,18 +6,6 @@
 
 prltc filters and compresses command outputs before they reach your LLM context, saving 60-90% of tokens on common operations.
 
-## Demo
-
-```bash
-# Play the demo locally
-asciinema play demo.cast
-
-# Or watch in terminal
-./demo.sh
-```
-
-<!-- Upload to asciinema.org: asciinema upload demo.cast -->
-
 ## Token Savings (30-min Claude Code Session)
 
 Typical session without prltc: **~150,000 tokens**
