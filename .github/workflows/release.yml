@@ -176,26 +176,27 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  homebrew:
-    name: Update Homebrew Tap
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Get version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "version=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
-          else
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Update Homebrew formula
-        uses: mislav/bump-homebrew-formula-action@v3
-        with:
-          formula-name: prltc
-          homebrew-tap: pszymkowiak/homebrew-tap
-          tag-name: ${{ steps.version.outputs.version }}
-          download-url: https://github.com/pszymkowiak/prltc/releases/download/${{ steps.version.outputs.version }}/prltc-x86_64-apple-darwin.tar.gz
-        env:
-          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+  # TODO: Enable when HOMEBREW_TAP_TOKEN is configured
+  # homebrew:
+  #   name: Update Homebrew Tap
+  #   needs: release
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Get version
+  #       id: version
+  #       run: |
+  #         if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+  #           echo "version=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+  #         else
+  #           echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+  #         fi
+  #
+  #     - name: Update Homebrew formula
+  #       uses: mislav/bump-homebrew-formula-action@v3
+  #       with:
+  #         formula-name: prltc
+  #         homebrew-tap: pszymkowiak/homebrew-tap
+  #         tag-name: ${{ steps.version.outputs.version }}
+  #         download-url: https://github.com/pszymkowiak/prltc/releases/download/${{ steps.version.outputs.version }}/prltc-x86_64-apple-darwin.tar.gz
+  #       env:
+  #         COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

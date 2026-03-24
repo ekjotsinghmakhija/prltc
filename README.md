@@ -45,11 +45,13 @@ With prltc: **~45,000 tokens** → **70% reduction**
 curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/master/install.sh | sh
 ```
 
-### Homebrew (macOS)
+### Homebrew (macOS) - Coming Soon
+<!--
 ```bash
 brew tap pszymkowiak/prltc
 brew install prltc
 ```
+-->
 
 ### Cargo
 ```bash
