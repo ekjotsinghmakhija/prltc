@@ -8,8 +8,8 @@ use anyhow::{Context, Result};
 use regex::Regex;
 use std::collections::HashMap;
 use std::process::Command;
+use crate::tracking;
 
-/// Compact grep - strips whitespace, truncates, groups by file
 pub fn run(
     pattern: &str,
     path: &str,
@@ -19,10 +19,9 @@ pub fn run(
     verbose: u8,
 ) -> Result<()> {
     if verbose > 0 {
-        eprintln!("Searching: '{}' in {}", pattern, path);
+        eprintln!("grep: '{}' in {}", pattern, path);
     }
 
-    // Use ripgrep if available, otherwise grep
     let output = Command::new("rg")
         .args(["-n", "--no-heading", pattern, path])
         .output()
@@ -31,49 +30,42 @@ pub fn run(
                 .args(["-rn", pattern, path])
                 .output()
         })
-        .context("Failed to run grep/rg")?;
+        .context("grep/rg failed")?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
+    let raw_output = stdout.to_string();
+
     if stdout.trim().is_empty() {
-        println!("No matches for '{}'", pattern);
+        let msg = format!("🔍 0 for '{}'", pattern);
+        println!("{}", msg);
+        tracking::track(&format!("grep -rn '{}' {}", pattern, path), "prltc grep", &raw_output, &msg);
         return Ok(());
     }
 
-    // Parse and group by file
     let mut by_file: HashMap<String, Vec<(usize, String)>> = HashMap::new();
-    let mut total_matches = 0;
+    let mut total = 0;
 
     for line in stdout.lines() {
-        // Parse format: file:line:content or line:content
         let parts: Vec<&str> = line.splitn(3, ':').collect();
 
         let (file, line_num, content) = if parts.len() == 3 {
-            // file:line:content
             let ln = parts[1].parse().unwrap_or(0);
             (parts[0].to_string(), ln, parts[2])
         } else if parts.len() == 2 {
-            // line:content (single file mode)
             let ln = parts[0].parse().unwrap_or(0);
             (path.to_string(), ln, parts[1])
         } else {
             continue;
         };
 
-        total_matches += 1;
-
-        // Clean and truncate content
+        total += 1;
         let cleaned = clean_line(content, max_line_len, context_only, pattern);
-
-        by_file
-            .entry(file)
-            .or_default()
-            .push((line_num, cleaned));
+        by_file.entry(file).or_default().push((line_num, cleaned));
     }
 
-    // Print results
-    println!("🔍 {} matches in {} files:", total_matches, by_file.len());
-    println!();
+    let mut prltc_output = String::new();
+    prltc_output.push_str(&format!("🔍 {} in {}F:\n\n", total, by_file.len()));
 
     let mut shown = 0;
     let mut files: Vec<_> = by_file.iter().collect();
@@ -84,12 +76,11 @@ pub fn run(
             break;
         }
 
-        // Compact file path
         let file_display = compact_path(file);
-        println!("📄 {} ({}):", file_display, matches.len());
+        prltc_output.push_str(&format!("📄 {} ({}):\n", file_display, matches.len()));
 
         for (line_num, content) in matches.iter().take(10) {
-            println!("  {:>4}: {}", line_num, content);
+            prltc_output.push_str(&format!("  {:>4}: {}\n", line_num, content));
             shown += 1;
             if shown >= max_results {
                 break;
@@ -97,24 +88,25 @@ pub fn run(
         }
 
         if matches.len() > 10 {
-            println!("  ... +{} more in this file", matches.len() - 10);
+            prltc_output.push_str(&format!("  +{}\n", matches.len() - 10));
         }
-        println!();
+        prltc_output.push('\n');
     }
 
-    if total_matches > shown {
-        println!("... +{} more matches (use -m to show more)", total_matches - shown);
+    if total > shown {
+        prltc_output.push_str(&format!("... +{}\n", total - shown));
     }
+
+    print!("{}", prltc_output);
+    tracking::track(&format!("grep -rn '{}' {}", pattern, path), "prltc grep", &raw_output, &prltc_output);
 
     Ok(())
 }
 
 fn clean_line(line: &str, max_len: usize, context_only: bool, pattern: &str) -> String {
-    // Strip leading/trailing whitespace
     let trimmed = line.trim();
 
     if context_only {
-        // Try to extract just the match with surrounding context
         if let Ok(re) = Regex::new(&format!("(?i).{{0,20}}{}.*", regex::escape(pattern))) {
             if let Some(m) = re.find(trimmed) {
                 let matched = m.as_str();
@@ -125,16 +117,13 @@ fn clean_line(line: &str, max_len: usize, context_only: bool, pattern: &str) -> 
         }
     }
 
-    // Truncate if needed
     if trimmed.len() <= max_len {
         trimmed.to_string()
     } else {
-        // Try to keep the match visible
         let lower = trimmed.to_lowercase();
         let pattern_lower = pattern.to_lowercase();
 
         if let Some(pos) = lower.find(&pattern_lower) {
-            // Center around the match
             let start = pos.saturating_sub(max_len / 3);
             let end = (start + max_len).min(trimmed.len());
             let start = if end == trimmed.len() {
@@ -158,18 +147,15 @@ fn clean_line(line: &str, max_len: usize, context_only: bool, pattern: &str) -> 
 }
 
 fn compact_path(path: &str) -> String {
-    // Shorten long paths
     if path.len() <= 50 {
         return path.to_string();
     }
 
-    // Try to show meaningful parts
     let parts: Vec<&str> = path.split('/').collect();
     if parts.len() <= 3 {
         return path.to_string();
     }
 
-    // Keep first, ..., and last 2 parts
     format!(
         "{}/.../{}/{}",
         parts[0],

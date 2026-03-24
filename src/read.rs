@@ -5,6 +5,7 @@
  */
 
 use crate::filter::{self, FilterLevel, Language};
+use crate::tracking;
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
@@ -58,23 +59,24 @@ pub fn run(
         filtered = filter::smart_truncate(&filtered, max, &lang);
     }
 
-    // Output
-    if line_numbers {
-        print_with_line_numbers(&filtered);
+    let prltc_output = if line_numbers {
+        format_with_line_numbers(&filtered)
     } else {
-        println!("{}", filtered);
-    }
-
+        filtered.clone()
+    };
+    println!("{}", prltc_output);
+    tracking::track(&format!("cat {}", file.display()), "prltc read", &content, &prltc_output);
     Ok(())
 }
 
-fn print_with_line_numbers(content: &str) {
+fn format_with_line_numbers(content: &str) -> String {
     let lines: Vec<&str> = content.lines().collect();
     let width = lines.len().to_string().len();
-
+    let mut out = String::new();
     for (i, line) in lines.iter().enumerate() {
-        println!("{:>width$} │ {}", i + 1, line, width = width);
+        out.push_str(&format!("{:>width$} │ {}\n", i + 1, line, width = width));
     }
+    out
 }
 
 #[cfg(test)]
