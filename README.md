@@ -285,6 +285,32 @@ prltc init           # Create local CLAUDE.md
 prltc init --global  # Create ~/CLAUDE.md
 ```
 
+example of 3 days session:
+```bash
+📊 PRLTC Token Savings
+════════════════════════════════════════
+
+Total commands:    133
+Input tokens:      30.5K
+Output tokens:     10.7K
+Tokens saved:      25.3K (83.0%)
+
+By Command:
+────────────────────────────────────────
+Command               Count      Saved     Avg%
+prltc git status           41      17.4K    82.9%
+prltc git push             54       3.4K    91.6%
+prltc grep                 15       3.2K    26.5%
+prltc ls                   23       1.4K    37.2%
+
+Daily Savings (last 30 days):
+────────────────────────────────────────
+01-23 │███████████████████                      6.4K
+01-24 │██████████████████                       5.9K
+01-25 │                                         18
+01-26 │████████████████████████████████████████ 13.0K
+```
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
