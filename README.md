@@ -122,11 +122,22 @@ prltc config                       # Show config (--create to generate)
 prltc json config.json            # Structure without values
 prltc deps                        # Dependencies summary
 prltc env -f AWS                  # Filtered env vars
-prltc gain                        # Token savings stats
-prltc gain --graph                # With ASCII graph
-prltc gain --history              # With command history
-prltc gain --quota                # Monthly quota savings estimate
-prltc gain --quota --tier pro     # Quota for specific tier (pro/5x/20x)
+
+# Token Savings Analytics
+prltc gain                        # Summary stats (default view)
+prltc gain --graph                # With ASCII graph of last 30 days
+prltc gain --history              # With recent command history (10)
+prltc gain --quota --tier 20x     # Monthly quota analysis (pro/5x/20x)
+
+# Temporal Breakdowns (NEW in v0.4.0)
+prltc gain --daily                # Day-by-day breakdown (all days)
+prltc gain --weekly               # Week-by-week breakdown
+prltc gain --monthly              # Month-by-month breakdown
+prltc gain --all                  # All breakdowns combined
+
+# Export Formats
+prltc gain --all --format json    # JSON export for APIs/dashboards
+prltc gain --all --format csv     # CSV export for Excel/analysis
 ```
 
 ### Containers
@@ -242,6 +253,12 @@ Daily Savings (last 30 days):
 01-25 │                                         18
 01-26 │████████████████████████████████████████ 13.0K
 ```
+
+## Documentation
+
+- **[AUDIT_GUIDE.md](docs/AUDIT_GUIDE.md)** - Complete guide to token savings analytics, temporal breakdowns, and data export
+- **[CLAUDE.md](CLAUDE.md)** - Claude Code integration instructions and project context
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture and development guide
 
 ## License
 

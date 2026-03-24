@@ -271,6 +271,21 @@ enum Commands {
         /// Subscription tier for quota calculation: pro, 5x, 20x
         #[arg(short, long, default_value = "20x", requires = "quota")]
         tier: String,
+        /// Show detailed daily breakdown (all days)
+        #[arg(short, long)]
+        daily: bool,
+        /// Show weekly breakdown
+        #[arg(short, long)]
+        weekly: bool,
+        /// Show monthly breakdown
+        #[arg(short, long)]
+        monthly: bool,
+        /// Show all time breakdowns (daily + weekly + monthly)
+        #[arg(short, long)]
+        all: bool,
+        /// Output format: text, json, csv
+        #[arg(short, long, default_value = "text")]
+        format: String,
     },
 
     /// Show or create configuration file
@@ -649,8 +664,8 @@ fn main() -> Result<()> {
             }
         }
 
-        Commands::Gain { graph, history, quota, tier } => {
-            gain::run(graph, history, quota, &tier, cli.verbose)?;
+        Commands::Gain { graph, history, quota, tier, daily, weekly, monthly, all, format } => {
+            gain::run(graph, history, quota, &tier, daily, weekly, monthly, all, &format, cli.verbose)?;
         }
 
         Commands::Config { create } => {
