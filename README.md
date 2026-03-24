@@ -56,13 +56,23 @@ brew install prltc
 cargo install prltc
 ```
 
+### Debian/Ubuntu
+```bash
+curl -LO https://github.com/pszymkowiak/prltc/releases/latest/download/prltc_0.2.0-1_amd64.deb
+sudo dpkg -i prltc_0.2.0-1_amd64.deb
+```
+
+### Fedora/RHEL
+```bash
+curl -LO https://github.com/pszymkowiak/prltc/releases/latest/download/prltc-0.2.0-1.x86_64.rpm
+sudo rpm -i prltc-0.2.0-1.x86_64.rpm
+```
+
 ### Manual Download
 Download binaries from [Releases](https://github.com/pszymkowiak/prltc/releases):
 - macOS: `prltc-x86_64-apple-darwin.tar.gz` / `prltc-aarch64-apple-darwin.tar.gz`
 - Linux: `prltc-x86_64-unknown-linux-gnu.tar.gz` / `prltc-aarch64-unknown-linux-gnu.tar.gz`
 - Windows: `prltc-x86_64-pc-windows-msvc.zip`
-- Debian/Ubuntu: `prltc_*.deb`
-- Fedora/RHEL: `prltc-*.rpm`
 
 ## Quick Start
 
