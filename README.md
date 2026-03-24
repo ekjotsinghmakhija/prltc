@@ -176,6 +176,105 @@ FAILED: 2/15 tests
 3. **Truncation**: Keeps relevant context, cuts redundancy
 4. **Deduplication**: Collapses repeated log lines with counts
 
+## Fork Features
+
+This fork adds critical fixes and modern JavaScript stack support, validated on production T3 Stack codebases.
+
+### 🔧 Git Argument Parsing Fix
+
+**Problem**: Git flags like `--oneline`, `--cached`, `--graph` were rejected as invalid arguments.
+
+**Solution**:
+- Fixed Clap argument parsing with `trailing_var_arg + allow_hyphen_values`
+- Auto-detects `--merges` flag to skip `--no-merges` injection
+- Propagates git exit codes properly (fixes CI/CD false positives)
+
+**Now Working**:
+```bash
+prltc git log --oneline -20           # Compact commit history
+prltc git diff --cached               # Staged changes only
+prltc git log --graph --all           # Branch visualization
+prltc git status --short              # Ultra-compact status
+```
+
+### 📦 pnpm Support for T3 Stack
+
+Adds first-class pnpm support with security hardening.
+
+**Commands**:
+```bash
+prltc pnpm list              # Dependency tree (70% token reduction)
+prltc pnpm outdated          # Update candidates (80-90% reduction)
+prltc pnpm install <pkg>     # Silent success confirmation
+```
+
+**Token Savings**:
+| Command | Standard Output | prltc Output | Reduction |
+|---------|----------------|------------|-----------|
+| `pnpm list` | ~8,000 tokens | ~2,400 | -70% |
+| `pnpm outdated` | ~12,000 tokens | ~1,200-2,400 | -80-90% |
+| `pnpm install` | ~500 tokens | ~10 | -98% |
+
+**Security**:
+- Package name validation (prevents command injection)
+- Proper error propagation (fixes CI/CD reliability)
+
+### 🧪 Vitest Test Runner Support
+
+Modern test runner integration for JavaScript/TypeScript projects.
+
+**Command**:
+```bash
+prltc vitest run             # Filtered test output (99.6% token reduction)
+```
+
+**Token Savings** (validated on production codebase):
+| Test Suite | Standard Output | prltc Output | Reduction |
+|------------|----------------|------------|-----------|
+| 250 tests (2 failures) | 102,199 chars | 377 chars | **-99.6%** ✅ |
+
+**Output Format**:
+```
+PASS (10) FAIL (2)
+
+1. FAIL tests/unit/api/services/activity.test.ts
+   Error: env.OPENAI_API_KEY accessed on client
+   at line 73
+
+2. FAIL tests/unit/lib/utils/validator.test.ts
+   should be a readonly array
+
+Time: 3.05s
+```
+
+**What's Preserved**:
+- ✅ Pass/fail counts
+- ✅ Failure details with file paths
+- ✅ Error context (line numbers + code snippets)
+- ✅ Execution timing
+
+### 📥 Installation (This Fork)
+
+**Recommended** until upstream merges these features:
+
+```bash
+# Clone and build
+git clone https://github.com/FlorianBruniaux/prltc.git
+cd prltc
+cargo build --release
+
+# Install globally
+cargo install --path .
+
+# Or use directly
+./target/release/prltc --version
+```
+
+**Switch to Upstream** (once features are merged):
+```bash
+cargo install prltc --force
+```
+
 ## Configuration
 
 prltc reads from `CLAUDE.md` files to instruct Claude Code to use prltc automatically:

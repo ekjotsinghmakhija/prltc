@@ -24,6 +24,7 @@ mod read;
 mod runner;
 mod summary;
 mod tracking;
+mod vitest_cmd;
 mod wget_cmd;
 
 use anyhow::Result;
@@ -245,6 +246,12 @@ enum Commands {
         #[arg(long)]
         create: bool,
     },
+
+    /// Vitest commands with compact output
+    Vitest {
+        #[command(subcommand)]
+        command: VitestCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -343,6 +350,16 @@ enum KubectlCommands {
         pod: String,
         #[arg(short, long)]
         container: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum VitestCommands {
+    /// Run tests with filtered output (90% token reduction)
+    Run {
+        /// Additional vitest arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
 }
 
@@ -520,6 +537,12 @@ fn main() -> Result<()> {
                 config::show_config()?;
             }
         }
+
+        Commands::Vitest { command } => match command {
+            VitestCommands::Run { args } => {
+                vitest_cmd::run(vitest_cmd::VitestCommand::Run, &args, cli.verbose)?;
+            }
+        },
     }
 
     Ok(())
