@@ -25,6 +25,10 @@ Remplacer les commandes Unix standard par `prltc` pour minimiser la consommation
 | `git status` | `prltc git status` |
 | `git log` | `prltc git log` |
 | `git diff` | `prltc git diff` |
+| `git add .` | `prltc git add` |
+| `git commit -m "msg"` | `prltc git commit -m "msg"` |
+| `git push` | `prltc git push` |
+| `git pull` | `prltc git pull` |
 | `cargo test`, `pytest`, `npm test` | `prltc test <cmd>` |
 | `<cmd> 2>&1 \| grep -i error` | `prltc err <cmd>` |
 | `cat file.log` | `prltc log <file>` |
@@ -34,6 +38,7 @@ Remplacer les commandes Unix standard par `prltc` pour minimiser la consommation
 | `docker ps` | `prltc docker ps` |
 | `kubectl get pods` | `prltc kubectl pods` |
 | `<longue commande>` | `prltc summary <cmd>` |
+| `grep -rn`, `rg` | `prltc grep <pattern>` |
 
 ## Commandes prltc
 
@@ -49,6 +54,11 @@ prltc diff f1.txt f2.txt          # Diff ultra-condensé
 prltc git status                  # Status compact
 prltc git log -n 10               # 10 commits compacts
 prltc git diff                    # Diff compact
+prltc git add                     # Add → "ok ✓"
+prltc git commit -m "msg"         # Commit → "ok ✓ abc1234"
+prltc git push                    # Push → "ok ✓ main"
+prltc git pull                    # Pull → "ok ✓ 3 files"
+prltc grep "pattern"              # Grep groupé par fichier
 
 # Commandes
 prltc test cargo test             # Échecs seuls (-90% tokens)
