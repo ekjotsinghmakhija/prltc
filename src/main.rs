@@ -12,18 +12,26 @@ mod env_cmd;
 mod filter;
 mod find_cmd;
 mod gain;
+mod gh_cmd;
 mod git;
 mod grep_cmd;
 mod init;
 mod json_cmd;
+mod lint_cmd;
 mod local_llm;
 mod log_cmd;
 mod ls;
+mod next_cmd;
+mod playwright_cmd;
 mod pnpm_cmd;
+mod prettier_cmd;
+mod prisma_cmd;
 mod read;
 mod runner;
 mod summary;
 mod tracking;
+mod tsc_cmd;
+mod utils;
 mod vitest_cmd;
 mod wget_cmd;
 
@@ -45,6 +53,10 @@ struct Cli {
     /// Verbosity level (-v, -vv, -vvv)
     #[arg(short, long, action = clap::ArgAction::Count, global = true)]
     verbose: u8,
+
+    /// Ultra-compact mode: ASCII icons, inline format (Level 2 optimizations)
+    #[arg(short = 'u', long, global = true)]
+    ultra_compact: bool,
 }
 
 #[derive(Subcommand)]
@@ -96,6 +108,15 @@ enum Commands {
     Git {
         #[command(subcommand)]
         command: GitCommands,
+    },
+
+    /// GitHub CLI (gh) commands with token-optimized output
+    Gh {
+        /// Subcommand: pr, issue, run, repo
+        subcommand: String,
+        /// Additional arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
 
     /// pnpm commands with ultra-compact output
@@ -238,6 +259,12 @@ enum Commands {
         /// Show recent command history
         #[arg(short = 'H', long)]
         history: bool,
+        /// Show monthly quota savings estimate
+        #[arg(short, long)]
+        quota: bool,
+        /// Subscription tier for quota calculation: pro, 5x, 20x
+        #[arg(short, long, default_value = "20x", requires = "quota")]
+        tier: String,
     },
 
     /// Show or create configuration file
@@ -251,6 +278,47 @@ enum Commands {
     Vitest {
         #[command(subcommand)]
         command: VitestCommands,
+    },
+
+    /// Prisma commands with compact output (no ASCII art)
+    Prisma {
+        #[command(subcommand)]
+        command: PrismaCommands,
+    },
+
+    /// TypeScript compiler with grouped error output
+    Tsc {
+        /// TypeScript compiler arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// Next.js build with compact output
+    Next {
+        /// Next.js build arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// ESLint with grouped rule violations
+    Lint {
+        /// Linter arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// Prettier format checker with compact output
+    Prettier {
+        /// Prettier arguments (e.g., --check, --write)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// Playwright E2E tests with compact output
+    Playwright {
+        /// Playwright arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
 }
 
@@ -363,6 +431,52 @@ enum VitestCommands {
     },
 }
 
+#[derive(Subcommand)]
+enum PrismaCommands {
+    /// Generate Prisma Client (strip ASCII art)
+    Generate {
+        /// Additional prisma arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Manage migrations
+    Migrate {
+        #[command(subcommand)]
+        command: PrismaMigrateCommands,
+    },
+    /// Push schema to database
+    DbPush {
+        /// Additional prisma arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum PrismaMigrateCommands {
+    /// Create and apply migration
+    Dev {
+        /// Migration name
+        #[arg(short, long)]
+        name: Option<String>,
+        /// Additional arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Check migration status
+    Status {
+        /// Additional arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Deploy migrations to production
+    Deploy {
+        /// Additional arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -402,6 +516,10 @@ fn main() -> Result<()> {
                 git::run(git::GitCommand::Pull, &[], None, cli.verbose)?;
             }
         },
+
+        Commands::Gh { subcommand, args } => {
+            gh_cmd::run(&subcommand, &args, cli.verbose, cli.ultra_compact)?;
+        }
 
         Commands::Pnpm { command } => match command {
             PnpmCommands::List { depth, args } => {
@@ -525,8 +643,8 @@ fn main() -> Result<()> {
             }
         }
 
-        Commands::Gain { graph, history } => {
-            gain::run(graph, history, cli.verbose)?;
+        Commands::Gain { graph, history, quota, tier } => {
+            gain::run(graph, history, quota, &tier, cli.verbose)?;
         }
 
         Commands::Config { create } => {
@@ -543,6 +661,64 @@ fn main() -> Result<()> {
                 vitest_cmd::run(vitest_cmd::VitestCommand::Run, &args, cli.verbose)?;
             }
         },
+
+        Commands::Prisma { command } => match command {
+            PrismaCommands::Generate { args } => {
+                prisma_cmd::run(prisma_cmd::PrismaCommand::Generate, &args, cli.verbose)?;
+            }
+            PrismaCommands::Migrate { command } => match command {
+                PrismaMigrateCommands::Dev { name, args } => {
+                    prisma_cmd::run(
+                        prisma_cmd::PrismaCommand::Migrate {
+                            subcommand: prisma_cmd::MigrateSubcommand::Dev { name: name.clone() },
+                        },
+                        &args,
+                        cli.verbose,
+                    )?;
+                }
+                PrismaMigrateCommands::Status { args } => {
+                    prisma_cmd::run(
+                        prisma_cmd::PrismaCommand::Migrate {
+                            subcommand: prisma_cmd::MigrateSubcommand::Status,
+                        },
+                        &args,
+                        cli.verbose,
+                    )?;
+                }
+                PrismaMigrateCommands::Deploy { args } => {
+                    prisma_cmd::run(
+                        prisma_cmd::PrismaCommand::Migrate {
+                            subcommand: prisma_cmd::MigrateSubcommand::Deploy,
+                        },
+                        &args,
+                        cli.verbose,
+                    )?;
+                }
+            },
+            PrismaCommands::DbPush { args } => {
+                prisma_cmd::run(prisma_cmd::PrismaCommand::DbPush, &args, cli.verbose)?;
+            }
+        },
+
+        Commands::Tsc { args } => {
+            tsc_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Next { args } => {
+            next_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Lint { args } => {
+            lint_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Prettier { args } => {
+            prettier_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Playwright { args } => {
+            playwright_cmd::run(&args, cli.verbose)?;
+        }
     }
 
     Ok(())
