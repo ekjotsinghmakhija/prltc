@@ -77,29 +77,27 @@ fn parse_test_stats(output: &str) -> TestStats {
     // Strip ANSI first for easier parsing
     let clean_output = strip_ansi(output);
 
-    // Pattern: "Test Files  2 passed (2)"
-    if let Some(caps) = Regex::new(r"Test Files\s+(\d+)\s+passed").unwrap().captures(&clean_output) {
-        if let Some(pass_str) = caps.get(1) {
+    // Pattern: "Test Files  X failed | Y passed | Z skipped (T)"
+    // Or: "Test Files  Y passed (T)" when no failures
+    if let Some(caps) = Regex::new(r"Test Files\s+(?:(\d+)\s+failed\s+\|\s+)?(\d+)\s+passed").unwrap().captures(&clean_output) {
+        if let Some(fail_str) = caps.get(1) {
+            stats.fail = fail_str.as_str().parse().unwrap_or(0);
+        }
+        if let Some(pass_str) = caps.get(2) {
             stats.pass = pass_str.as_str().parse().unwrap_or(0);
         }
     }
 
-    // Pattern: "Test Files  1 failed | 2 passed (3)"
-    if let Some(caps) = Regex::new(r"Test Files\s+(\d+)\s+failed").unwrap().captures(&clean_output) {
-        if let Some(fail_str) = caps.get(1) {
-            stats.fail = fail_str.as_str().parse().unwrap_or(0);
-        }
-    }
-
-    // Pattern: "Tests  43 passed (43)"
-    if let Some(caps) = Regex::new(r"Tests\s+(\d+)\s+passed").unwrap().captures(&clean_output) {
+    // Pattern: "Tests  X failed | Y passed (T)"
+    // Capture total passed count from Tests line
+    if let Some(caps) = Regex::new(r"Tests\s+(?:\d+\s+failed\s+\|\s+)?(\d+)\s+passed").unwrap().captures(&clean_output) {
         if let Some(total_str) = caps.get(1) {
             stats.total = total_str.as_str().parse().unwrap_or(0);
         }
     }
 
-    // Pattern: "Duration  450ms"
-    if let Some(caps) = Regex::new(r"Duration\s+(\d+m?s)").unwrap().captures(&clean_output) {
+    // Pattern: "Duration  3.05s" (with optional details in parens)
+    if let Some(caps) = Regex::new(r"Duration\s+([\d.]+[ms]+)").unwrap().captures(&clean_output) {
         if let Some(duration_str) = caps.get(1) {
             stats.duration = duration_str.as_str().to_string();
         }
