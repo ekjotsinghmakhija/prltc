@@ -12,6 +12,7 @@ mod env_cmd;
 mod filter;
 mod find_cmd;
 mod gain;
+mod gh_cmd;
 mod git;
 mod grep_cmd;
 mod init;
@@ -52,6 +53,10 @@ struct Cli {
     /// Verbosity level (-v, -vv, -vvv)
     #[arg(short, long, action = clap::ArgAction::Count, global = true)]
     verbose: u8,
+
+    /// Ultra-compact mode: ASCII icons, inline format (Level 2 optimizations)
+    #[arg(short = 'u', long, global = true)]
+    ultra_compact: bool,
 }
 
 #[derive(Subcommand)]
@@ -103,6 +108,15 @@ enum Commands {
     Git {
         #[command(subcommand)]
         command: GitCommands,
+    },
+
+    /// GitHub CLI (gh) commands with token-optimized output
+    Gh {
+        /// Subcommand: pr, issue, run, repo
+        subcommand: String,
+        /// Additional arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
 
     /// pnpm commands with ultra-compact output
@@ -496,6 +510,10 @@ fn main() -> Result<()> {
                 git::run(git::GitCommand::Pull, &[], None, cli.verbose)?;
             }
         },
+
+        Commands::Gh { subcommand, args } => {
+            gh_cmd::run(&subcommand, &args, cli.verbose, cli.ultra_compact)?;
+        }
 
         Commands::Pnpm { command } => match command {
             PnpmCommands::List { depth, args } => {
