@@ -13,6 +13,15 @@ const PRLTC_INSTRUCTIONS: &str = r#"# Instructions: Utiliser prltc pour économi
 ## Règle obligatoire
 Remplacer les commandes Unix standard par `prltc` pour minimiser la consommation de tokens.
 
+**IMPORTANT:** Même lors du chaînage de commandes avec `&&`, utiliser `prltc`:
+```bash
+# ❌ Ne pas faire
+git add . && git commit -m "msg" && git push
+
+# ✅ Faire
+prltc git add && prltc git commit -m "msg" && prltc git push
+```
+
 ## Substitutions
 
 | ❌ Ne pas utiliser | ✅ Utiliser |
@@ -36,11 +45,14 @@ Remplacer les commandes Unix standard par `prltc` pour minimiser la consommation
 | `cat Cargo.toml` (pour deps) | `prltc deps` |
 | `env`, `printenv` | `prltc env` |
 | `docker ps` | `prltc docker ps` |
+| `docker images` | `prltc docker images` |
+| `docker logs <c>` | `prltc docker logs <c>` |
 | `kubectl get pods` | `prltc kubectl pods` |
-| `<longue commande>` | `prltc summary <cmd>` |
+| `kubectl logs <pod>` | `prltc kubectl logs <pod>` |
 | `grep -rn`, `rg` | `prltc grep <pattern>` |
+| `<longue commande>` | `prltc summary <cmd>` |
 
-## Commandes prltc
+## Commandes prltc (15 total)
 
 ```bash
 # Fichiers
