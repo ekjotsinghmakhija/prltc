@@ -48,14 +48,14 @@ cargo install prltc
 
 ### Debian/Ubuntu
 ```bash
-curl -LO https://github.com/pszymkowiak/prltc/releases/latest/download/prltc_0.2.1-1_amd64.deb
-sudo dpkg -i prltc_0.2.1-1_amd64.deb
+curl -LO https://github.com/pszymkowiak/prltc/releases/latest/download/prltc_0.3.1-1_amd64.deb
+sudo dpkg -i prltc_0.3.1-1_amd64.deb
 ```
 
 ### Fedora/RHEL
 ```bash
-curl -LO https://github.com/pszymkowiak/prltc/releases/latest/download/prltc-0.2.1-1.x86_64.rpm
-sudo rpm -i prltc-0.2.1-1.x86_64.rpm
+curl -LO https://github.com/pszymkowiak/prltc/releases/latest/download/prltc-0.3.1-1.x86_64.rpm
+sudo rpm -i prltc-0.3.1-1.x86_64.rpm
 ```
 
 ### Manual Download
@@ -72,6 +72,13 @@ prltc init --global    # Add to ~/CLAUDE.md (all projects)
 prltc init             # Add to ./CLAUDE.md (this project)
 ```
 
+## Global Flags
+
+```bash
+-u, --ultra-compact    # ASCII icons, inline format (extra token savings)
+-v, --verbose          # Increase verbosity (-v, -vv, -vvv)
+```
+
 ## Commands
 
 ### Files
@@ -79,6 +86,7 @@ prltc init             # Add to ./CLAUDE.md (this project)
 prltc ls .                        # Token-optimized directory tree
 prltc read file.rs                # Smart file reading
 prltc read file.rs -l aggressive  # Signatures only (strips bodies)
+prltc smart file.rs               # 2-line heuristic code summary
 prltc find "*.rs" .               # Compact find results
 prltc diff file1 file2            # Ultra-condensed diff
 prltc grep "pattern" .            # Grouped search results
@@ -101,6 +109,12 @@ prltc test cargo test             # Show failures only (-90% tokens)
 prltc err npm run build           # Errors/warnings only
 prltc summary <long command>      # Heuristic summary
 prltc log app.log                 # Deduplicated logs
+prltc gh pr list                   # Compact PR listing
+prltc gh pr view 42                # PR details + checks summary
+prltc gh issue list                # Compact issue listing
+prltc gh run list                  # Workflow run status
+prltc wget https://example.com    # Download, strip progress bars
+prltc config                       # Show config (--create to generate)
 ```
 
 ### Data
@@ -111,6 +125,8 @@ prltc env -f AWS                  # Filtered env vars
 prltc gain                        # Token savings stats
 prltc gain --graph                # With ASCII graph
 prltc gain --history              # With command history
+prltc gain --quota                # Monthly quota savings estimate
+prltc gain --quota --tier pro     # Quota for specific tier (pro/5x/20x)
 ```
 
 ### Containers
@@ -120,6 +136,21 @@ prltc docker images               # Compact image list
 prltc docker logs <container>     # Deduplicated logs
 prltc kubectl pods                # Compact pod list
 prltc kubectl logs <pod>          # Deduplicated logs
+prltc kubectl services             # Compact service list
+```
+
+### JavaScript / TypeScript Stack
+```bash
+prltc lint                         # ESLint grouped by rule/file
+prltc lint biome                   # Supports other linters too
+prltc tsc                          # TypeScript errors grouped by file
+prltc next build                   # Next.js build compact output
+prltc prettier --check .           # Files needing formatting
+prltc vitest run                   # Test failures only
+prltc playwright test              # E2E results (failures only)
+prltc prisma generate              # Schema generation (no ASCII art)
+prltc prisma migrate dev --name x  # Migration summary
+prltc prisma db-push               # Schema push summary
 ```
 
 ## Examples
@@ -175,108 +206,6 @@ FAILED: 2/15 tests
 2. **Grouping**: Aggregates similar items (files by directory, errors by type)
 3. **Truncation**: Keeps relevant context, cuts redundancy
 4. **Deduplication**: Collapses repeated log lines with counts
-
-## Improvements in This Fork
-
-This fork adds critical fixes and modern JavaScript stack support to PRLTC, validated on production T3 Stack codebases.
-
-### 🔧 PR #5: Git Argument Parsing Fix (CRITICAL)
-
-**Status**: [Open](https://github.com/pszymkowiak/prltc/pull/5) | **Priority**: Critical
-
-Fixes a major bug where git flags were rejected as invalid arguments.
-
-**Problem**:
-```bash
-prltc git log --oneline -20
-# Error: unexpected argument '--oneline' found
-```
-
-**Solution**:
-- Fixed Clap argument parsing with `trailing_var_arg + allow_hyphen_values`
-- Auto-detects `--merges` flag to skip `--no-merges` injection
-- Propagates git exit codes properly (fixes CI/CD false positives)
-
-**Now Working**:
-```bash
-prltc git log --oneline -20           # Compact commit history
-prltc git diff --cached               # Staged changes only
-prltc git log --graph --all           # Branch visualization
-prltc git status --short              # Ultra-compact status
-```
-
-**Impact**: All git flags now work correctly, preventing workflow disruptions.
-
-### 📦 PR #6: pnpm Support for Modern JavaScript Stacks
-
-**Status**: [Open](https://github.com/pszymkowiak/prltc/pull/6) | **Target**: T3 Stack users
-
-Adds first-class pnpm support with security hardening.
-
-**New Commands**:
-```bash
-prltc pnpm list              # Dependency tree (70% token reduction)
-prltc pnpm outdated          # Update candidates (80-90% reduction)
-prltc pnpm install <pkg>     # Silent success confirmation
-```
-
-**Token Savings**:
-| Command | Standard Output | prltc Output | Reduction |
-|---------|----------------|------------|-----------|
-| `pnpm list` | ~8,000 tokens | ~2,400 | -70% |
-| `pnpm outdated` | ~12,000 tokens | ~1,200-2,400 | -80-90% |
-| `pnpm install` | ~500 tokens | ~10 | -98% |
-
-**Security**:
-- Package name validation (prevents command injection)
-- Proper error propagation (fixes CI/CD reliability)
-- Comprehensive test coverage
-
-### 🐛 Related Upstream Issues
-
-This fork addresses issues reported upstream:
-- [Issue #2](https://github.com/pszymkowiak/prltc/issues/2): Git argument parsing bug
-- [Issue #3](https://github.com/pszymkowiak/prltc/issues/3): T3 Stack support request (pnpm + Vitest)
-- [Issue #4](https://github.com/pszymkowiak/prltc/issues/4): grep/ls filtering improvements
-
-### 🧪 Testing
-
-**Production Validation**: All improvements tested on a production T3 Stack codebase:
-- Framework: Next.js 15.1.5 + TypeScript
-- Package Manager: pnpm 10.0.0
-- Test Runner: Vitest
-- Repository: 50+ files, 10,000+ lines of code
-
-**Test Coverage**:
-- Unit tests for all new commands
-- Integration tests with real pnpm/git outputs
-- Security validation for command injection prevention
-- CI/CD pipeline validation (exit code propagation)
-
-### 📥 Installation
-
-**Use This Fork** (recommended until PRs are merged):
-```bash
-# Clone and build
-git clone https://github.com/FlorianBruniaux/prltc.git
-cd prltc
-cargo build --release
-
-# Install globally
-cargo install --path .
-
-# Or use directly
-./target/release/prltc --version
-```
-
-**Track Upstream Merge Status**:
-- Watch [PR #5](https://github.com/pszymkowiak/prltc/pull/5) for git fixes
-- Watch [PR #6](https://github.com/pszymkowiak/prltc/pull/6) for pnpm support
-
-**Switch to Upstream** (once merged):
-```bash
-cargo install prltc --force
-```
 
 ## Configuration
 
