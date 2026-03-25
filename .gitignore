@@ -35,3 +35,4 @@ benchmark-report.md
 *.sqlite
 *.sqlite3
 prltc_tracking.db
+claudedocs
