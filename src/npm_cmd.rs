@@ -9,8 +9,6 @@ use anyhow::{Context, Result};
 use std::process::Command;
 
 pub fn run(args: &[String], verbose: u8, skip_env: bool) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     let mut cmd = Command::new("npm");
     cmd.arg("run");
 
@@ -34,7 +32,7 @@ pub fn run(args: &[String], verbose: u8, skip_env: bool) -> Result<()> {
     let filtered = filter_npm_output(&raw);
     println!("{}", filtered);
 
-    timer.track(
+    tracking::track(
         &format!("npm run {}", args.join(" ")),
         &format!("prltc npm run {}", args.join(" ")),
         &raw,

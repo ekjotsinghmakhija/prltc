@@ -12,19 +12,6 @@
 use crate::tracking::{DayStats, MonthStats, WeekStats};
 use crate::utils::format_tokens;
 
-/// Format duration in milliseconds to human-readable string
-pub fn format_duration(ms: u64) -> String {
-    if ms < 1000 {
-        format!("{}ms", ms)
-    } else if ms < 60_000 {
-        format!("{:.1}s", ms as f64 / 1000.0)
-    } else {
-        let minutes = ms / 60_000;
-        let seconds = (ms % 60_000) / 1000;
-        format!("{}m{}s", minutes, seconds)
-    }
-}
-
 /// Trait for period-based statistics that can be displayed in tables
 pub trait PeriodStats {
     /// Icon for this period type (e.g., "📅", "📊", "📆")
@@ -50,12 +37,6 @@ pub trait PeriodStats {
 
     /// Savings percentage
     fn savings_pct(&self) -> f64;
-
-    /// Total execution time in milliseconds
-    fn total_time_ms(&self) -> u64;
-
-    /// Average execution time per command in milliseconds
-    fn avg_time_ms(&self) -> u64;
 
     /// Period column width for alignment
     fn period_width() -> usize;
@@ -83,7 +64,7 @@ pub fn print_period_table<T: PeriodStats>(data: &[T]) {
     );
     println!("{}", separator);
     println!(
-        "{:<width$} {:>7} {:>10} {:>10} {:>10} {:>7} {:>8}",
+        "{:<width$} {:>7} {:>10} {:>10} {:>10} {:>7}",
         match T::label() {
             "Weekly" => "Week",
             "Monthly" => "Month",
@@ -94,21 +75,19 @@ pub fn print_period_table<T: PeriodStats>(data: &[T]) {
         "Output",
         "Saved",
         "Save%",
-        "Time",
         width = period_width
     );
     println!("{}", "─".repeat(T::separator_width()));
 
     for period in data {
         println!(
-            "{:<width$} {:>7} {:>10} {:>10} {:>10} {:>6.1}% {:>8}",
+            "{:<width$} {:>7} {:>10} {:>10} {:>10} {:>6.1}%",
             period.period(),
             period.commands(),
             format_tokens(period.input_tokens()),
             format_tokens(period.output_tokens()),
             format_tokens(period.saved_tokens()),
             period.savings_pct(),
-            format_duration(period.avg_time_ms()),
             width = period_width
         );
     }
@@ -118,28 +97,21 @@ pub fn print_period_table<T: PeriodStats>(data: &[T]) {
     let total_input: usize = data.iter().map(|d| d.input_tokens()).sum();
     let total_output: usize = data.iter().map(|d| d.output_tokens()).sum();
     let total_saved: usize = data.iter().map(|d| d.saved_tokens()).sum();
-    let total_time: u64 = data.iter().map(|d| d.total_time_ms()).sum();
     let avg_pct = if total_input > 0 {
         (total_saved as f64 / total_input as f64) * 100.0
     } else {
         0.0
     };
-    let avg_time = if total_cmds > 0 {
-        total_time / total_cmds as u64
-    } else {
-        0
-    };
 
     println!("{}", "─".repeat(T::separator_width()));
     println!(
-        "{:<width$} {:>7} {:>10} {:>10} {:>10} {:>6.1}% {:>8}",
+        "{:<width$} {:>7} {:>10} {:>10} {:>10} {:>6.1}%",
         "TOTAL",
         total_cmds,
         format_tokens(total_input),
         format_tokens(total_output),
         format_tokens(total_saved),
         avg_pct,
-        format_duration(avg_time),
         width = period_width
     );
     println!();
@@ -180,20 +152,12 @@ impl PeriodStats for DayStats {
         self.savings_pct
     }
 
-    fn total_time_ms(&self) -> u64 {
-        self.total_time_ms
-    }
-
-    fn avg_time_ms(&self) -> u64 {
-        self.avg_time_ms
-    }
-
     fn period_width() -> usize {
         12
     }
 
     fn separator_width() -> usize {
-        74
+        64
     }
 }
 
@@ -240,20 +204,12 @@ impl PeriodStats for WeekStats {
         self.savings_pct
     }
 
-    fn total_time_ms(&self) -> u64 {
-        self.total_time_ms
-    }
-
-    fn avg_time_ms(&self) -> u64 {
-        self.avg_time_ms
-    }
-
     fn period_width() -> usize {
         22
     }
 
     fn separator_width() -> usize {
-        82
+        72
     }
 }
 
@@ -290,20 +246,12 @@ impl PeriodStats for MonthStats {
         self.savings_pct
     }
 
-    fn total_time_ms(&self) -> u64 {
-        self.total_time_ms
-    }
-
-    fn avg_time_ms(&self) -> u64 {
-        self.avg_time_ms
-    }
-
     fn period_width() -> usize {
         10
     }
 
     fn separator_width() -> usize {
-        74
+        64
     }
 }
 
@@ -320,14 +268,11 @@ mod tests {
             output_tokens: 500,
             saved_tokens: 200,
             savings_pct: 20.0,
-            total_time_ms: 1500,
-            avg_time_ms: 150,
         };
 
         assert_eq!(day.period(), "2026-01-20");
         assert_eq!(day.commands(), 10);
         assert_eq!(day.saved_tokens(), 200);
-        assert_eq!(day.avg_time_ms(), 150);
         assert_eq!(DayStats::icon(), "📅");
         assert_eq!(DayStats::label(), "Daily");
     }
@@ -342,12 +287,9 @@ mod tests {
             output_tokens: 2500,
             saved_tokens: 1000,
             savings_pct: 40.0,
-            total_time_ms: 5000,
-            avg_time_ms: 100,
         };
 
         assert_eq!(week.period(), "01-20 → 01-26");
-        assert_eq!(week.avg_time_ms(), 100);
         assert_eq!(WeekStats::icon(), "📊");
         assert_eq!(WeekStats::label(), "Weekly");
     }
@@ -361,12 +303,9 @@ mod tests {
             output_tokens: 10000,
             saved_tokens: 5000,
             savings_pct: 50.0,
-            total_time_ms: 20000,
-            avg_time_ms: 100,
         };
 
         assert_eq!(month.period(), "2026-01");
-        assert_eq!(month.avg_time_ms(), 100);
         assert_eq!(MonthStats::icon(), "📆");
         assert_eq!(MonthStats::label(), "Monthly");
     }
@@ -388,8 +327,6 @@ mod tests {
                 output_tokens: 500,
                 saved_tokens: 200,
                 savings_pct: 20.0,
-                total_time_ms: 1500,
-                avg_time_ms: 150,
             },
             DayStats {
                 date: "2026-01-21".to_string(),
@@ -398,8 +335,6 @@ mod tests {
                 output_tokens: 750,
                 saved_tokens: 300,
                 savings_pct: 30.0,
-                total_time_ms: 2250,
-                avg_time_ms: 150,
             },
         ];
         print_period_table(&data);

@@ -4,20 +4,12 @@
  * Proprietary Clean Room Implementation
  */
 
-use crate::tracking;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::process::Command;
+use crate::tracking;
 
-pub fn run(
-    pattern: &str,
-    path: &str,
-    max_results: usize,
-    file_type: &str,
-    verbose: u8,
-) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
+pub fn run(pattern: &str, path: &str, max_results: usize, file_type: &str, verbose: u8) -> Result<()> {
     if verbose > 0 {
         eprintln!("find: {} in {}", pattern, path);
     }
@@ -39,12 +31,7 @@ pub fn run(
     if files.is_empty() {
         let msg = format!("0 for '{}'", pattern);
         println!("{}", msg);
-        timer.track(
-            &format!("find {} -name '{}'", path, pattern),
-            "prltc find",
-            &raw_output,
-            &msg,
-        );
+        tracking::track(&format!("find {} -name '{}'", path, pattern), "prltc find", &raw_output, &msg);
         return Ok(());
     }
 
@@ -76,7 +63,7 @@ pub fn run(
 
         let files_in_dir = &by_dir[dir];
         let dir_display = if dir.len() > 50 {
-            format!("...{}", &dir[dir.len() - 47..])
+            format!("...{}", &dir[dir.len()-47..])
         } else {
             dir.clone()
         };
@@ -96,22 +83,13 @@ pub fn run(
         println!();
         let mut exts: Vec<_> = by_ext.iter().collect();
         exts.sort_by(|a, b| b.1.cmp(a.1));
-        let ext_str: Vec<String> = exts
-            .iter()
-            .take(5)
-            .map(|(e, c)| format!(".{}({})", e, c))
-            .collect();
+        let ext_str: Vec<String> = exts.iter().take(5).map(|(e, c)| format!(".{}({})", e, c)).collect();
         ext_line = format!("ext: {}", ext_str.join(" "));
         println!("{}", ext_line);
     }
 
     let prltc_output = format!("{}F {}D + {}", files.len(), dirs_count, ext_line);
-    timer.track(
-        &format!("find {} -name '{}'", path, pattern),
-        "prltc find",
-        &raw_output,
-        &prltc_output,
-    );
+    tracking::track(&format!("find {} -name '{}'", path, pattern), "prltc find", &raw_output, &prltc_output);
 
     Ok(())
 }

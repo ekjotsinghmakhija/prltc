@@ -33,16 +33,17 @@ struct EslintResult {
 }
 
 pub fn run(args: &[String], verbose: u8) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     // Detect if eslint or other linter (ignore paths containing / or .)
     let is_path_or_flag = args.is_empty()
         || args[0].starts_with('-')
         || args[0].contains('/')
         || args[0].contains('.');
 
-    let linter = if is_path_or_flag { "eslint" } else { &args[0] };
-
+    let linter = if is_path_or_flag {
+        "eslint"
+    } else {
+        &args[0]
+    };
 
     // Try linter directly first, then use package manager exec
     let linter_exists = Command::new("which")
@@ -62,21 +63,21 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
         // Use pnpm exec - preserves CWD correctly
         let mut c = Command::new("pnpm");
         c.arg("exec");
-        c.arg("--"); // Separator to prevent pnpm from interpreting tool args
+        c.arg("--");  // Separator to prevent pnpm from interpreting tool args
         c.arg(linter);
         c
     } else if is_yarn {
         // Use yarn exec - preserves CWD correctly
         let mut c = Command::new("yarn");
         c.arg("exec");
-        c.arg("--"); // Separator
+        c.arg("--");  // Separator
         c.arg(linter);
         c
     } else {
         // Fallback to npx
         let mut c = Command::new("npx");
         c.arg("--no-install");
-        c.arg("--"); // Separator
+        c.arg("--");  // Separator
         c.arg(linter);
         c
     };
@@ -87,7 +88,11 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
     }
 
     // Add user arguments (skip first if it was the linter name)
-    let start_idx = if is_path_or_flag { 0 } else { 1 };
+    let start_idx = if is_path_or_flag {
+        0
+    } else {
+        1
+    };
 
     // For pnpm/yarn exec, use relative paths (they preserve CWD)
     // For others, convert to absolute paths to avoid CWD issues
@@ -122,10 +127,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
         let stderr = String::from_utf8_lossy(&output.stderr);
         eprintln!("⚠️  Linter process terminated abnormally (possibly out of memory)");
         if !stderr.is_empty() {
-            eprintln!(
-                "stderr: {}",
-                stderr.lines().take(5).collect::<Vec<_>>().join("\n")
-            );
+            eprintln!("stderr: {}", stderr.lines().take(5).collect::<Vec<_>>().join("\n"));
         }
         return Ok(());
     }
@@ -143,7 +145,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
 
     println!("{}", filtered);
 
-    timer.track(
+    tracking::track(
         &format!("{} {}", linter, args.join(" ")),
         &format!("prltc {} {}", linter, args.join(" ")),
         &raw,

@@ -4,33 +4,22 @@
  * Proprietary Clean Room Implementation
  */
 
-use crate::tracking;
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::process::{Command, Stdio};
+use crate::tracking;
 
 /// Run a command and provide a heuristic summary
 pub fn run(command: &str, verbose: u8) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     if verbose > 0 {
         eprintln!("Running and summarizing: {}", command);
     }
 
     let output = if cfg!(target_os = "windows") {
-        Command::new("cmd")
-            .args(["/C", command])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
+        Command::new("cmd").args(["/C", command]).stdout(Stdio::piped()).stderr(Stdio::piped()).output()
     } else {
-        Command::new("sh")
-            .args(["-c", command])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-    }
-    .context("Failed to execute command")?;
+        Command::new("sh").args(["-c", command]).stdout(Stdio::piped()).stderr(Stdio::piped()).output()
+    }.context("Failed to execute command")?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -38,7 +27,7 @@ pub fn run(command: &str, verbose: u8) -> Result<()> {
 
     let summary = summarize_output(&raw, command, output.status.success());
     println!("{}", summary);
-    timer.track(command, "prltc summary", &raw, &summary);
+    tracking::track(command, "prltc summary", &raw, &summary);
     Ok(())
 }
 
@@ -48,11 +37,7 @@ fn summarize_output(output: &str, command: &str, success: bool) -> String {
 
     // Status
     let status_icon = if success { "✅" } else { "❌" };
-    result.push(format!(
-        "{} Command: {}",
-        status_icon,
-        truncate(command, 60)
-    ));
+    result.push(format!("{} Command: {}", status_icon, truncate(command, 60)));
     result.push(format!("   {} lines of output", lines.len()));
     result.push(String::new());
 
@@ -87,25 +72,13 @@ fn detect_output_type(output: &str, command: &str) -> OutputType {
 
     if cmd_lower.contains("test") || out_lower.contains("passed") && out_lower.contains("failed") {
         OutputType::TestResults
-    } else if cmd_lower.contains("build")
-        || cmd_lower.contains("compile")
-        || out_lower.contains("compiling")
-    {
+    } else if cmd_lower.contains("build") || cmd_lower.contains("compile") || out_lower.contains("compiling") {
         OutputType::BuildOutput
-    } else if out_lower.contains("error:")
-        || out_lower.contains("warn:")
-        || out_lower.contains("[info]")
-    {
+    } else if out_lower.contains("error:") || out_lower.contains("warn:") || out_lower.contains("[info]") {
         OutputType::LogOutput
     } else if output.trim_start().starts_with('{') || output.trim_start().starts_with('[') {
         OutputType::JsonOutput
-    } else if output.lines().all(|l| {
-        l.len() < 200
-            && !l
-                .contains('\t')
-                .then_some(true)
-                .unwrap_or(l.split_whitespace().count() < 10)
-    }) {
+    } else if output.lines().all(|l| l.len() < 200 && !l.contains('\t').then_some(true).unwrap_or(l.split_whitespace().count() < 10)) {
         OutputType::ListOutput
     } else {
         OutputType::Generic
@@ -139,8 +112,7 @@ fn summarize_tests(output: &str, result: &mut Vec<String>) {
             }
         }
         if lower.contains("skipped") || lower.contains("ignored") {
-            if let Some(n) = extract_number(&lower, "skipped").or(extract_number(&lower, "ignored"))
-            {
+            if let Some(n) = extract_number(&lower, "skipped").or(extract_number(&lower, "ignored")) {
                 skipped = n;
             }
         }

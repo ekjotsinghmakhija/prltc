@@ -9,8 +9,6 @@ use anyhow::{Context, Result};
 use std::process::Command;
 
 pub fn run(args: &[String], verbose: u8) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     // Try prettier directly first, fallback to package manager exec
     let prettier_exists = Command::new("which")
         .arg("prettier")
@@ -77,7 +75,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
 
     println!("{}", filtered);
 
-    timer.track(
+    tracking::track(
         &format!("prettier {}", args.join(" ")),
         &format!("prltc prettier {}", args.join(" ")),
         &raw,

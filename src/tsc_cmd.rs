@@ -12,8 +12,6 @@ use std::collections::HashMap;
 use std::process::Command;
 
 pub fn run(args: &[String], verbose: u8) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     // Try tsc directly first, fallback to npx if not found
     let tsc_exists = Command::new("which")
         .arg("tsc")
@@ -38,9 +36,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
         eprintln!("Running: {} {}", tool, args.join(" "));
     }
 
-    let output = cmd
-        .output()
-        .context("Failed to run tsc (try: npm install -g typescript)")?;
+    let output = cmd.output().context("Failed to run tsc (try: npm install -g typescript)")?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let raw = format!("{}\n{}", stdout, stderr);
@@ -49,7 +45,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
 
     println!("{}", filtered);
 
-    timer.track(
+    tracking::track(
         &format!("tsc {}", args.join(" ")),
         &format!("prltc tsc {}", args.join(" ")),
         &raw,
@@ -111,7 +107,10 @@ fn filter_tsc_output(output: &str) -> String {
     // Group errors by file
     let mut by_file: HashMap<String, Vec<&TsError>> = HashMap::new();
     for err in &errors {
-        by_file.entry(err.file.clone()).or_default().push(err);
+        by_file
+            .entry(err.file.clone())
+            .or_default()
+            .push(err);
     }
 
     // Group all errors by error code for global summary
@@ -150,7 +149,10 @@ fn filter_tsc_output(output: &str) -> String {
         // Group errors in this file by error code
         let mut file_by_code: HashMap<String, Vec<&TsError>> = HashMap::new();
         for err in *file_errors {
-            file_by_code.entry(err.code.clone()).or_default().push(err);
+            file_by_code
+                .entry(err.code.clone())
+                .or_default()
+                .push(err);
         }
 
         // Show grouped by error code
