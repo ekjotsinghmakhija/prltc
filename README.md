@@ -11,7 +11,7 @@ prltc filters and compresses command outputs before they reach your LLM context,
 **There are TWO different projects named "prltc":**
 
 1. ✅ **This project (Rust Token Killer)** - LLM token optimizer
-   - Repos: `ekjotsinghmakhija/prltc`, `pszymkowiak/prltc`
+   - Repos: `ekjotsinghmakhija/prltc`
    - Purpose: Reduce Claude Code token consumption
 
 2. ❌ **reachingforthejack/prltc** - Rust Type Kit (DIFFERENT PROJECT)
@@ -63,7 +63,7 @@ If already installed and `prltc gain` works, **DO NOT reinstall**. Skip to Quick
 ### Quick Install (Linux/macOS)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/master/install.sh | sh
+curl -fsSL https://github.com/ekjotsinghmakhija/prltc/blob/master/install.sh | sh
 ```
 
 After installation, **verify you have the correct prltc**:
