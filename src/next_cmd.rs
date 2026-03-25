@@ -11,6 +11,8 @@ use regex::Regex;
 use std::process::Command;
 
 pub fn run(args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     // Try next directly first, fallback to npx if not found
     let next_exists = Command::new("which")
         .arg("next")
@@ -37,7 +39,9 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
         eprintln!("Running: {} build", tool);
     }
 
-    let output = cmd.output().context("Failed to run next build (try: npm install -g next)")?;
+    let output = cmd
+        .output()
+        .context("Failed to run next build (try: npm install -g next)")?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let raw = format!("{}\n{}", stdout, stderr);
@@ -46,7 +50,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
 
     println!("{}", filtered);
 
-    tracking::track("next build", "prltc next build", &raw, &filtered);
+    timer.track("next build", "prltc next build", &raw, &filtered);
 
     // Preserve exit code for CI/CD
     if !output.status.success() {
@@ -192,7 +196,9 @@ fn extract_time(line: &str) -> Option<String> {
         static ref TIME_RE: Regex = Regex::new(r"(\d+(?:\.\d+)?)\s*(s|ms)").unwrap();
     }
 
-    TIME_RE.captures(line).map(|caps| format!("{}{}", &caps[1], &caps[2]))
+    TIME_RE
+        .captures(line)
+        .map(|caps| format!("{}{}", &caps[1], &caps[2]))
 }
 
 #[cfg(test)]

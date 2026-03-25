@@ -17,6 +17,8 @@ pub fn run(
     line_numbers: bool,
     verbose: u8,
 ) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     if verbose > 0 {
         eprintln!("Reading: {} (filter: {})", file.display(), level);
     }
@@ -65,7 +67,12 @@ pub fn run(
         filtered.clone()
     };
     println!("{}", prltc_output);
-    tracking::track(&format!("cat {}", file.display()), "prltc read", &content, &prltc_output);
+    timer.track(
+        &format!("cat {}", file.display()),
+        "prltc read",
+        &content,
+        &prltc_output,
+    );
     Ok(())
 }
 

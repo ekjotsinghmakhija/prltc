@@ -742,6 +742,8 @@ mod tests {
             output_tokens: 400,
             saved_tokens: 5000,
             savings_pct: 50.0,
+            total_time_ms: 0,
+            avg_time_ms: 0,
         }];
 
         let merged = merge_monthly(Some(cc), prltc);
@@ -780,6 +782,8 @@ mod tests {
             output_tokens: 400,
             saved_tokens: 5000,
             savings_pct: 50.0,
+            total_time_ms: 0,
+            avg_time_ms: 0,
         }];
 
         let merged = merge_monthly(None, prltc);
@@ -798,6 +802,8 @@ mod tests {
                 output_tokens: 50,
                 saved_tokens: 1000,
                 savings_pct: 40.0,
+                total_time_ms: 0,
+                avg_time_ms: 0,
             },
             MonthStats {
                 month: "2026-01".to_string(),
@@ -806,6 +812,8 @@ mod tests {
                 output_tokens: 100,
                 saved_tokens: 2000,
                 savings_pct: 60.0,
+                total_time_ms: 0,
+                avg_time_ms: 0,
             },
         ];
 
