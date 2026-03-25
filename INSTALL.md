@@ -1,5 +1,17 @@
 # PRLTC Installation Guide - For AI Coding Assistants
 
+## ⚠️ Name Collision Warning
+
+**There are TWO completely different projects named "prltc":**
+
+1. ✅ **Rust Token Killer** (this project) - LLM token optimizer
+   - Repos: `ekjotsinghmakhija/prltc`, `pszymkowiak/prltc`, `FlorianBruniaux/prltc` (fork)
+   - Has `prltc gain` command for token savings stats
+
+2. ❌ **Rust Type Kit** (reachingforthejack/prltc) - DIFFERENT PROJECT
+   - Rust codebase query tool and type generator
+   - **DO NOT install if you want token optimization**
+
 ## Pre-Installation Check (REQUIRED)
 
 **AI assistants should ALWAYS verify if PRLTC is already installed before attempting installation.**
@@ -8,38 +20,61 @@
 # Check if PRLTC is installed
 prltc --version
 
+# CRITICAL: Verify it's the Token Killer (not Type Kit)
+prltc gain    # Should show token savings stats, NOT "command not found"
+
 # Check installation path
 which prltc
 ```
 
-If PRLTC is already installed and working, **DO NOT reinstall**. Skip directly to "Project Initialization" section.
+If `prltc gain` works, you have the **correct** PRLTC installed. **DO NOT reinstall**. Skip to "Project Initialization".
 
-## Installation (only if PRLTC not available)
+If `prltc gain` fails but `prltc --version` succeeds, you have the **wrong** PRLTC (Type Kit). Uninstall and reinstall the correct one (see below).
 
-### Option 1: Install from fork (RECOMMENDED currently)
+## Installation (only if PRLTC not available or wrong PRLTC installed)
 
-This fork includes critical fixes and pnpm/Vitest support not yet merged upstream.
+### Step 0: Uninstall Wrong PRLTC (if needed)
+
+If you accidentally installed Rust Type Kit:
+
+```bash
+cargo uninstall prltc
+```
+
+### Option 1: Install from fork (RECOMMENDED)
+
+This fork includes critical fixes and modern JavaScript stack support (pnpm, vitest, Next.js, TypeScript, Playwright, Prisma):
 
 ```bash
 # Clone the fork
 git clone https://github.com/FlorianBruniaux/prltc.git
 cd prltc
 
-# Check branch (should be master or feat/vitest-support)
-git branch
+# Checkout the all-features branch
+git checkout feat/all-features
 
 # Compile and install
 cargo install --path . --force
 
-# Verify installation
+# VERIFY you have the correct PRLTC
 prltc --version
+prltc gain  # MUST work (shows token stats, not error)
 ```
 
-### Option 2: Install from upstream (when PRs are merged)
+### Option 2: Install from upstream (basic features)
 
 ```bash
+# From ekjotsinghmakhija repository (NOT reachingforthejack!)
+cargo install --git https://github.com/ekjotsinghmakhija/prltc
+
+# OR (if published and correct on crates.io)
 cargo install prltc
+
+# ALWAYS VERIFY after installation
+prltc gain  # MUST show token savings, not "command not found"
 ```
+
+⚠️ **WARNING**: `cargo install prltc` from crates.io might install the wrong package. Always verify with `prltc gain`.
 
 ## Project Initialization
 
@@ -166,9 +201,12 @@ cargo install --path . --force
 
 ## Support and Contributing
 
-- **Issues**: https://github.com/pszymkowiak/prltc/issues (upstream)
+- **Troubleshooting**: See [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for common issues
 - **Fork issues**: https://github.com/FlorianBruniaux/prltc/issues
+- **Upstream issues**: https://github.com/ekjotsinghmakhija/prltc/issues (maintained by pszymkowiak)
 - **Pull Requests**: Create on fork then propose upstream
+
+⚠️ **If you installed the wrong prltc (Type Kit)**, see [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md#problem-prltc-gain-command-not-found)
 
 ## AI Assistant Checklist
 

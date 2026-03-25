@@ -6,6 +6,26 @@
 
 prltc filters and compresses command outputs before they reach your LLM context, saving 60-90% of tokens on common operations.
 
+## ⚠️ Important: Name Collision Warning
+
+**There are TWO different projects named "prltc":**
+
+1. ✅ **This project (Rust Token Killer)** - LLM token optimizer
+   - Repos: `ekjotsinghmakhija/prltc`, `pszymkowiak/prltc`, `FlorianBruniaux/prltc` (fork)
+   - Purpose: Reduce Claude Code token consumption
+
+2. ❌ **reachingforthejack/prltc** - Rust Type Kit (DIFFERENT PROJECT)
+   - Purpose: Query Rust codebase and generate types
+   - **DO NOT install this one if you want token optimization**
+
+**How to verify you have the correct prltc:**
+```bash
+prltc --version   # Should show "prltc X.Y.Z"
+prltc gain        # Should show token savings stats
+```
+
+If `prltc gain` doesn't exist, you installed the wrong package. See installation instructions below.
+
 ## Token Savings (30-min Claude Code Session)
 
 Typical session without prltc: **~150,000 tokens**
@@ -28,38 +48,51 @@ With prltc: **~45,000 tokens** → **70% reduction**
 
 ## Installation
 
-### Quick Install (Linux/macOS)
+### ⚠️ Pre-Installation Check (REQUIRED)
+
+**ALWAYS verify if prltc is already installed before installing:**
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/master/install.sh | sh
+prltc --version        # Check if installed
+prltc gain             # Verify it's the Token Killer (not Type Kit)
+which prltc            # Check installation path
 ```
 
-### Homebrew (macOS) - Coming Soon
-<!--
-```bash
-brew tap pszymkowiak/prltc
-brew install prltc
-```
--->
+If already installed and `prltc gain` works, **DO NOT reinstall**. Skip to Quick Start.
 
-### Cargo
+### Option 1: Fork with All Features (RECOMMENDED)
+
+This fork includes critical fixes and modern JavaScript stack support (pnpm, vitest, Next.js, TypeScript, Playwright, Prisma):
+
 ```bash
+# Uninstall wrong prltc if needed
+cargo uninstall prltc
+
+# Install the correct one from fork
+git clone https://github.com/FlorianBruniaux/prltc.git
+cd prltc && git checkout feat/all-features
+cargo install --path . --force
+
+# Verify installation
+prltc --version
+prltc gain  # Should show token savings stats
+```
+
+### Option 2: Upstream (Basic Features)
+
+```bash
+# From ekjotsinghmakhija upstream (maintained by pszymkowiak)
+cargo install --git https://github.com/ekjotsinghmakhija/prltc
+
+# OR if published to crates.io
 cargo install prltc
 ```
 
-### Debian/Ubuntu
-```bash
-curl -LO https://github.com/pszymkowiak/prltc/releases/latest/download/prltc_amd64.deb
-sudo dpkg -i prltc_amd64.deb
-```
+⚠️ **WARNING**: `cargo install prltc` from crates.io might install the wrong package (Type Kit instead of Token Killer). Always verify with `prltc gain` after installation.
 
-### Fedora/RHEL
-```bash
-curl -LO https://github.com/pszymkowiak/prltc/releases/latest/download/prltc.x86_64.rpm
-sudo rpm -i prltc.x86_64.rpm
-```
+### Option 3: Pre-built Binaries
 
-### Manual Download
-Download binaries from [Releases](https://github.com/pszymkowiak/prltc/releases):
+Download from [Releases](https://github.com/FlorianBruniaux/prltc/releases) (fork) or [ekjotsinghmakhija/releases](https://github.com/ekjotsinghmakhija/prltc/releases) (upstream):
 - macOS: `prltc-x86_64-apple-darwin.tar.gz` / `prltc-aarch64-apple-darwin.tar.gz`
 - Linux: `prltc-x86_64-unknown-linux-gnu.tar.gz` / `prltc-aarch64-unknown-linux-gnu.tar.gz`
 - Windows: `prltc-x86_64-pc-windows-msvc.zip`
@@ -67,9 +100,19 @@ Download binaries from [Releases](https://github.com/pszymkowiak/prltc/releases)
 ## Quick Start
 
 ```bash
+# Run installation check script (recommended first step)
+bash scripts/check-installation.sh
+
+# OR manually verify correct installation
+prltc gain  # Must show token stats, not error
+
 # Initialize prltc for Claude Code
-prltc init --global    # Add to ~/CLAUDE.md (all projects)
+prltc init --global    # Add to ~/.claude/CLAUDE.md (all projects)
 prltc init             # Add to ./CLAUDE.md (this project)
+
+# Test basic commands
+prltc ls .
+prltc git status
 ```
 
 ## Global Flags
@@ -365,6 +408,8 @@ Commands already using `prltc`, heredocs (`<<`), and unrecognized commands pass 
 
 ## Documentation
 
+- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - ⚠️ Fix common issues (wrong prltc installed, missing commands, PATH issues)
+- **[INSTALL.md](INSTALL.md)** - Detailed installation guide with verification steps
 - **[AUDIT_GUIDE.md](docs/AUDIT_GUIDE.md)** - Complete guide to token savings analytics, temporal breakdowns, and data export
 - **[CLAUDE.md](CLAUDE.md)** - Claude Code integration instructions and project context
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture and development guide

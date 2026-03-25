@@ -6,7 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **prltc (Rust Token Killer)** is a high-performance CLI proxy that minimizes LLM token consumption by filtering and compressing command outputs. It achieves 60-90% token savings on common development operations through smart filtering, grouping, truncation, and deduplication.
 
-This is a fork with critical fixes for git argument parsing and modern JavaScript stack support (pnpm).
+This is a fork with critical fixes for git argument parsing and modern JavaScript stack support (pnpm, vitest, Next.js, TypeScript, Playwright, Prisma).
+
+### ⚠️ Name Collision Warning
+
+**Two different "prltc" projects exist:**
+- ✅ **This project**: Rust Token Killer (ekjotsinghmakhija/prltc, pszymkowiak/prltc, FlorianBruniaux/prltc fork)
+- ❌ **reachingforthejack/prltc**: Rust Type Kit (DIFFERENT - generates Rust types)
+
+**Verify correct installation:**
+```bash
+prltc --version  # Should show "prltc X.Y.Z"
+prltc gain       # Should show token savings stats (NOT "command not found")
+```
+
+If `prltc gain` fails, you have the wrong package installed.
 
 ## Development Commands
 
