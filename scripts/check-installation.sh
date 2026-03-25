@@ -24,7 +24,7 @@ else
     echo -e "   ${RED}❌ PRLTC is NOT installed${NC}"
     echo ""
     echo "   Install with:"
-    echo "   curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/master/install.sh | sh"
+    echo "   curl -fsSL https://github.com/ekjotsinghmakhija/prltc/blob/master/install.sh| sh"
     exit 1
 fi
 echo ""
@@ -45,7 +45,7 @@ else
     echo ""
     echo "   You installed the wrong package. Fix it with:"
     echo "   cargo uninstall prltc"
-    echo "   curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/master/install.sh | sh"
+    echo "   curl -fsSL https://github.com/ekjotsinghmakhija/prltc/blob/master/install.sh | sh"
     CORRECT_PRLTC=false
 fi
 echo ""
@@ -142,7 +142,7 @@ if [ ${#MISSING_FEATURES[@]} -gt 0 ]; then
     echo ""
     echo "To get all features, install the fork:"
     echo "  cargo uninstall prltc"
-    echo "  curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/master/install.sh | sh"
+    echo "  curl -fsSL https://github.com/ekjotsinghmakhija/prltc/blob/master/install.sh | sh"
     echo "  cd prltc && git checkout feat/all-features"
     echo "  cargo install --path . --force"
 else
