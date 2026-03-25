@@ -48,14 +48,14 @@ cargo install prltc
 
 ### Debian/Ubuntu
 ```bash
-curl -LO https://github.com/pszymkowiak/prltc/releases/latest/download/prltc_0.3.1-1_amd64.deb
-sudo dpkg -i prltc_0.3.1-1_amd64.deb
+curl -LO https://github.com/pszymkowiak/prltc/releases/latest/download/prltc_amd64.deb
+sudo dpkg -i prltc_amd64.deb
 ```
 
 ### Fedora/RHEL
 ```bash
-curl -LO https://github.com/pszymkowiak/prltc/releases/latest/download/prltc-0.3.1-1.x86_64.rpm
-sudo rpm -i prltc-0.3.1-1.x86_64.rpm
+curl -LO https://github.com/pszymkowiak/prltc/releases/latest/download/prltc.x86_64.rpm
+sudo rpm -i prltc.x86_64.rpm
 ```
 
 ### Manual Download
