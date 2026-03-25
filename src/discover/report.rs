@@ -126,7 +126,7 @@ pub fn format_text(report: &DiscoverReport, limit: usize, verbose: bool) -> Stri
 
         out.push_str(&"-".repeat(52));
         out.push('\n');
-        out.push_str("-> github.com/FlorianBruniaux/prltc/issues\n");
+        out.push_str("-> github.com/ekjotsinghmakhija/prltc/issues\n");
     }
 
     out.push_str("\n~estimated from tool_result output sizes\n");

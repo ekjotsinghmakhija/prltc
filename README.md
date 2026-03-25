@@ -406,6 +406,58 @@ The hook is included in this repository at `.claude/hooks/prltc-rewrite.sh`. To 
 
 Commands already using `prltc`, heredocs (`<<`), and unrecognized commands pass through unchanged.
 
+### Alternative: Suggest Hook (Non-Intrusive)
+
+If you prefer Claude Code to **suggest** prltc usage rather than automatically rewriting commands, use the **suggest hook** pattern instead. This emits a system reminder when prltc-compatible commands are detected, without modifying the command execution.
+
+**Comparison**:
+
+| Aspect | Auto-Rewrite Hook | Suggest Hook |
+|--------|-------------------|--------------|
+| **Strategy** | Intercepts and modifies command before execution | Emits system reminder when prltc-compatible command detected |
+| **Effect** | Claude Code never sees the original command | Claude Code receives hint to use prltc, decides autonomously |
+| **Adoption** | 100% (forced) | ~70-85% (depends on Claude Code's adherence to instructions) |
+| **Use Case** | Production workflows, guaranteed savings | Learning mode, auditing, user preference for explicit control |
+| **Overhead** | Zero (transparent rewrite) | Minimal (reminder message in context) |
+
+**When to use suggest over rewrite**:
+- You want to audit which commands Claude Code chooses to run
+- You're learning prltc patterns and want visibility into the rewrite logic
+- You prefer Claude Code to make explicit decisions rather than transparent rewrites
+- You want to preserve exact command execution for debugging
+
+#### Suggest Hook Setup
+
+**1. Create the suggest hook script**
+
+```bash
+mkdir -p ~/.claude/hooks
+cp .claude/hooks/prltc-suggest.sh ~/.claude/hooks/prltc-suggest.sh
+chmod +x ~/.claude/hooks/prltc-suggest.sh
+```
+
+**2. Add to `~/.claude/settings.json`**
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/prltc-suggest.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+The suggest hook detects the same commands as the rewrite hook but outputs a `systemMessage` instead of `updatedInput`, informing Claude Code that an prltc alternative exists.
+
 ## Documentation
 
 - **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - ⚠️ Fix common issues (wrong prltc installed, missing commands, PATH issues)
