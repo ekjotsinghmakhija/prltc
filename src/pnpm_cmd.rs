@@ -4,9 +4,9 @@
  * Proprietary Clean Room Implementation
  */
 
+use crate::tracking;
 use anyhow::{Context, Result};
 use std::process::Command;
-use crate::tracking;
 
 /// Validates npm package name according to official rules
 /// https://docs.npmjs.com/cli/v9/configuring-npm/package-json#name
@@ -23,9 +23,8 @@ fn is_valid_package_name(name: &str) -> bool {
     }
 
     // Only safe characters
-    name.chars().all(|c| {
-        c.is_alphanumeric() || matches!(c, '@' | '/' | '-' | '_' | '.')
-    })
+    name.chars()
+        .all(|c| c.is_alphanumeric() || matches!(c, '@' | '/' | '-' | '_' | '.'))
 }
 
 #[derive(Debug, Clone)]
@@ -105,12 +104,7 @@ fn run_outdated(args: &[String], verbose: u8) -> Result<()> {
         println!("{}", filtered);
     }
 
-    tracking::track(
-        "pnpm outdated",
-        "prltc pnpm outdated",
-        &combined,
-        &filtered,
-    );
+    tracking::track("pnpm outdated", "prltc pnpm outdated", &combined, &filtered);
 
     Ok(())
 }
@@ -119,7 +113,10 @@ fn run_install(packages: &[String], args: &[String], verbose: u8) -> Result<()> 
     // Validate package names to prevent command injection
     for pkg in packages {
         if !is_valid_package_name(pkg) {
-            anyhow::bail!("Invalid package name: '{}' (contains unsafe characters)", pkg);
+            anyhow::bail!(
+                "Invalid package name: '{}' (contains unsafe characters)",
+                pkg
+            );
         }
     }
 
@@ -167,7 +164,12 @@ fn filter_pnpm_list(output: &str) -> String {
 
     for line in output.lines() {
         // Skip box-drawing characters
-        if line.contains("│") || line.contains("├") || line.contains("└") || line.contains("┌") || line.contains("┐") {
+        if line.contains("│")
+            || line.contains("├")
+            || line.contains("└")
+            || line.contains("┌")
+            || line.contains("┐")
+        {
             continue;
         }
 
@@ -193,14 +195,18 @@ fn filter_pnpm_outdated(output: &str) -> String {
 
     for line in output.lines() {
         // Skip box-drawing characters
-        if line.contains("│") || line.contains("├") || line.contains("└")
-            || line.contains("┌") || line.contains("┐") || line.contains("─") {
+        if line.contains("│")
+            || line.contains("├")
+            || line.contains("└")
+            || line.contains("┌")
+            || line.contains("┐")
+            || line.contains("─")
+        {
             continue;
         }
 
         // Skip headers and legend
-        if line.starts_with("Legend:") || line.starts_with("Package")
-            || line.trim().is_empty() {
+        if line.starts_with("Legend:") || line.starts_with("Package") || line.trim().is_empty() {
             continue;
         }
 
@@ -245,8 +251,11 @@ fn filter_pnpm_install(output: &str) -> String {
         }
 
         // Keep summary lines
-        if line.contains("packages in") || line.contains("dependencies")
-            || line.starts_with('+') || line.starts_with('-') {
+        if line.contains("packages in")
+            || line.contains("dependencies")
+            || line.starts_with('+')
+            || line.starts_with('-')
+        {
             result.push(line.trim().to_string());
         }
     }
