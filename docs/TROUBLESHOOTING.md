@@ -25,7 +25,7 @@ cargo uninstall prltc
 
 #### Quick Install (Linux/macOS)
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/master/install.sh | sh
+curl -fsSL https://github.com/ekjotsinghmakhija/prltc/blob/master/install.sh | sh
 ```
 
 #### Alternative: Manual Installation
@@ -49,7 +49,7 @@ If `prltc gain` now works, installation is correct.
 
 | Project | Repository | Purpose | Key Command |
 |---------|-----------|---------|-------------|
-| **Rust Token Killer** ✅ | ekjotsinghmakhija/prltc, pszymkowiak/prltc | LLM token optimizer for Claude Code | `prltc gain` |
+| **Rust Token Killer** ✅ | ekjotsinghmakhija/prltc | LLM token optimizer for Claude Code | `prltc gain` |
 | **Rust Type Kit** ❌ | reachingforthejack/prltc | Rust codebase query and type generator | `prltc query` |
 
 ### How to Identify Which One You Have
@@ -236,54 +236,6 @@ rustc --version  # Should be 1.70+ for most features
 
 **4. If still fails, report issue:**
 - GitHub: https://github.com/ekjotsinghmakhija/prltc/issues
-
----
-
-## Problem: Missing commands (vitest, pnpm, next, etc.)
-
-### Symptom
-```bash
-$ prltc vitest run
-error: 'vitest' is not a prltc command
-```
-
-### Root Cause
-You installed the upstream version, which doesn't have all features yet.
-
-### Solution
-Install the **fork with all features**:
-
-```bash
-# Uninstall current version
-cargo uninstall prltc
-
-# Install fork
-git clone https://github.com/ekjotsinghmakhija/prltc.git
-cd prltc && git checkout feat/all-features
-cargo install --path . --force
-
-# Verify all commands available
-prltc --help | grep vitest
-prltc --help | grep pnpm
-prltc --help | grep next
-```
-
-### Available Commands by Version
-
-| Command | Upstream (ekjotsinghmakhija) | Fork (feat/all-features) |
-|---------|-------------------|--------------------------|
-| `prltc gain` | ✅ | ✅ |
-| `prltc git` | ✅ | ✅ |
-| `prltc gh` | ✅ | ✅ |
-| `prltc pnpm` | ❌ | ✅ |
-| `prltc vitest` | ❌ | ✅ |
-| `prltc lint` | ❌ | ✅ |
-| `prltc tsc` | ❌ | ✅ |
-| `prltc next` | ❌ | ✅ |
-| `prltc prettier` | ❌ | ✅ |
-| `prltc playwright` | ❌ | ✅ |
-| `prltc prisma` | ❌ | ✅ |
-| `prltc discover` | ❌ | ✅ |
 
 ---
 
