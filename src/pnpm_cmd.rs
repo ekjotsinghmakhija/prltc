@@ -75,10 +75,9 @@ impl OutputParser for PnpmListParser {
             Err(e) => {
                 // Tier 2: Try text extraction
                 match extract_list_text(input) {
-                    Some(result) => ParseResult::Degraded(
-                        result,
-                        vec![format!("JSON parse failed: {}", e)],
-                    ),
+                    Some(result) => {
+                        ParseResult::Degraded(result, vec![format!("JSON parse failed: {}", e)])
+                    }
                     None => {
                         // Tier 3: Passthrough
                         ParseResult::Passthrough(truncate_output(input, 500))
@@ -203,10 +202,9 @@ impl OutputParser for PnpmOutdatedParser {
             Err(e) => {
                 // Tier 2: Try text extraction
                 match extract_outdated_text(input) {
-                    Some(result) => ParseResult::Degraded(
-                        result,
-                        vec![format!("JSON parse failed: {}", e)],
-                    ),
+                    Some(result) => {
+                        ParseResult::Degraded(result, vec![format!("JSON parse failed: {}", e)])
+                    }
                     None => {
                         // Tier 3: Passthrough
                         ParseResult::Passthrough(truncate_output(input, 500))

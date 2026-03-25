@@ -138,6 +138,9 @@ assert_ok      "prltc read --max-lines 5 Cargo.toml" prltc read --max-lines 5 Ca
 section "Git (existing)"
 
 assert_ok      "prltc git status"               prltc git status
+assert_ok      "prltc git status --short"       prltc git status --short
+assert_ok      "prltc git status -s"            prltc git status -s
+assert_ok      "prltc git status --porcelain"   prltc git status --porcelain
 assert_ok      "prltc git log"                  prltc git log
 assert_ok      "prltc git log -5"               prltc git log -- -5
 assert_ok      "prltc git diff"                 prltc git diff

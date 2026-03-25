@@ -10,8 +10,8 @@ use serde::Deserialize;
 use std::process::Command;
 
 use crate::parser::{
-    emit_degradation_warning, emit_passthrough_warning, truncate_output, FormatMode,
-    OutputParser, ParseResult, TestFailure, TestResult, TokenFormatter,
+    emit_degradation_warning, emit_passthrough_warning, truncate_output, FormatMode, OutputParser,
+    ParseResult, TestFailure, TestResult, TokenFormatter,
 };
 use crate::tracking;
 
@@ -80,10 +80,9 @@ impl OutputParser for VitestParser {
             Err(e) => {
                 // Tier 2: Try regex extraction
                 match extract_stats_regex(input) {
-                    Some(result) => ParseResult::Degraded(
-                        result,
-                        vec![format!("JSON parse failed: {}", e)],
-                    ),
+                    Some(result) => {
+                        ParseResult::Degraded(result, vec![format!("JSON parse failed: {}", e)])
+                    }
                     None => {
                         // Tier 3: Passthrough
                         ParseResult::Passthrough(truncate_output(input, 500))
