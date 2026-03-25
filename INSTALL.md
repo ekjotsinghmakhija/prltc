@@ -5,7 +5,7 @@
 **There are TWO completely different projects named "prltc":**
 
 1. ✅ **Rust Token Killer** (this project) - LLM token optimizer
-   - Repos: `ekjotsinghmakhija/prltc`, `pszymkowiak/prltc`
+   - Repos: `ekjotsinghmakhija/prltc`
    - Has `prltc gain` command for token savings stats
 
 2. ❌ **Rust Type Kit** (reachingforthejack/prltc) - DIFFERENT PROJECT
@@ -44,7 +44,7 @@ cargo uninstall prltc
 ### Quick Install (Linux/macOS)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/master/install.sh | sh
+curl -fsSL https://github.com/ekjotsinghmakhija/prltc/blob/master/install.sh | sh
 ```
 
 After installation, **verify you have the correct prltc**:
