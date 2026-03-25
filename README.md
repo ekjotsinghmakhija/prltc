@@ -117,7 +117,7 @@ prltc wget https://example.com    # Download, strip progress bars
 prltc config                       # Show config (--create to generate)
 ```
 
-### Data
+### Data & Analytics
 ```bash
 prltc json config.json            # Structure without values
 prltc deps                        # Dependencies summary
@@ -129,7 +129,7 @@ prltc gain --graph                # With ASCII graph of last 30 days
 prltc gain --history              # With recent command history (10)
 prltc gain --quota --tier 20x     # Monthly quota analysis (pro/5x/20x)
 
-# Temporal Breakdowns (NEW in v0.4.0)
+# Temporal Breakdowns
 prltc gain --daily                # Day-by-day breakdown (all days)
 prltc gain --weekly               # Week-by-week breakdown
 prltc gain --monthly              # Month-by-month breakdown
@@ -138,6 +138,47 @@ prltc gain --all                  # All breakdowns combined
 # Export Formats
 prltc gain --all --format json    # JSON export for APIs/dashboards
 prltc gain --all --format csv     # CSV export for Excel/analysis
+```
+
+### Discover — Find Missed Savings
+
+Scans your Claude Code session history to find commands where prltc would have saved tokens. Use it to:
+- **Measure what you're missing** — see exactly how many tokens you could save
+- **Identify habits** — find which commands you keep running without prltc
+- **Spot new opportunities** — see unhandled commands that could become prltc features
+
+```bash
+prltc discover                    # Current project, last 30 days
+prltc discover --all              # All Claude Code projects
+prltc discover --all --since 7    # Last 7 days across all projects
+prltc discover -p aristote        # Filter by project name (substring)
+prltc discover --format json      # Machine-readable output
+```
+
+Example output:
+```
+PRLTC Discover -- Savings Opportunities
+====================================================
+Scanned: 142 sessions (last 30 days), 1786 Bash commands
+Already using PRLTC: 108 commands (6%)
+
+MISSED SAVINGS -- Commands PRLTC already handles
+----------------------------------------------------
+Command              Count    PRLTC Equivalent        Est. Savings
+git log                434    prltc git               ~55.9K tokens
+cargo test             203    prltc cargo             ~49.9K tokens
+ls -la                 107    prltc ls                ~11.8K tokens
+gh pr                   80    prltc gh                ~10.4K tokens
+----------------------------------------------------
+Total: 986 commands -> ~143.9K tokens saveable
+
+TOP UNHANDLED COMMANDS -- open an issue?
+----------------------------------------------------
+Command              Count    Example
+git checkout            84    git checkout feature/my-branch
+cargo run               32    cargo run -- gain --help
+----------------------------------------------------
+-> github.com/FlorianBruniaux/prltc/issues
 ```
 
 ### Containers
@@ -253,6 +294,74 @@ Daily Savings (last 30 days):
 01-25 │                                         18
 01-26 │████████████████████████████████████████ 13.0K
 ```
+
+## Auto-Rewrite Hook (Recommended)
+
+The most effective way to use prltc is with the **auto-rewrite hook** for Claude Code. Instead of relying on CLAUDE.md instructions (which subagents may ignore), this hook transparently intercepts Bash commands and rewrites them to their prltc equivalents before execution.
+
+**Result**: 100% prltc adoption across all conversations and subagents, zero token overhead.
+
+### How It Works
+
+The hook runs as a Claude Code [PreToolUse hook](https://docs.anthropic.com/en/docs/claude-code/hooks). When Claude Code is about to execute a Bash command like `git status`, the hook rewrites it to `prltc git status` before the command reaches the shell. Claude Code never sees the rewrite — it's transparent.
+
+### Global Install (all projects)
+
+```bash
+# 1. Copy the hook script
+mkdir -p ~/.claude/hooks
+cp .claude/hooks/prltc-rewrite.sh ~/.claude/hooks/prltc-rewrite.sh
+chmod +x ~/.claude/hooks/prltc-rewrite.sh
+
+# 2. Add to ~/.claude/settings.json under hooks.PreToolUse:
+```
+
+Add this entry to the `PreToolUse` array in `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/prltc-rewrite.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Per-Project Install
+
+The hook is included in this repository at `.claude/hooks/prltc-rewrite.sh`. To use it in another project, copy the hook and add the same settings.json entry using a relative path or project-level `.claude/settings.json`.
+
+### Commands Rewritten
+
+| Raw Command | Rewritten To |
+|-------------|-------------|
+| `git status/diff/log/add/commit/push/pull/branch/fetch/stash` | `prltc git ...` |
+| `gh pr/issue/run` | `prltc gh ...` |
+| `cargo test/build/clippy` | `prltc cargo ...` |
+| `cat <file>` | `prltc read <file>` |
+| `rg/grep <pattern>` | `prltc grep <pattern>` |
+| `ls` | `prltc ls` |
+| `vitest/pnpm test` | `prltc vitest run` |
+| `tsc/pnpm tsc` | `prltc tsc` |
+| `eslint/pnpm lint` | `prltc lint` |
+| `prettier` | `prltc prettier` |
+| `playwright` | `prltc playwright` |
+| `prisma` | `prltc prisma` |
+| `docker ps/images/logs` | `prltc docker ...` |
+| `kubectl get/logs` | `prltc kubectl ...` |
+| `curl` | `prltc curl` |
+| `pnpm list/ls/outdated` | `prltc pnpm ...` |
+
+Commands already using `prltc`, heredocs (`<<`), and unrecognized commands pass through unchanged.
 
 ## Documentation
 

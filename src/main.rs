@@ -12,6 +12,7 @@ mod container;
 mod curl_cmd;
 mod deps;
 mod diff_cmd;
+mod discover;
 mod display_helpers;
 mod env_cmd;
 mod filter;
@@ -397,6 +398,25 @@ enum Commands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+
+    /// Discover missed PRLTC savings from Claude Code history
+    Discover {
+        /// Filter by project path (substring match)
+        #[arg(short, long)]
+        project: Option<String>,
+        /// Max commands per section
+        #[arg(short, long, default_value = "15")]
+        limit: usize,
+        /// Scan all projects (default: current project only)
+        #[arg(short, long)]
+        all: bool,
+        /// Limit to sessions from last N days
+        #[arg(short, long, default_value = "30")]
+        since: u64,
+        /// Output format: text, json
+        #[arg(short, long, default_value = "text")]
+        format: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -415,6 +435,12 @@ enum GitCommands {
     },
     /// Compact status
     Status,
+    /// Compact show (commit summary + stat + compacted diff)
+    Show {
+        /// Git arguments (supports all git show flags)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Add files → "ok ✓"
     Add {
         /// Files to add
@@ -651,6 +677,9 @@ fn main() -> Result<()> {
             }
             GitCommands::Status => {
                 git::run(git::GitCommand::Status, &[], None, cli.verbose)?;
+            }
+            GitCommands::Show { args } => {
+                git::run(git::GitCommand::Show, &args, None, cli.verbose)?;
             }
             GitCommands::Add { files } => {
                 git::run(git::GitCommand::Add { files }, &[], None, cli.verbose)?;
@@ -965,6 +994,16 @@ fn main() -> Result<()> {
 
         Commands::Curl { args } => {
             curl_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Discover {
+            project,
+            limit,
+            all,
+            since,
+            format,
+        } => {
+            discover::run(project.as_deref(), all, since, limit, &format, cli.verbose)?;
         }
 
         Commands::Npx { args } => {
