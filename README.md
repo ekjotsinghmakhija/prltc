@@ -123,19 +123,19 @@ prltc json config.json            # Structure without values
 prltc deps                        # Dependencies summary
 prltc env -f AWS                  # Filtered env vars
 
-# Token Savings Analytics
-prltc gain                        # Summary stats (default view)
+# Token Savings Analytics (includes execution time metrics)
+prltc gain                        # Summary stats with total exec time
 prltc gain --graph                # With ASCII graph of last 30 days
 prltc gain --history              # With recent command history (10)
 prltc gain --quota --tier 20x     # Monthly quota analysis (pro/5x/20x)
 
-# Temporal Breakdowns
-prltc gain --daily                # Day-by-day breakdown (all days)
+# Temporal Breakdowns (includes time metrics per period)
+prltc gain --daily                # Day-by-day with avg execution time
 prltc gain --weekly               # Week-by-week breakdown
 prltc gain --monthly              # Month-by-month breakdown
 prltc gain --all                  # All breakdowns combined
 
-# Export Formats
+# Export Formats (includes total_time_ms and avg_time_ms fields)
 prltc gain --all --format json    # JSON export for APIs/dashboards
 prltc gain --all --format csv     # CSV export for Excel/analysis
 ```
