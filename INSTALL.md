@@ -5,7 +5,7 @@
 **There are TWO completely different projects named "prltc":**
 
 1. ✅ **Rust Token Killer** (this project) - LLM token optimizer
-   - Repos: `ekjotsinghmakhija/prltc`, `pszymkowiak/prltc`, `FlorianBruniaux/prltc` (fork)
+   - Repos: `ekjotsinghmakhija/prltc`, `pszymkowiak/prltc`
    - Has `prltc gain` command for token savings stats
 
 2. ❌ **Rust Type Kit** (reachingforthejack/prltc) - DIFFERENT PROJECT
@@ -41,27 +41,18 @@ If you accidentally installed Rust Type Kit:
 cargo uninstall prltc
 ```
 
-### Option 1: Install from fork (RECOMMENDED)
-
-This fork includes critical fixes and modern JavaScript stack support (pnpm, vitest, Next.js, TypeScript, Playwright, Prisma):
+### Quick Install (Linux/macOS)
 
 ```bash
-# Clone the fork
-git clone https://github.com/FlorianBruniaux/prltc.git
-cd prltc
-
-# Checkout the all-features branch
-git checkout feat/all-features
-
-# Compile and install
-cargo install --path . --force
-
-# VERIFY you have the correct PRLTC
-prltc --version
-prltc gain  # MUST work (shows token stats, not error)
+curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/master/install.sh | sh
 ```
 
-### Option 2: Install from upstream (basic features)
+After installation, **verify you have the correct prltc**:
+```bash
+prltc gain  # Must show token savings stats (not "command not found")
+```
+
+### Alternative: Manual Installation
 
 ```bash
 # From ekjotsinghmakhija repository (NOT reachingforthejack!)
@@ -202,9 +193,8 @@ cargo install --path . --force
 ## Support and Contributing
 
 - **Troubleshooting**: See [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for common issues
-- **Fork issues**: https://github.com/FlorianBruniaux/prltc/issues
-- **Upstream issues**: https://github.com/ekjotsinghmakhija/prltc/issues (maintained by pszymkowiak)
-- **Pull Requests**: Create on fork then propose upstream
+- **GitHub issues**: https://github.com/ekjotsinghmakhija/prltc/issues
+- **Pull Requests**: https://github.com/ekjotsinghmakhija/prltc/pulls
 
 ⚠️ **If you installed the wrong prltc (Type Kit)**, see [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md#problem-prltc-gain-command-not-found)
 

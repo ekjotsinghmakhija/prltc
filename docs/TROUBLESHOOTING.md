@@ -23,14 +23,12 @@ cargo uninstall prltc
 
 **2. Install the correct one (Token Killer):**
 
-#### Option A: Fork with all features (RECOMMENDED)
+#### Quick Install (Linux/macOS)
 ```bash
-git clone https://github.com/FlorianBruniaux/prltc.git
-cd prltc && git checkout feat/all-features
-cargo install --path . --force
+curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/master/install.sh | sh
 ```
 
-#### Option B: Upstream (basic features)
+#### Alternative: Manual Installation
 ```bash
 cargo install --git https://github.com/ekjotsinghmakhija/prltc
 ```
@@ -51,7 +49,7 @@ If `prltc gain` now works, installation is correct.
 
 | Project | Repository | Purpose | Key Command |
 |---------|-----------|---------|-------------|
-| **Rust Token Killer** ✅ | ekjotsinghmakhija/prltc, pszymkowiak/prltc, FlorianBruniaux/prltc | LLM token optimizer for Claude Code | `prltc gain` |
+| **Rust Token Killer** ✅ | ekjotsinghmakhija/prltc, pszymkowiak/prltc | LLM token optimizer for Claude Code | `prltc gain` |
 | **Rust Type Kit** ❌ | reachingforthejack/prltc | Rust codebase query and type generator | `prltc query` |
 
 ### How to Identify Which One You Have
@@ -81,7 +79,7 @@ If **Rust Type Kit** is published to crates.io under the name `prltc`, running `
 cargo install --git https://github.com/ekjotsinghmakhija/prltc
 
 # OR install from fork
-git clone https://github.com/FlorianBruniaux/prltc.git
+git clone https://github.com/ekjotsinghmakhija/prltc.git
 cd prltc && git checkout feat/all-features
 cargo install --path . --force
 ```
@@ -237,7 +235,7 @@ rustc --version  # Should be 1.70+ for most features
 ```
 
 **4. If still fails, report issue:**
-- GitHub: https://github.com/FlorianBruniaux/prltc/issues
+- GitHub: https://github.com/ekjotsinghmakhija/prltc/issues
 
 ---
 
@@ -260,7 +258,7 @@ Install the **fork with all features**:
 cargo uninstall prltc
 
 # Install fork
-git clone https://github.com/FlorianBruniaux/prltc.git
+git clone https://github.com/ekjotsinghmakhija/prltc.git
 cd prltc && git checkout feat/all-features
 cargo install --path . --force
 
@@ -292,7 +290,7 @@ prltc --help | grep next
 ## Need More Help?
 
 **Report issues:**
-- Fork-specific: https://github.com/FlorianBruniaux/prltc/issues
+- Fork-specific: https://github.com/ekjotsinghmakhija/prltc/issues
 - Upstream: https://github.com/ekjotsinghmakhija/prltc/issues
 
 **Run the diagnostic script:**

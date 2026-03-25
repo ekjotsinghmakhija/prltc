@@ -151,9 +151,7 @@
   - pnpm support for T3 Stack
   - Vitest test runner integration
 
-  **Use this fork** until upstream merges these features.
-
-  Installation: `cargo install --git https://github.com/FlorianBruniaux/prltc`
+  Installation: `curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/master/install.sh | sh`
   ```
 
 **Scénario C: Maintainer demande des changements** 🔄

@@ -188,6 +188,5 @@ See upstream: https://github.com/pszymkowiak/prltc
 
 ## Links
 
-- **Repository**: https://github.com/FlorianBruniaux/prltc (fork)
-- **Upstream**: https://github.com/pszymkowiak/prltc
-- **Issues**: https://github.com/FlorianBruniaux/prltc/issues
+- **Repository**: https://github.com/ekjotsinghmakhija/prltc (maintained by pszymkowiak)
+- **Issues**: https://github.com/ekjotsinghmakhija/prltc/issues

@@ -11,7 +11,7 @@ prltc filters and compresses command outputs before they reach your LLM context,
 **There are TWO different projects named "prltc":**
 
 1. ✅ **This project (Rust Token Killer)** - LLM token optimizer
-   - Repos: `ekjotsinghmakhija/prltc`, `pszymkowiak/prltc`, `FlorianBruniaux/prltc` (fork)
+   - Repos: `ekjotsinghmakhija/prltc`, `pszymkowiak/prltc`
    - Purpose: Reduce Claude Code token consumption
 
 2. ❌ **reachingforthejack/prltc** - Rust Type Kit (DIFFERENT PROJECT)
@@ -60,25 +60,18 @@ which prltc            # Check installation path
 
 If already installed and `prltc gain` works, **DO NOT reinstall**. Skip to Quick Start.
 
-### Option 1: Fork with All Features (RECOMMENDED)
-
-This fork includes critical fixes and modern JavaScript stack support (pnpm, vitest, Next.js, TypeScript, Playwright, Prisma):
+### Quick Install (Linux/macOS)
 
 ```bash
-# Uninstall wrong prltc if needed
-cargo uninstall prltc
-
-# Install the correct one from fork
-git clone https://github.com/FlorianBruniaux/prltc.git
-cd prltc && git checkout feat/all-features
-cargo install --path . --force
-
-# Verify installation
-prltc --version
-prltc gain  # Should show token savings stats
+curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/master/install.sh | sh
 ```
 
-### Option 2: Upstream (Basic Features)
+After installation, **verify you have the correct prltc**:
+```bash
+prltc gain  # Must show token savings stats (not "command not found")
+```
+
+### Alternative: Manual Installation
 
 ```bash
 # From ekjotsinghmakhija upstream (maintained by pszymkowiak)
@@ -90,9 +83,9 @@ cargo install prltc
 
 ⚠️ **WARNING**: `cargo install prltc` from crates.io might install the wrong package (Type Kit instead of Token Killer). Always verify with `prltc gain` after installation.
 
-### Option 3: Pre-built Binaries
+### Alternative: Pre-built Binaries
 
-Download from [Releases](https://github.com/FlorianBruniaux/prltc/releases) (fork) or [ekjotsinghmakhija/releases](https://github.com/ekjotsinghmakhija/prltc/releases) (upstream):
+Download from [ekjotsinghmakhija/releases](https://github.com/ekjotsinghmakhija/prltc/releases):
 - macOS: `prltc-x86_64-apple-darwin.tar.gz` / `prltc-aarch64-apple-darwin.tar.gz`
 - Linux: `prltc-x86_64-unknown-linux-gnu.tar.gz` / `prltc-aarch64-unknown-linux-gnu.tar.gz`
 - Windows: `prltc-x86_64-pc-windows-msvc.zip`
@@ -221,7 +214,7 @@ Command              Count    Example
 git checkout            84    git checkout feature/my-branch
 cargo run               32    cargo run -- gain --help
 ----------------------------------------------------
--> github.com/FlorianBruniaux/prltc/issues
+-> github.com/ekjotsinghmakhija/prltc/issues
 ```
 
 ### Containers
