@@ -29,6 +29,7 @@ mod log_cmd;
 mod ls;
 mod next_cmd;
 mod npm_cmd;
+mod parser;
 mod playwright_cmd;
 mod pnpm_cmd;
 mod prettier_cmd;
