@@ -48,6 +48,8 @@ fn create_prisma_command() -> Command {
 }
 
 fn run_generate(args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     let mut cmd = create_prisma_command();
     cmd.arg("generate");
 
@@ -59,7 +61,9 @@ fn run_generate(args: &[String], verbose: u8) -> Result<()> {
         eprintln!("Running: prisma generate");
     }
 
-    let output = cmd.output().context("Failed to run prisma generate (try: npm install -g prisma)")?;
+    let output = cmd
+        .output()
+        .context("Failed to run prisma generate (try: npm install -g prisma)")?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -73,12 +77,14 @@ fn run_generate(args: &[String], verbose: u8) -> Result<()> {
 
     println!("{}", filtered);
 
-    tracking::track("prisma generate", "prltc prisma generate", &raw, &filtered);
+    timer.track("prisma generate", "prltc prisma generate", &raw, &filtered);
 
     Ok(())
 }
 
 fn run_migrate(subcommand: MigrateSubcommand, args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     let mut cmd = create_prisma_command();
     cmd.arg("migrate");
 
@@ -127,12 +133,14 @@ fn run_migrate(subcommand: MigrateSubcommand, args: &[String], verbose: u8) -> R
 
     println!("{}", filtered);
 
-    tracking::track(cmd_name, &format!("prltc {}", cmd_name), &raw, &filtered);
+    timer.track(cmd_name, &format!("prltc {}", cmd_name), &raw, &filtered);
 
     Ok(())
 }
 
 fn run_db_push(args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     let mut cmd = create_prisma_command();
     cmd.arg("db").arg("push");
 
@@ -158,7 +166,7 @@ fn run_db_push(args: &[String], verbose: u8) -> Result<()> {
 
     println!("{}", filtered);
 
-    tracking::track("prisma db push", "prltc prisma db push", &raw, &filtered);
+    timer.track("prisma db push", "prltc prisma db push", &raw, &filtered);
 
     Ok(())
 }

@@ -12,6 +12,8 @@ use std::path::Path;
 
 /// Show JSON structure without values
 pub fn run(file: &Path, max_depth: usize, verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     if verbose > 0 {
         eprintln!("Analyzing JSON: {}", file.display());
     }
@@ -21,7 +23,7 @@ pub fn run(file: &Path, max_depth: usize, verbose: u8) -> Result<()> {
 
     let schema = filter_json_string(&content, max_depth)?;
     println!("{}", schema);
-    tracking::track(
+    timer.track(
         &format!("cat {}", file.display()),
         "prltc json",
         &content,

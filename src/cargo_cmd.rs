@@ -26,6 +26,8 @@ pub fn run(cmd: CargoCommand, args: &[String], verbose: u8) -> Result<()> {
 }
 
 fn run_build(args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     let mut cmd = Command::new("cargo");
     cmd.arg("build");
     for arg in args {
@@ -44,7 +46,7 @@ fn run_build(args: &[String], verbose: u8) -> Result<()> {
     let filtered = filter_cargo_build(&raw);
     println!("{}", filtered);
 
-    tracking::track(
+    timer.track(
         &format!("cargo build {}", args.join(" ")),
         &format!("prltc cargo build {}", args.join(" ")),
         &raw,
@@ -59,6 +61,8 @@ fn run_build(args: &[String], verbose: u8) -> Result<()> {
 }
 
 fn run_test(args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     let mut cmd = Command::new("cargo");
     cmd.arg("test");
     for arg in args {
@@ -77,7 +81,7 @@ fn run_test(args: &[String], verbose: u8) -> Result<()> {
     let filtered = filter_cargo_test(&raw);
     println!("{}", filtered);
 
-    tracking::track(
+    timer.track(
         &format!("cargo test {}", args.join(" ")),
         &format!("prltc cargo test {}", args.join(" ")),
         &raw,
@@ -88,6 +92,8 @@ fn run_test(args: &[String], verbose: u8) -> Result<()> {
 }
 
 fn run_clippy(args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     let mut cmd = Command::new("cargo");
     cmd.arg("clippy");
     for arg in args {
@@ -106,7 +112,7 @@ fn run_clippy(args: &[String], verbose: u8) -> Result<()> {
     let filtered = filter_cargo_clippy(&raw);
     println!("{}", filtered);
 
-    tracking::track(
+    timer.track(
         &format!("cargo clippy {}", args.join(" ")),
         &format!("prltc cargo clippy {}", args.join(" ")),
         &raw,
