@@ -72,11 +72,20 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// List directory contents with token-optimized output (proxy to native ls)
+    /// List directory contents in ultra-dense, token-optimized format
     Ls {
-        /// Arguments passed to ls (supports all native ls flags like -l, -a, -h, -R)
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
+        /// Directory path
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// Max depth
+        #[arg(short, long, default_value = "1")]
+        depth: usize,
+        /// Show hidden files
+        #[arg(short = 'a', long)]
+        all: bool,
+        /// Output format: tree, flat, json
+        #[arg(short, long, default_value = "flat")]
+        format: ls::OutputFormat,
     },
 
     /// Read file with intelligent filtering
@@ -641,8 +650,13 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Ls { args } => {
-            ls::run(&args, cli.verbose)?;
+        Commands::Ls {
+            path,
+            depth,
+            all,
+            format,
+        } => {
+            ls::run(&path, depth, all, format, cli.verbose)?;
         }
 
         Commands::Read {
