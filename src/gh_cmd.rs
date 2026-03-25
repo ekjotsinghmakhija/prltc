@@ -9,6 +9,9 @@
 //! Provides token-optimized alternatives to verbose `gh` commands.
 //! Focuses on extracting essential information from JSON outputs.
 
+use crate::git;
+use crate::json_cmd;
+use crate::utils::ok_confirmation;
 use anyhow::{Context, Result};
 use serde_json::Value;
 use std::process::Command;
@@ -20,6 +23,7 @@ pub fn run(subcommand: &str, args: &[String], verbose: u8, ultra_compact: bool) 
         "issue" => run_issue(args, verbose, ultra_compact),
         "run" => run_workflow(args, verbose, ultra_compact),
         "repo" => run_repo(args, verbose, ultra_compact),
+        "api" => run_api(args, verbose),
         _ => {
             // Unknown subcommand, pass through
             run_passthrough("gh", subcommand, args)
@@ -37,13 +41,23 @@ fn run_pr(args: &[String], verbose: u8, ultra_compact: bool) -> Result<()> {
         "view" => view_pr(&args[1..], verbose, ultra_compact),
         "checks" => pr_checks(&args[1..], verbose, ultra_compact),
         "status" => pr_status(verbose, ultra_compact),
+        "create" => pr_create(&args[1..], verbose),
+        "merge" => pr_merge(&args[1..], verbose),
+        "diff" => pr_diff(&args[1..], verbose),
+        "comment" => pr_action("commented", &args[1..], verbose),
+        "edit" => pr_action("edited", &args[1..], verbose),
         _ => run_passthrough("gh", "pr", args),
     }
 }
 
 fn list_prs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
     let mut cmd = Command::new("gh");
-    cmd.args(["pr", "list", "--json", "number,title,state,author,updatedAt"]);
+    cmd.args([
+        "pr",
+        "list",
+        "--json",
+        "number,title,state,author,updatedAt",
+    ]);
 
     // Pass through additional flags
     for arg in args {
@@ -57,8 +71,8 @@ fn list_prs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
         std::process::exit(output.status.code().unwrap_or(1));
     }
 
-    let json: Value = serde_json::from_slice(&output.stdout)
-        .context("Failed to parse gh pr list output")?;
+    let json: Value =
+        serde_json::from_slice(&output.stdout).context("Failed to parse gh pr list output")?;
 
     if let Some(prs) = json.as_array() {
         if ultra_compact {
@@ -89,7 +103,13 @@ fn list_prs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
                 }
             };
 
-            println!("  {} #{} {} ({})", state_icon, number, truncate(title, 60), author);
+            println!(
+                "  {} #{} {} ({})",
+                state_icon,
+                number,
+                truncate(title, 60),
+                author
+            );
         }
 
         if prs.len() > 20 {
@@ -109,8 +129,11 @@ fn view_pr(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
 
     let mut cmd = Command::new("gh");
     cmd.args([
-        "pr", "view", pr_number,
-        "--json", "number,title,state,author,body,url,mergeable,reviews,statusCheckRollup"
+        "pr",
+        "view",
+        pr_number,
+        "--json",
+        "number,title,state,author,body,url,mergeable,reviews,statusCheckRollup",
     ]);
 
     let output = cmd.output().context("Failed to run gh pr view")?;
@@ -120,8 +143,8 @@ fn view_pr(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
         std::process::exit(output.status.code().unwrap_or(1));
     }
 
-    let json: Value = serde_json::from_slice(&output.stdout)
-        .context("Failed to parse gh pr view output")?;
+    let json: Value =
+        serde_json::from_slice(&output.stdout).context("Failed to parse gh pr view output")?;
 
     // Extract essential info
     let number = json["number"].as_i64().unwrap_or(0);
@@ -158,23 +181,40 @@ fn view_pr(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
 
     // Show reviews summary
     if let Some(reviews) = json["reviews"]["nodes"].as_array() {
-        let approved = reviews.iter().filter(|r| r["state"].as_str() == Some("APPROVED")).count();
-        let changes = reviews.iter().filter(|r| r["state"].as_str() == Some("CHANGES_REQUESTED")).count();
+        let approved = reviews
+            .iter()
+            .filter(|r| r["state"].as_str() == Some("APPROVED"))
+            .count();
+        let changes = reviews
+            .iter()
+            .filter(|r| r["state"].as_str() == Some("CHANGES_REQUESTED"))
+            .count();
 
         if approved > 0 || changes > 0 {
-            println!("  Reviews: {} approved, {} changes requested", approved, changes);
+            println!(
+                "  Reviews: {} approved, {} changes requested",
+                approved, changes
+            );
         }
     }
 
     // Show checks summary
     if let Some(checks) = json["statusCheckRollup"].as_array() {
         let total = checks.len();
-        let passed = checks.iter().filter(|c| {
-            c["conclusion"].as_str() == Some("SUCCESS") || c["state"].as_str() == Some("SUCCESS")
-        }).count();
-        let failed = checks.iter().filter(|c| {
-            c["conclusion"].as_str() == Some("FAILURE") || c["state"].as_str() == Some("FAILURE")
-        }).count();
+        let passed = checks
+            .iter()
+            .filter(|c| {
+                c["conclusion"].as_str() == Some("SUCCESS")
+                    || c["state"].as_str() == Some("SUCCESS")
+            })
+            .count();
+        let failed = checks
+            .iter()
+            .filter(|c| {
+                c["conclusion"].as_str() == Some("FAILURE")
+                    || c["state"].as_str() == Some("FAILURE")
+            })
+            .count();
 
         if ultra_compact {
             if failed > 0 {
@@ -265,7 +305,12 @@ fn pr_checks(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<()> 
 
 fn pr_status(_verbose: u8, _ultra_compact: bool) -> Result<()> {
     let mut cmd = Command::new("gh");
-    cmd.args(["pr", "status", "--json", "currentBranch,createdBy,reviewDecision,statusCheckRollup"]);
+    cmd.args([
+        "pr",
+        "status",
+        "--json",
+        "currentBranch,createdBy,reviewDecision,statusCheckRollup",
+    ]);
 
     let output = cmd.output().context("Failed to run gh pr status")?;
 
@@ -274,8 +319,8 @@ fn pr_status(_verbose: u8, _ultra_compact: bool) -> Result<()> {
         std::process::exit(output.status.code().unwrap_or(1));
     }
 
-    let json: Value = serde_json::from_slice(&output.stdout)
-        .context("Failed to parse gh pr status output")?;
+    let json: Value =
+        serde_json::from_slice(&output.stdout).context("Failed to parse gh pr status output")?;
 
     if let Some(created_by) = json["createdBy"].as_array() {
         println!("📝 Your PRs ({}):", created_by.len());
@@ -317,8 +362,8 @@ fn list_issues(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()>
         std::process::exit(output.status.code().unwrap_or(1));
     }
 
-    let json: Value = serde_json::from_slice(&output.stdout)
-        .context("Failed to parse gh issue list output")?;
+    let json: Value =
+        serde_json::from_slice(&output.stdout).context("Failed to parse gh issue list output")?;
 
     if let Some(issues) = json.as_array() {
         if ultra_compact {
@@ -332,9 +377,17 @@ fn list_issues(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()>
             let state = issue["state"].as_str().unwrap_or("???");
 
             let icon = if ultra_compact {
-                if state == "OPEN" { "O" } else { "C" }
+                if state == "OPEN" {
+                    "O"
+                } else {
+                    "C"
+                }
             } else {
-                if state == "OPEN" { "🟢" } else { "🔴" }
+                if state == "OPEN" {
+                    "🟢"
+                } else {
+                    "🔴"
+                }
             };
             println!("  {} #{} {}", icon, number, truncate(title, 60));
         }
@@ -355,7 +408,13 @@ fn view_issue(args: &[String], _verbose: u8) -> Result<()> {
     let issue_number = &args[0];
 
     let mut cmd = Command::new("gh");
-    cmd.args(["issue", "view", issue_number, "--json", "number,title,state,author,body,url"]);
+    cmd.args([
+        "issue",
+        "view",
+        issue_number,
+        "--json",
+        "number,title,state,author,body,url",
+    ]);
 
     let output = cmd.output().context("Failed to run gh issue view")?;
 
@@ -364,8 +423,8 @@ fn view_issue(args: &[String], _verbose: u8) -> Result<()> {
         std::process::exit(output.status.code().unwrap_or(1));
     }
 
-    let json: Value = serde_json::from_slice(&output.stdout)
-        .context("Failed to parse gh issue view output")?;
+    let json: Value =
+        serde_json::from_slice(&output.stdout).context("Failed to parse gh issue view output")?;
 
     let number = json["number"].as_i64().unwrap_or(0);
     let title = json["title"].as_str().unwrap_or("???");
@@ -408,7 +467,12 @@ fn run_workflow(args: &[String], verbose: u8, ultra_compact: bool) -> Result<()>
 
 fn list_runs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
     let mut cmd = Command::new("gh");
-    cmd.args(["run", "list", "--json", "databaseId,name,status,conclusion,createdAt"]);
+    cmd.args([
+        "run",
+        "list",
+        "--json",
+        "databaseId,name,status,conclusion,createdAt",
+    ]);
     cmd.arg("--limit").arg("10");
 
     for arg in args {
@@ -422,8 +486,8 @@ fn list_runs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
         std::process::exit(output.status.code().unwrap_or(1));
     }
 
-    let json: Value = serde_json::from_slice(&output.stdout)
-        .context("Failed to parse gh run list output")?;
+    let json: Value =
+        serde_json::from_slice(&output.stdout).context("Failed to parse gh run list output")?;
 
     if let Some(runs) = json.as_array() {
         if ultra_compact {
@@ -442,14 +506,26 @@ fn list_runs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
                     "success" => "✓",
                     "failure" => "✗",
                     "cancelled" => "X",
-                    _ => if status == "in_progress" { "~" } else { "?" },
+                    _ => {
+                        if status == "in_progress" {
+                            "~"
+                        } else {
+                            "?"
+                        }
+                    }
                 }
             } else {
                 match conclusion {
                     "success" => "✅",
                     "failure" => "❌",
                     "cancelled" => "🚫",
-                    _ => if status == "in_progress" { "⏳" } else { "⚪" },
+                    _ => {
+                        if status == "in_progress" {
+                            "⏳"
+                        } else {
+                            "⚪"
+                        }
+                    }
                 }
             };
 
@@ -507,7 +583,7 @@ fn view_run(args: &[String], _verbose: u8) -> Result<()> {
 fn run_repo(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<()> {
     // Parse subcommand (default to "view")
     let (subcommand, rest_args) = if args.is_empty() {
-        ("view", &args[..])
+        ("view", args)
     } else {
         (args[0].as_str(), &args[1..])
     };
@@ -523,7 +599,10 @@ fn run_repo(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<()> {
         cmd.arg(arg);
     }
 
-    cmd.args(["--json", "name,owner,description,url,stargazerCount,forkCount,isPrivate"]);
+    cmd.args([
+        "--json",
+        "name,owner,description,url,stargazerCount,forkCount,isPrivate",
+    ]);
 
     let output = cmd.output().context("Failed to run gh repo view")?;
 
@@ -532,8 +611,8 @@ fn run_repo(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<()> {
         std::process::exit(output.status.code().unwrap_or(1));
     }
 
-    let json: Value = serde_json::from_slice(&output.stdout)
-        .context("Failed to parse gh repo view output")?;
+    let json: Value =
+        serde_json::from_slice(&output.stdout).context("Failed to parse gh repo view output")?;
 
     let name = json["name"].as_str().unwrap_or("???");
     let owner = json["owner"]["login"].as_str().unwrap_or("???");
@@ -543,7 +622,11 @@ fn run_repo(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<()> {
     let forks = json["forkCount"].as_i64().unwrap_or(0);
     let private = json["isPrivate"].as_bool().unwrap_or(false);
 
-    let visibility = if private { "🔒 Private" } else { "🌐 Public" };
+    let visibility = if private {
+        "🔒 Private"
+    } else {
+        "🌐 Public"
+    };
 
     println!("📦 {}/{}", owner, name);
     println!("  {}", visibility);
@@ -552,6 +635,157 @@ fn run_repo(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<()> {
     }
     println!("  ⭐ {} stars | 🔱 {} forks", stars, forks);
     println!("  {}", url);
+
+    Ok(())
+}
+
+fn pr_create(args: &[String], _verbose: u8) -> Result<()> {
+    let mut cmd = Command::new("gh");
+    cmd.args(["pr", "create"]);
+    for arg in args {
+        cmd.arg(arg);
+    }
+
+    let output = cmd.output().context("Failed to run gh pr create")?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if !output.status.success() {
+        eprintln!("{}", stderr.trim());
+        std::process::exit(output.status.code().unwrap_or(1));
+    }
+
+    // gh pr create outputs the URL on success
+    let url = stdout.trim();
+
+    // Try to extract PR number from URL (e.g., https://github.com/owner/repo/pull/42)
+    let pr_num = url.rsplit('/').next().unwrap_or("");
+
+    let detail = if !pr_num.is_empty() && pr_num.chars().all(|c| c.is_ascii_digit()) {
+        format!("#{} {}", pr_num, url)
+    } else {
+        url.to_string()
+    };
+
+    println!("{}", ok_confirmation("created", &detail));
+    Ok(())
+}
+
+fn pr_merge(args: &[String], _verbose: u8) -> Result<()> {
+    let mut cmd = Command::new("gh");
+    cmd.args(["pr", "merge"]);
+    for arg in args {
+        cmd.arg(arg);
+    }
+
+    let output = cmd.output().context("Failed to run gh pr merge")?;
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if !output.status.success() {
+        eprintln!("{}", stderr.trim());
+        std::process::exit(output.status.code().unwrap_or(1));
+    }
+
+    // Extract PR number from args (first non-flag arg)
+    let pr_num = args
+        .iter()
+        .find(|a| !a.starts_with('-'))
+        .map(|s| s.as_str())
+        .unwrap_or("");
+
+    let detail = if !pr_num.is_empty() {
+        format!("#{}", pr_num)
+    } else {
+        String::new()
+    };
+
+    println!("{}", ok_confirmation("merged", &detail));
+    Ok(())
+}
+
+fn pr_diff(args: &[String], _verbose: u8) -> Result<()> {
+    let mut cmd = Command::new("gh");
+    cmd.args(["pr", "diff"]);
+    for arg in args {
+        cmd.arg(arg);
+    }
+
+    let output = cmd.output().context("Failed to run gh pr diff")?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        eprintln!("{}", stderr.trim());
+        std::process::exit(output.status.code().unwrap_or(1));
+    }
+
+    if stdout.trim().is_empty() {
+        println!("No diff");
+    } else {
+        let compacted = git::compact_diff(&stdout, 100);
+        println!("{}", compacted);
+    }
+
+    Ok(())
+}
+
+/// Generic PR action handler for comment/edit
+fn pr_action(action: &str, args: &[String], _verbose: u8) -> Result<()> {
+    let mut cmd = Command::new("gh");
+    cmd.args(["pr", action]);
+    for arg in args {
+        cmd.arg(arg);
+    }
+
+    let output = cmd
+        .output()
+        .context(format!("Failed to run gh pr {}", action))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        eprintln!("{}", stderr.trim());
+        std::process::exit(output.status.code().unwrap_or(1));
+    }
+
+    // Extract PR number from args
+    let pr_num = args
+        .iter()
+        .find(|a| !a.starts_with('-'))
+        .map(|s| format!("#{}", s))
+        .unwrap_or_default();
+
+    println!("{}", ok_confirmation(action, &pr_num));
+    Ok(())
+}
+
+fn run_api(args: &[String], _verbose: u8) -> Result<()> {
+    let mut cmd = Command::new("gh");
+    cmd.arg("api");
+    for arg in args {
+        cmd.arg(arg);
+    }
+
+    let output = cmd.output().context("Failed to run gh api")?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        eprintln!("{}", stderr.trim());
+        std::process::exit(output.status.code().unwrap_or(1));
+    }
+
+    // Try to parse as JSON and filter
+    match json_cmd::filter_json_string(&stdout, 5) {
+        Ok(schema) => println!("{}", schema),
+        Err(_) => {
+            // Not JSON, print truncated raw output
+            let lines: Vec<&str> = stdout.lines().take(20).collect();
+            println!("{}", lines.join("\n"));
+            if stdout.lines().count() > 20 {
+                println!("... (truncated)");
+            }
+        }
+    }
 
     Ok(())
 }
@@ -585,6 +819,34 @@ mod tests {
     #[test]
     fn test_truncate() {
         assert_eq!(truncate("short", 10), "short");
-        assert_eq!(truncate("this is a very long string", 15), "this is a ve...");
+        assert_eq!(
+            truncate("this is a very long string", 15),
+            "this is a ve..."
+        );
+    }
+
+    #[test]
+    fn test_ok_confirmation_pr_create() {
+        let result = ok_confirmation("created", "#42 https://github.com/foo/bar/pull/42");
+        assert!(result.contains("ok created"));
+        assert!(result.contains("#42"));
+    }
+
+    #[test]
+    fn test_ok_confirmation_pr_merge() {
+        let result = ok_confirmation("merged", "#42");
+        assert_eq!(result, "ok merged #42");
+    }
+
+    #[test]
+    fn test_ok_confirmation_pr_comment() {
+        let result = ok_confirmation("commented", "#42");
+        assert_eq!(result, "ok commented #42");
+    }
+
+    #[test]
+    fn test_ok_confirmation_pr_edit() {
+        let result = ok_confirmation("edited", "#42");
+        assert_eq!(result, "ok edited #42");
     }
 }
