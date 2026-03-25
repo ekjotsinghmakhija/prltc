@@ -11,7 +11,7 @@ This is a fork with critical fixes for git argument parsing and modern JavaScrip
 ### ⚠️ Name Collision Warning
 
 **Two different "prltc" projects exist:**
-- ✅ **This project**: Rust Token Killer (ekjotsinghmakhija/prltc, pszymkowiak/prltc)
+- ✅ **This project**: Rust Token Killer (ekjotsinghmakhija/prltc)
 - ❌ **reachingforthejack/prltc**: Rust Type Kit (DIFFERENT - generates Rust types)
 
 **Verify correct installation:**
