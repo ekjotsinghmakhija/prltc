@@ -165,6 +165,12 @@ assert_ok      "prltc git fetch"                prltc git fetch
 assert_ok      "prltc git stash list"           prltc git stash list
 assert_ok      "prltc git worktree"             prltc git worktree
 
+section "Git (passthrough: unsupported subcommands)"
+
+assert_ok      "prltc git tag --list"           prltc git tag --list
+assert_ok      "prltc git remote -v"            prltc git remote -v
+assert_ok      "prltc git rev-parse HEAD"       prltc git rev-parse HEAD
+
 # ── 5. GitHub CLI ────────────────────────────────────
 
 section "GitHub CLI"
