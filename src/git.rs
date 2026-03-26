@@ -6,7 +6,6 @@
 
 use crate::tracking;
 use anyhow::{Context, Result};
-use std::ffi::OsString;
 use std::process::Command;
 
 #[derive(Debug, Clone)]
@@ -43,8 +42,6 @@ pub fn run(cmd: GitCommand, args: &[String], max_lines: Option<usize>, verbose: 
 }
 
 fn run_diff(args: &[String], max_lines: Option<usize>, verbose: u8) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     // Check if user wants stat output
     let wants_stat = args
         .iter()
@@ -71,14 +68,6 @@ fn run_diff(args: &[String], max_lines: Option<usize>, verbose: u8) -> Result<()
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         println!("{}", stdout.trim());
-
-        timer.track(
-            &format!("git diff {}", args.join(" ")),
-            &format!("prltc git diff {} (passthrough)", args.join(" ")),
-            &stdout,
-            &stdout,
-        );
-
         return Ok(());
     }
 
@@ -91,14 +80,14 @@ fn run_diff(args: &[String], max_lines: Option<usize>, verbose: u8) -> Result<()
     }
 
     let output = cmd.output().context("Failed to run git diff")?;
-    let stat_stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = String::from_utf8_lossy(&output.stdout);
 
     if verbose > 0 {
         eprintln!("Git diff summary:");
     }
 
     // Print stat summary first
-    println!("{}", stat_stdout.trim());
+    println!("{}", stdout.trim());
 
     // Now get actual diff but compact it
     let mut diff_cmd = Command::new("git");
@@ -110,28 +99,16 @@ fn run_diff(args: &[String], max_lines: Option<usize>, verbose: u8) -> Result<()
     let diff_output = diff_cmd.output().context("Failed to run git diff")?;
     let diff_stdout = String::from_utf8_lossy(&diff_output.stdout);
 
-    let mut final_output = stat_stdout.to_string();
     if !diff_stdout.is_empty() {
         println!("\n--- Changes ---");
         let compacted = compact_diff(&diff_stdout, max_lines.unwrap_or(100));
         println!("{}", compacted);
-        final_output.push_str("\n--- Changes ---\n");
-        final_output.push_str(&compacted);
     }
-
-    timer.track(
-        &format!("git diff {}", args.join(" ")),
-        &format!("prltc git diff {}", args.join(" ")),
-        &format!("{}\n{}", stat_stdout, diff_stdout),
-        &final_output,
-    );
 
     Ok(())
 }
 
 fn run_show(args: &[String], max_lines: Option<usize>, verbose: u8) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     // If user wants --stat or --format only, pass through
     let wants_stat_only = args
         .iter()
@@ -155,14 +132,6 @@ fn run_show(args: &[String], max_lines: Option<usize>, verbose: u8) -> Result<()
         }
         let stdout = String::from_utf8_lossy(&output.stdout);
         println!("{}", stdout.trim());
-
-        timer.track(
-            &format!("git show {}", args.join(" ")),
-            &format!("prltc git show {} (passthrough)", args.join(" ")),
-            &stdout,
-            &stdout,
-        );
-
         return Ok(());
     }
 
@@ -215,22 +184,15 @@ fn run_show(args: &[String], max_lines: Option<usize>, verbose: u8) -> Result<()
     let diff_stdout = String::from_utf8_lossy(&diff_output.stdout);
     let diff_text = diff_stdout.trim();
 
-    let mut final_output = summary.to_string();
     if !diff_text.is_empty() {
         if verbose > 0 {
             println!("\n--- Changes ---");
         }
         let compacted = compact_diff(diff_text, max_lines.unwrap_or(100));
         println!("{}", compacted);
-        final_output.push_str(&format!("\n{}", compacted));
     }
 
-    timer.track(
-        &format!("git show {}", args.join(" ")),
-        &format!("prltc git show {}", args.join(" ")),
-        &raw_output,
-        &final_output,
-    );
+    tracking::track("git show", "prltc git show", &raw_output, &summary);
 
     Ok(())
 }
@@ -302,8 +264,6 @@ pub(crate) fn compact_diff(diff: &str, max_lines: usize) -> String {
 }
 
 fn run_log(args: &[String], _max_lines: Option<usize>, verbose: u8) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     let mut cmd = Command::new("git");
     cmd.arg("log");
 
@@ -322,18 +282,9 @@ fn run_log(args: &[String], _max_lines: Option<usize>, verbose: u8) -> Result<()
         cmd.args(["--pretty=format:%h %s (%ar) <%an>"]);
     }
 
-    let limit = if !has_limit_flag {
+    if !has_limit_flag {
         cmd.arg("-10");
-        10
-    } else {
-        // Extract limit from args if provided
-        args.iter()
-            .find(|arg| {
-                arg.starts_with('-') && arg.chars().nth(1).map_or(false, |c| c.is_ascii_digit())
-            })
-            .and_then(|arg| arg[1..].parse::<usize>().ok())
-            .unwrap_or(10)
-    };
+    }
 
     // Only add --no-merges if user didn't explicitly request merge commits
     let wants_merges = args
@@ -363,36 +314,9 @@ fn run_log(args: &[String], _max_lines: Option<usize>, verbose: u8) -> Result<()
         eprintln!("Git log output:");
     }
 
-    // Post-process: truncate long messages, cap lines
-    let filtered = filter_log_output(&stdout, limit);
-    println!("{}", filtered);
-
-    timer.track(
-        &format!("git log {}", args.join(" ")),
-        &format!("prltc git log {}", args.join(" ")),
-        &stdout,
-        &filtered,
-    );
+    println!("{}", stdout.trim());
 
     Ok(())
-}
-
-/// Filter git log output: truncate long messages, cap lines
-fn filter_log_output(output: &str, limit: usize) -> String {
-    let lines: Vec<&str> = output.lines().collect();
-    let capped: Vec<String> = lines
-        .iter()
-        .take(limit)
-        .map(|line| {
-            if line.len() > 80 {
-                format!("{}...", &line[..77])
-            } else {
-                line.to_string()
-            }
-        })
-        .collect();
-
-    capped.join("\n").trim().to_string()
 }
 
 /// Format porcelain output into compact PRLTC status display
@@ -491,47 +415,10 @@ fn format_status_output(porcelain: &str) -> String {
     output.trim_end().to_string()
 }
 
-/// Minimal filtering for git status with user-provided args
-fn filter_status_with_args(output: &str) -> String {
-    let mut result = Vec::new();
-
-    for line in output.lines() {
-        let trimmed = line.trim();
-
-        // Skip empty lines
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        // Skip git hints - can appear at start or within line
-        if trimmed.starts_with("(use \"git")
-            || trimmed.starts_with("(create/copy files")
-            || trimmed.contains("(use \"git add")
-            || trimmed.contains("(use \"git restore")
-        {
-            continue;
-        }
-
-        // Special case: clean working tree
-        if trimmed.contains("nothing to commit") && trimmed.contains("working tree clean") {
-            result.push(trimmed.to_string());
-            break;
-        }
-
-        result.push(line.to_string());
-    }
-
-    if result.is_empty() {
-        "ok ✓".to_string()
-    } else {
-        result.join("\n")
-    }
-}
-
 fn run_status(args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
-    // If user provided flags, apply minimal filtering
+    // If user provided flags, pass through to git without PRLTC formatting
     if !args.is_empty() {
         let output = Command::new("git")
             .arg("status")
@@ -546,15 +433,14 @@ fn run_status(args: &[String], verbose: u8) -> Result<()> {
             eprint!("{}", stderr);
         }
 
-        // Apply minimal filtering: strip ANSI, remove hints, empty lines
-        let filtered = filter_status_with_args(&stdout);
-        print!("{}", filtered);
+        print!("{}", stdout);
 
+        // Track passthrough mode
         timer.track(
             &format!("git status {}", args.join(" ")),
-            &format!("prltc git status {}", args.join(" ")),
+            &format!("prltc git status {} (passthrough)", args.join(" ")),
             &stdout,
-            &filtered,
+            &stdout,
         );
 
         return Ok(());
@@ -585,8 +471,6 @@ fn run_status(args: &[String], verbose: u8) -> Result<()> {
 }
 
 fn run_add(files: &[String], verbose: u8) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     let mut cmd = Command::new("git");
     cmd.arg("add");
 
@@ -604,12 +488,6 @@ fn run_add(files: &[String], verbose: u8) -> Result<()> {
         eprintln!("git add executed");
     }
 
-    let raw_output = format!(
-        "{}\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-
     if output.status.success() {
         // Count what was added
         let status_output = Command::new("git")
@@ -618,26 +496,17 @@ fn run_add(files: &[String], verbose: u8) -> Result<()> {
             .context("Failed to check staged files")?;
 
         let stat = String::from_utf8_lossy(&status_output.stdout);
-        let compact = if stat.trim().is_empty() {
-            "ok (nothing to add)".to_string()
+        if stat.trim().is_empty() {
+            println!("ok (nothing to add)");
         } else {
             // Parse "1 file changed, 5 insertions(+)" format
             let short = stat.lines().last().unwrap_or("").trim();
             if short.is_empty() {
-                "ok ✓".to_string()
+                println!("ok ✓");
             } else {
-                format!("ok ✓ {}", short)
+                println!("ok ✓ {}", short);
             }
-        };
-
-        println!("{}", compact);
-
-        timer.track(
-            &format!("git add {}", files.join(" ")),
-            &format!("prltc git add {}", files.join(" ")),
-            &raw_output,
-            &compact,
-        );
+        }
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -654,8 +523,6 @@ fn run_add(files: &[String], verbose: u8) -> Result<()> {
 }
 
 fn run_commit(message: &str, verbose: u8) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     if verbose > 0 {
         eprintln!("git commit -m \"{}\"", message);
     }
@@ -665,44 +532,24 @@ fn run_commit(message: &str, verbose: u8) -> Result<()> {
         .output()
         .context("Failed to run git commit")?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let raw_output = format!("{}\n{}", stdout, stderr);
-
     if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
         // Extract commit hash from output like "[main abc1234] message"
-        let compact = if let Some(line) = stdout.lines().next() {
+        if let Some(line) = stdout.lines().next() {
             if let Some(hash_start) = line.find(' ') {
                 let hash = line[1..hash_start].split(' ').last().unwrap_or("");
                 if !hash.is_empty() && hash.len() >= 7 {
-                    format!("ok ✓ {}", &hash[..7.min(hash.len())])
-                } else {
-                    "ok ✓".to_string()
+                    println!("ok ✓ {}", &hash[..7.min(hash.len())]);
+                    return Ok(());
                 }
-            } else {
-                "ok ✓".to_string()
             }
-        } else {
-            "ok ✓".to_string()
-        };
-
-        println!("{}", compact);
-
-        timer.track(
-            &format!("git commit -m \"{}\"", message),
-            "prltc git commit",
-            &raw_output,
-            &compact,
-        );
+        }
+        println!("ok ✓");
     } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
         if stderr.contains("nothing to commit") || stdout.contains("nothing to commit") {
             println!("ok (nothing to commit)");
-            timer.track(
-                &format!("git commit -m \"{}\"", message),
-                "prltc git commit",
-                &raw_output,
-                "ok (nothing to commit)",
-            );
         } else {
             eprintln!("FAILED: git commit");
             if !stderr.trim().is_empty() {
@@ -718,8 +565,6 @@ fn run_commit(message: &str, verbose: u8) -> Result<()> {
 }
 
 fn run_push(args: &[String], verbose: u8) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     if verbose > 0 {
         eprintln!("git push");
     }
@@ -737,34 +582,24 @@ fn run_push(args: &[String], verbose: u8) -> Result<()> {
     let raw = format!("{}{}", stdout, stderr);
 
     if output.status.success() {
-        let compact = if stderr.contains("Everything up-to-date") {
-            "ok (up-to-date)".to_string()
+        if stderr.contains("Everything up-to-date") {
+            println!("ok (up-to-date)");
+            tracking::track("git push", "prltc git push", &raw, "ok (up-to-date)");
         } else {
-            let mut result = String::new();
             for line in stderr.lines() {
                 if line.contains("->") {
                     let parts: Vec<&str> = line.split_whitespace().collect();
                     if parts.len() >= 3 {
-                        result = format!("ok ✓ {}", parts[parts.len() - 1]);
-                        break;
+                        let msg = format!("ok ✓ {}", parts[parts.len() - 1]);
+                        println!("{}", msg);
+                        tracking::track("git push", "prltc git push", &raw, &msg);
+                        return Ok(());
                     }
                 }
             }
-            if !result.is_empty() {
-                result
-            } else {
-                "ok ✓".to_string()
-            }
-        };
-
-        println!("{}", compact);
-
-        timer.track(
-            &format!("git push {}", args.join(" ")),
-            &format!("prltc git push {}", args.join(" ")),
-            &raw,
-            &compact,
-        );
+            println!("ok ✓");
+            tracking::track("git push", "prltc git push", &raw, "ok ✓");
+        }
     } else {
         eprintln!("FAILED: git push");
         if !stderr.trim().is_empty() {
@@ -779,8 +614,6 @@ fn run_push(args: &[String], verbose: u8) -> Result<()> {
 }
 
 fn run_pull(args: &[String], verbose: u8) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     if verbose > 0 {
         eprintln!("git pull");
     }
@@ -795,61 +628,50 @@ fn run_pull(args: &[String], verbose: u8) -> Result<()> {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    let raw_output = format!("{}\n{}", stdout, stderr);
 
     if output.status.success() {
-        let compact =
-            if stdout.contains("Already up to date") || stdout.contains("Already up-to-date") {
-                "ok (up-to-date)".to_string()
-            } else {
-                // Count files changed
-                let mut files = 0;
-                let mut insertions = 0;
-                let mut deletions = 0;
+        if stdout.contains("Already up to date") || stdout.contains("Already up-to-date") {
+            println!("ok (up-to-date)");
+        } else {
+            // Count files changed
+            let mut files = 0;
+            let mut insertions = 0;
+            let mut deletions = 0;
 
-                for line in stdout.lines() {
-                    if line.contains("file") && line.contains("changed") {
-                        // Parse "3 files changed, 10 insertions(+), 2 deletions(-)"
-                        for part in line.split(',') {
-                            let part = part.trim();
-                            if part.contains("file") {
-                                files = part
-                                    .split_whitespace()
-                                    .next()
-                                    .and_then(|n| n.parse().ok())
-                                    .unwrap_or(0);
-                            } else if part.contains("insertion") {
-                                insertions = part
-                                    .split_whitespace()
-                                    .next()
-                                    .and_then(|n| n.parse().ok())
-                                    .unwrap_or(0);
-                            } else if part.contains("deletion") {
-                                deletions = part
-                                    .split_whitespace()
-                                    .next()
-                                    .and_then(|n| n.parse().ok())
-                                    .unwrap_or(0);
-                            }
+            for line in stdout.lines() {
+                if line.contains("file") && line.contains("changed") {
+                    // Parse "3 files changed, 10 insertions(+), 2 deletions(-)"
+                    for part in line.split(',') {
+                        let part = part.trim();
+                        if part.contains("file") {
+                            files = part
+                                .split_whitespace()
+                                .next()
+                                .and_then(|n| n.parse().ok())
+                                .unwrap_or(0);
+                        } else if part.contains("insertion") {
+                            insertions = part
+                                .split_whitespace()
+                                .next()
+                                .and_then(|n| n.parse().ok())
+                                .unwrap_or(0);
+                        } else if part.contains("deletion") {
+                            deletions = part
+                                .split_whitespace()
+                                .next()
+                                .and_then(|n| n.parse().ok())
+                                .unwrap_or(0);
                         }
                     }
                 }
+            }
 
-                if files > 0 {
-                    format!("ok ✓ {} files +{} -{}", files, insertions, deletions)
-                } else {
-                    "ok ✓".to_string()
-                }
-            };
-
-        println!("{}", compact);
-
-        timer.track(
-            &format!("git pull {}", args.join(" ")),
-            &format!("prltc git pull {}", args.join(" ")),
-            &raw_output,
-            &compact,
-        );
+            if files > 0 {
+                println!("ok ✓ {} files +{} -{}", files, insertions, deletions);
+            } else {
+                println!("ok ✓");
+            }
+        }
     } else {
         eprintln!("FAILED: git pull");
         if !stderr.trim().is_empty() {
@@ -864,8 +686,6 @@ fn run_pull(args: &[String], verbose: u8) -> Result<()> {
 }
 
 fn run_branch(args: &[String], verbose: u8) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     if verbose > 0 {
         eprintln!("git branch");
     }
@@ -912,12 +732,7 @@ fn run_branch(args: &[String], verbose: u8) -> Result<()> {
     let filtered = filter_branch_output(&stdout);
     println!("{}", filtered);
 
-    timer.track(
-        &format!("git branch {}", args.join(" ")),
-        &format!("prltc git branch {}", args.join(" ")),
-        &raw,
-        &filtered,
-    );
+    tracking::track("git branch -a", "prltc git branch", &raw, &filtered);
 
     Ok(())
 }
@@ -1198,21 +1013,6 @@ fn filter_worktree_list(output: &str) -> String {
     result.join("\n")
 }
 
-/// Runs an unsupported git subcommand by passing it through directly
-pub fn run_passthrough(args: &[OsString], verbose: u8) -> Result<()> {
-    if verbose > 0 {
-        eprintln!("git passthrough: {:?}", args);
-    }
-    let status = Command::new("git")
-        .args(args)
-        .status()
-        .context("Failed to run git")?;
-    if !status.success() {
-        std::process::exit(status.code().unwrap_or(1));
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1341,69 +1141,5 @@ M  file7.rs
         assert!(result.contains("... +2 more"));
         assert!(!result.contains("file6.rs"));
         assert!(!result.contains("file7.rs"));
-    }
-
-    #[test]
-    fn test_run_passthrough_accepts_args() {
-        // Test that run_passthrough compiles and has correct signature
-        let _args: Vec<OsString> = vec![OsString::from("tag"), OsString::from("--list")];
-        // Compile-time verification that the function exists with correct signature
-    }
-
-    #[test]
-    fn test_filter_log_output() {
-        let output = "abc1234 This is a commit message (2 days ago) <author>\ndef5678 Another commit (1 week ago) <other>\n";
-        let result = filter_log_output(output, 10);
-        assert!(result.contains("abc1234"));
-        assert!(result.contains("def5678"));
-        assert_eq!(result.lines().count(), 2);
-    }
-
-    #[test]
-    fn test_filter_log_output_truncate_long() {
-        let long_line = "abc1234 ".to_string() + &"x".repeat(100) + " (2 days ago) <author>";
-        let result = filter_log_output(&long_line, 10);
-        assert!(result.len() < long_line.len());
-        assert!(result.contains("..."));
-        assert!(result.len() <= 80);
-    }
-
-    #[test]
-    fn test_filter_log_output_cap_lines() {
-        let output = (0..20)
-            .map(|i| format!("hash{} message {} (1 day ago) <author>", i, i))
-            .collect::<Vec<_>>()
-            .join("\n");
-        let result = filter_log_output(&output, 5);
-        assert_eq!(result.lines().count(), 5);
-    }
-
-    #[test]
-    fn test_filter_status_with_args() {
-        let output = r#"On branch main
-Your branch is up to date with 'origin/main'.
-
-Changes not staged for commit:
-  (use "git add <file>..." to update what will be committed)
-  (use "git restore <file>..." to discard changes in working directory)
-	modified:   src/main.rs
-
-no changes added to commit (use "git add" and/or "git commit -a")
-"#;
-        let result = filter_status_with_args(output);
-        eprintln!("Result:\n{}", result);
-        assert!(result.contains("On branch main"));
-        assert!(result.contains("modified:   src/main.rs"));
-        assert!(
-            !result.contains("(use \"git"),
-            "Result should not contain git hints"
-        );
-    }
-
-    #[test]
-    fn test_filter_status_with_args_clean() {
-        let output = "nothing to commit, working tree clean\n";
-        let result = filter_status_with_args(output);
-        assert!(result.contains("nothing to commit"));
     }
 }

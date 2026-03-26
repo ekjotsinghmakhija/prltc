@@ -63,7 +63,7 @@ If already installed and `prltc gain` works, **DO NOT reinstall**. Skip to Quick
 ### Quick Install (Linux/macOS)
 
 ```bash
-curl -fsSL https://github.com/ekjotsinghmakhija/prltc/blob/master/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ekjotsinghmakhija/prltc/refs/heads/master/install.sh | sh
 ```
 
 After installation, **verify you have the correct prltc**:

@@ -8,7 +8,6 @@ use crate::tracking;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::ffi::OsString;
 use std::process::Command;
 
 use crate::parser::{
@@ -488,21 +487,6 @@ fn filter_pnpm_install(output: &str) -> String {
     }
 }
 
-/// Runs an unsupported pnpm subcommand by passing it through directly
-pub fn run_passthrough(args: &[OsString], verbose: u8) -> Result<()> {
-    if verbose > 0 {
-        eprintln!("pnpm passthrough: {:?}", args);
-    }
-    let status = Command::new("pnpm")
-        .args(args)
-        .status()
-        .context("Failed to run pnpm")?;
-    if !status.success() {
-        std::process::exit(status.code().unwrap_or(1));
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -553,12 +537,5 @@ mod tests {
         assert!(is_valid_package_name("@clerk/express"));
         assert!(!is_valid_package_name("../../../etc/passwd"));
         assert!(!is_valid_package_name("lodash; rm -rf /"));
-    }
-
-    #[test]
-    fn test_run_passthrough_accepts_args() {
-        // Test that run_passthrough compiles and has correct signature
-        let _args: Vec<OsString> = vec![OsString::from("help")];
-        // Compile-time verification that the function exists with correct signature
     }
 }

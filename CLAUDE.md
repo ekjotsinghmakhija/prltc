@@ -135,35 +135,6 @@ main.rs:Commands enum
   → Result<()> propagates errors
 ```
 
-### Proxy Mode
-
-**Purpose**: Execute commands without filtering but track usage for metrics.
-
-**Usage**: `prltc proxy <command> [args...]`
-
-**Benefits**:
-- **Bypass PRLTC filtering**: Workaround bugs or get full unfiltered output
-- **Track usage metrics**: Measure which commands Claude uses most (visible in `prltc gain --history`)
-- **Guaranteed compatibility**: Always works even if PRLTC doesn't implement the command
-- **Prototyping**: Test new commands before implementing optimized filtering
-
-**Examples**:
-```bash
-# Full git log output (no truncation)
-prltc proxy git log --oneline -20
-
-# Raw npm output (no filtering)
-prltc proxy npm install express
-
-# Any command works
-prltc proxy curl https://api.example.com/data
-
-# Tracking shows 0% savings (expected)
-prltc gain --history | grep proxy
-```
-
-**Tracking**: All proxy commands appear in `prltc gain --history` with 0% savings (input = output) but preserve usage statistics.
-
 ### Critical Implementation Details
 
 **Git Argument Handling** (src/git.rs)

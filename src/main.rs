@@ -38,7 +38,6 @@ mod read;
 mod runner;
 mod summary;
 mod tracking;
-mod tree;
 mod tsc_cmd;
 mod utils;
 mod vitest_cmd;
@@ -46,8 +45,7 @@ mod wget_cmd;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use std::ffi::OsString;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(
@@ -78,13 +76,6 @@ enum Commands {
     /// List directory contents with token-optimized output (proxy to native ls)
     Ls {
         /// Arguments passed to ls (supports all native ls flags like -l, -a, -h, -R)
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-
-    /// Directory tree with token-optimized output (proxy to native tree)
-    Tree {
-        /// Arguments passed to tree (supports all native tree flags like -L, -d, -a)
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
@@ -244,9 +235,6 @@ enum Commands {
         /// Filter by file type (e.g., ts, py, rust)
         #[arg(short = 't', long)]
         file_type: Option<String>,
-        /// Extra ripgrep arguments (e.g., -i, -A 3, -w, --glob)
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        extra_args: Vec<String>,
     },
 
     /// Initialize prltc instructions in CLAUDE.md
@@ -421,13 +409,6 @@ enum Commands {
         #[arg(short, long, default_value = "text")]
         format: String,
     },
-
-    /// Execute command without filtering but track usage
-    Proxy {
-        /// Command and arguments to execute
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<OsString>,
-    },
 }
 
 #[derive(Subcommand)]
@@ -506,9 +487,6 @@ enum GitCommands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Passthrough: runs any unsupported git subcommand directly
-    #[command(external_subcommand)]
-    Other(Vec<OsString>),
 }
 
 #[derive(Subcommand)]
@@ -548,9 +526,6 @@ enum PnpmCommands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Passthrough: runs any unsupported pnpm subcommand directly
-    #[command(external_subcommand)]
-    Other(Vec<OsString>),
 }
 
 #[derive(Subcommand)]
@@ -675,21 +650,13 @@ fn main() -> Result<()> {
             ls::run(&args, cli.verbose)?;
         }
 
-        Commands::Tree { args } => {
-            tree::run(&args, cli.verbose)?;
-        }
-
         Commands::Read {
             file,
             level,
             max_lines,
             line_numbers,
         } => {
-            if file == Path::new("-") {
-                read::run_stdin(level, max_lines, line_numbers, cli.verbose)?;
-            } else {
-                read::run(&file, level, max_lines, line_numbers, cli.verbose)?;
-            }
+            read::run(&file, level, max_lines, line_numbers, cli.verbose)?;
         }
 
         Commands::Smart {
@@ -742,9 +709,6 @@ fn main() -> Result<()> {
             GitCommands::Worktree { args } => {
                 git::run(git::GitCommand::Worktree, &args, None, cli.verbose)?;
             }
-            GitCommands::Other(args) => {
-                git::run_passthrough(&args, cli.verbose)?;
-            }
         },
 
         Commands::Gh { subcommand, args } => {
@@ -770,9 +734,6 @@ fn main() -> Result<()> {
             }
             PnpmCommands::Typecheck { args } => {
                 tsc_cmd::run(&args, cli.verbose)?;
-            }
-            PnpmCommands::Other(args) => {
-                pnpm_cmd::run_passthrough(&args, cli.verbose)?;
             }
         },
 
@@ -878,7 +839,6 @@ fn main() -> Result<()> {
             max,
             context_only,
             file_type,
-            extra_args,
         } => {
             grep_cmd::run(
                 &pattern,
@@ -887,7 +847,6 @@ fn main() -> Result<()> {
                 max,
                 context_only,
                 file_type.as_deref(),
-                &extra_args,
                 cli.verbose,
             )?;
         }
@@ -1109,54 +1068,6 @@ fn main() -> Result<()> {
                     // Generic passthrough with npm boilerplate filter
                     npm_cmd::run(&args, cli.verbose, cli.skip_env)?;
                 }
-            }
-        }
-
-        Commands::Proxy { args } => {
-            use std::process::Command;
-
-            if args.is_empty() {
-                anyhow::bail!(
-                    "proxy requires a command to execute\nUsage: prltc proxy <command> [args...]"
-                );
-            }
-
-            let timer = tracking::TimedExecution::start();
-
-            let cmd_name = args[0].to_string_lossy();
-            let cmd_args: Vec<String> = args[1..]
-                .iter()
-                .map(|s| s.to_string_lossy().into_owned())
-                .collect();
-
-            if cli.verbose > 0 {
-                eprintln!("Proxy mode: {} {}", cmd_name, cmd_args.join(" "));
-            }
-
-            let output = Command::new(cmd_name.as_ref())
-                .args(&cmd_args)
-                .output()
-                .context(format!("Failed to execute command: {}", cmd_name))?;
-
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let full_output = format!("{}{}", stdout, stderr);
-
-            // Print output
-            print!("{}", stdout);
-            eprint!("{}", stderr);
-
-            // Track usage (input = output since no filtering)
-            timer.track(
-                &format!("{} {}", cmd_name, cmd_args.join(" ")),
-                &format!("prltc proxy {} {}", cmd_name, cmd_args.join(" ")),
-                &full_output,
-                &full_output,
-            );
-
-            // Exit with same code as child process
-            if !output.status.success() {
-                std::process::exit(output.status.code().unwrap_or(1));
             }
         }
     }
