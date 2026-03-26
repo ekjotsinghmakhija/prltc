@@ -134,7 +134,12 @@ echo "────────────────────────�
 section "ls"
 bench "ls" "ls -la" "$PRLTC ls"
 bench "ls src/" "ls -la src/" "$PRLTC ls src/"
+bench "ls -l src/" "ls -l src/" "$PRLTC ls -l src/"
+bench "ls -la src/" "ls -la src/" "$PRLTC ls -la src/"
+bench "ls -lh src/" "ls -lh src/" "$PRLTC ls -lh src/"
+bench "ls src/ -l" "ls -l src/" "$PRLTC ls src/ -l"
 bench "ls -a" "ls -la" "$PRLTC ls -a"
+bench "ls multi" "ls -la src/ scripts/" "$PRLTC ls src/ scripts/"
 
 # ===================
 # read

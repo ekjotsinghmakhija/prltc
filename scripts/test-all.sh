@@ -120,7 +120,12 @@ section "Ls"
 assert_ok      "prltc ls ."                     prltc ls .
 assert_ok      "prltc ls -la ."                 prltc ls -la .
 assert_ok      "prltc ls -lh ."                 prltc ls -lh .
+assert_ok      "prltc ls -l src/"               prltc ls -l src/
+assert_ok      "prltc ls src/ -l (flag after)"  prltc ls src/ -l
+assert_ok      "prltc ls multi paths"           prltc ls src/ scripts/
 assert_contains "prltc ls -a shows hidden"      ".git" prltc ls -a .
+assert_contains "prltc ls shows sizes"          "K"  prltc ls src/
+assert_contains "prltc ls shows dirs with /"    "/" prltc ls .
 
 # ── 2b. Tree ─────────────────────────────────────────
 
