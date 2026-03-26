@@ -78,16 +78,27 @@ prltc init -g
 # → Installs hook to ~/.claude/hooks/prltc-rewrite.sh
 # → Creates ~/.claude/PRLTC.md (10 lines, meta commands only)
 # → Adds @PRLTC.md reference to ~/.claude/CLAUDE.md
-# → Prints settings.json instructions
+# → Prompts: "Patch settings.json? [y/N]"
+# → If yes: patches + creates backup (~/.claude/settings.json.bak)
 
-# Follow printed instructions to add hook to ~/.claude/settings.json
-# Then restart Claude Code
+# Automated alternatives:
+prltc init -g --auto-patch    # Patch without prompting
+prltc init -g --no-patch      # Print manual instructions instead
 
 # Verify installation
 prltc init --show  # Check hook is installed and executable
 ```
 
 **Token savings**: ~99.5% reduction (2000 tokens → 10 tokens in context)
+
+**What is settings.json?**
+Claude Code's hook registry. PRLTC adds a PreToolUse hook that rewrites commands transparently. Without this, Claude won't invoke the hook automatically.
+
+**Backup Safety**:
+PRLTC backs up existing settings.json before changes. Restore if needed:
+```bash
+cp ~/.claude/settings.json.bak ~/.claude/settings.json
+```
 
 ### Alternative: Local Project Setup
 
@@ -111,6 +122,54 @@ prltc init -g  # Automatically migrates to hook-first mode
 # → Adds @PRLTC.md reference
 ```
 
+## Common User Flows
+
+### First-Time User (Recommended)
+```bash
+# 1. Install PRLTC
+cargo install --git https://github.com/ekjotsinghmakhija/prltc
+prltc gain  # Verify (must show token stats)
+
+# 2. Setup with prompts
+prltc init -g
+# → Answer 'y' when prompted to patch settings.json
+# → Creates backup automatically
+
+# 3. Restart Claude Code
+# 4. Test: git status (should use prltc)
+```
+
+### CI/CD or Automation
+```bash
+# Non-interactive setup (no prompts)
+prltc init -g --auto-patch
+
+# Verify in scripts
+prltc init --show | grep "Hook:"
+```
+
+### Conservative User (Manual Control)
+```bash
+# Get manual instructions without patching
+prltc init -g --no-patch
+
+# Review printed JSON snippet
+# Manually edit ~/.claude/settings.json
+# Restart Claude Code
+```
+
+### Temporary Trial
+```bash
+# Install hook
+prltc init -g --auto-patch
+
+# Later: remove everything
+prltc init -g --uninstall
+
+# Restore backup if needed
+cp ~/.claude/settings.json.bak ~/.claude/settings.json
+```
+
 ## Installation Verification
 
 ```bash
@@ -125,6 +184,43 @@ prltc pnpm list
 
 # Test with Vitest (feat/vitest-support branch only)
 prltc vitest run
+```
+
+## Uninstalling
+
+### Complete Removal (Global Installations Only)
+
+```bash
+# Complete removal (global installations only)
+prltc init -g --uninstall
+
+# What gets removed:
+#   - Hook: ~/.claude/hooks/prltc-rewrite.sh
+#   - Context: ~/.claude/PRLTC.md
+#   - Reference: @PRLTC.md line from ~/.claude/CLAUDE.md
+#   - Registration: PRLTC hook entry from settings.json
+
+# Restart Claude Code after uninstall
+```
+
+**For Local Projects**: Manually remove PRLTC block from `./CLAUDE.md`
+
+### Binary Removal
+
+```bash
+# If installed via cargo
+cargo uninstall prltc
+
+# If installed via package manager
+brew uninstall prltc          # macOS Homebrew
+sudo apt remove prltc         # Debian/Ubuntu
+sudo dnf remove prltc         # Fedora/RHEL
+```
+
+### Restore from Backup (if needed)
+
+```bash
+cp ~/.claude/settings.json.bak ~/.claude/settings.json
 ```
 
 ## Essential Commands
