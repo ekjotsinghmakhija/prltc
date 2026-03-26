@@ -63,7 +63,7 @@ If already installed and `prltc gain` works, **DO NOT reinstall**. Skip to Quick
 ### Quick Install (Linux/macOS)
 
 ```bash
-curl -fsSL https://github.com/ekjotsinghmakhija/prltc/blob/master/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ekjotsinghmakhija/prltc/refs/heads/master/install.sh | sh
 ```
 
 After installation, **verify you have the correct prltc**:
@@ -124,7 +124,6 @@ prltc read file.rs                # Smart file reading
 prltc read file.rs -l aggressive  # Signatures only (strips bodies)
 prltc smart file.rs               # 2-line heuristic code summary
 prltc find "*.rs" .               # Compact find results
-prltc diff file1 file2            # Ultra-condensed diff
 prltc grep "pattern" .            # Grouped search results
 ```
 
@@ -175,6 +174,8 @@ prltc gain --all                  # All breakdowns combined
 prltc gain --all --format json    # JSON export for APIs/dashboards
 prltc gain --all --format csv     # CSV export for Excel/analysis
 ```
+
+> 📖 **API Documentation**: For programmatic access to tracking data (Rust library usage, CI/CD integration, custom dashboards), see [docs/tracking.md](docs/tracking.md).
 
 ### Discover — Find Missed Savings
 

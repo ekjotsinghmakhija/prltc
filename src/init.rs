@@ -30,7 +30,6 @@ prltc git add && prltc git commit -m "msg" && prltc git push
 | `cat`, `head`, `tail` | `prltc read <file>` |
 | `cat` pour comprendre du code | `prltc read <file> -l aggressive` |
 | `find`, `fd` | `prltc find <pattern>` |
-| `diff file1 file2` | `prltc diff <f1> <f2>` |
 | `git status` | `prltc git status` |
 | `git log` | `prltc git log` |
 | `git diff` | `prltc git diff` |
@@ -60,7 +59,6 @@ prltc ls .                        # Arbre filtré (-82% tokens)
 prltc read file.rs -l aggressive  # Signatures seules (-74% tokens)
 prltc smart file.rs               # Résumé 2 lignes
 prltc find "*.rs" .               # Find compact groupé par dossier
-prltc diff f1.txt f2.txt          # Diff ultra-condensé
 
 # Git
 prltc git status                  # Status compact
@@ -96,11 +94,17 @@ prltc kubectl logs <pod>          # Logs dédupliqués
 pub fn run(global: bool, verbose: u8) -> Result<()> {
     let path = if global {
         dirs::home_dir()
-            .map(|h| h.join("CLAUDE.md"))
-            .unwrap_or_else(|| PathBuf::from("~/CLAUDE.md"))
+            .map(|h| h.join(".claude").join("CLAUDE.md"))
+            .unwrap_or_else(|| PathBuf::from("~/.claude/CLAUDE.md"))
     } else {
         PathBuf::from("CLAUDE.md")
     };
+
+    if global {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+    }
 
     if verbose > 0 {
         eprintln!("Writing prltc instructions to: {}", path.display());
@@ -137,7 +141,7 @@ pub fn run(global: bool, verbose: u8) -> Result<()> {
 
 /// Show current prltc configuration
 pub fn show_config() -> Result<()> {
-    let home_path = dirs::home_dir().map(|h| h.join("CLAUDE.md"));
+    let home_path = dirs::home_dir().map(|h| h.join(".claude").join("CLAUDE.md"));
     let local_path = PathBuf::from("CLAUDE.md");
 
     println!("📋 prltc Configuration:\n");
@@ -147,12 +151,12 @@ pub fn show_config() -> Result<()> {
         if hp.exists() {
             let content = fs::read_to_string(hp)?;
             if content.contains("prltc") {
-                println!("✅ Global (~/.CLAUDE.md): prltc enabled");
+                println!("✅ Global (~/.claude/CLAUDE.md): prltc enabled");
             } else {
-                println!("⚪ Global (~/.CLAUDE.md): exists but prltc not configured");
+                println!("⚪ Global (~/.claude/CLAUDE.md): exists but prltc not configured");
             }
         } else {
-            println!("⚪ Global (~/.CLAUDE.md): not found");
+            println!("⚪ Global (~/.claude/CLAUDE.md): not found");
         }
     }
 
@@ -170,7 +174,7 @@ pub fn show_config() -> Result<()> {
 
     println!("\nUsage:");
     println!("  prltc init          # Add prltc to local CLAUDE.md");
-    println!("  prltc init --global # Add prltc to global ~/CLAUDE.md");
+    println!("  prltc init --global # Add prltc to global ~/.claude/CLAUDE.md");
 
     Ok(())
 }
