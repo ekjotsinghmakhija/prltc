@@ -124,7 +124,6 @@ prltc read file.rs                # Smart file reading
 prltc read file.rs -l aggressive  # Signatures only (strips bodies)
 prltc smart file.rs               # 2-line heuristic code summary
 prltc find "*.rs" .               # Compact find results
-prltc diff file1 file2            # Ultra-condensed diff
 prltc grep "pattern" .            # Grouped search results
 ```
 

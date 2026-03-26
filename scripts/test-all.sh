@@ -282,19 +282,6 @@ section "Env"
 assert_ok      "prltc env"                      prltc env
 assert_ok      "prltc env --filter PATH"        prltc env --filter PATH
 
-# ── 15. Diff ─────────────────────────────────────────
-
-section "Diff"
-
-TMPF1=$(mktemp /tmp/prltc-diff1-XXXXX.txt)
-TMPF2=$(mktemp /tmp/prltc-diff2-XXXXX.txt)
-echo -e "line1\nline2\nline3" > "$TMPF1"
-echo -e "line1\nchanged\nline3" > "$TMPF2"
-
-assert_ok      "prltc diff two files"           prltc diff "$TMPF1" "$TMPF2"
-
-rm -f "$TMPF1" "$TMPF2"
-
 # ── 16. Log ──────────────────────────────────────────
 
 section "Log"

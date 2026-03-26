@@ -30,7 +30,6 @@ prltc git add && prltc git commit -m "msg" && prltc git push
 | `cat`, `head`, `tail` | `prltc read <file>` |
 | `cat` pour comprendre du code | `prltc read <file> -l aggressive` |
 | `find`, `fd` | `prltc find <pattern>` |
-| `diff file1 file2` | `prltc diff <f1> <f2>` |
 | `git status` | `prltc git status` |
 | `git log` | `prltc git log` |
 | `git diff` | `prltc git diff` |
@@ -60,7 +59,6 @@ prltc ls .                        # Arbre filtré (-82% tokens)
 prltc read file.rs -l aggressive  # Signatures seules (-74% tokens)
 prltc smart file.rs               # Résumé 2 lignes
 prltc find "*.rs" .               # Find compact groupé par dossier
-prltc diff f1.txt f2.txt          # Diff ultra-condensé
 
 # Git
 prltc git status                  # Status compact

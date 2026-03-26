@@ -61,15 +61,6 @@ echo "── Stdin commands ──"
 echo -e "line1\nline2\nline1\nERROR: bad\nline1" | prltc log >/dev/null 2>&1
 check "prltc log stdin tracked" "prltc log" prltc gain --history
 
-# Create temp files for diff test
-tmpfile1=$(mktemp)
-tmpfile2=$(mktemp)
-echo "old content" > "$tmpfile1"
-echo "new content" > "$tmpfile2"
-prltc diff "$tmpfile1" "$tmpfile2" >/dev/null 2>&1
-rm -f "$tmpfile1" "$tmpfile2"
-check "prltc diff tracked" "prltc diff" prltc gain --history
-
 # Summary — verify passthrough doesn't dilute
 echo ""
 echo "── Summary integrity ──"
