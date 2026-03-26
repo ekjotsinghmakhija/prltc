@@ -225,8 +225,6 @@ fn extract_failures_regex(output: &str) -> Vec<TestFailure> {
 }
 
 pub fn run(args: &[String], verbose: u8) -> Result<()> {
-    let timer = tracking::TimedExecution::start();
-
     // Try playwright directly first, fallback to package manager exec
     let playwright_exists = Command::new("which")
         .arg("playwright")
@@ -313,7 +311,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
 
     println!("{}", filtered);
 
-    timer.track(
+    tracking::track(
         &format!("playwright {}", args.join(" ")),
         &format!("prltc playwright {}", args.join(" ")),
         &raw,

@@ -4,7 +4,7 @@
  * Proprietary Clean Room Implementation
  */
 
-pub mod provider;
+mod provider;
 pub mod registry;
 mod report;
 

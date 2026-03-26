@@ -74,6 +74,7 @@ const PATTERNS: &[&str] = &[
     r"^kubectl\s+(get|logs)",
     r"^curl\s+",
     r"^wget\s+",
+    r"^diff\s+",
 ];
 
 const RULES: &[RtkRule] = &[
@@ -206,6 +207,12 @@ const RULES: &[RtkRule] = &[
         prltc_cmd: "prltc wget",
         category: "Network",
         savings_pct: 65.0,
+        subcmd_savings: &[],
+    },
+    RtkRule {
+        prltc_cmd: "prltc diff",
+        category: "Files",
+        savings_pct: 75.0,
         subcmd_savings: &[],
     },
 ];
