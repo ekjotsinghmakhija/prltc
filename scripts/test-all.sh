@@ -118,10 +118,22 @@ assert_contains "prltc --help" "Usage:" prltc --help
 section "Ls"
 
 assert_ok      "prltc ls ."                     prltc ls .
-assert_ok      "prltc ls -a ."                  prltc ls -a .
-assert_ok      "prltc ls --depth 2 ."           prltc ls --depth 2 .
-assert_ok      "prltc ls -f tree ."             prltc ls -f tree .
-assert_contains "prltc ls shows src/"           "src/" prltc ls .
+assert_ok      "prltc ls -la ."                 prltc ls -la .
+assert_ok      "prltc ls -lh ."                 prltc ls -lh .
+assert_contains "prltc ls -a shows hidden"      ".git" prltc ls -a .
+
+# ── 2b. Tree ─────────────────────────────────────────
+
+section "Tree"
+
+if command -v tree >/dev/null 2>&1; then
+    assert_ok      "prltc tree ."                prltc tree .
+    assert_ok      "prltc tree -L 2 ."           prltc tree -L 2 .
+    assert_ok      "prltc tree -d -L 1 ."        prltc tree -d -L 1 .
+    assert_contains "prltc tree shows src/"      "src" prltc tree -L 1 .
+else
+    skip_test "prltc tree" "tree not installed"
+fi
 
 # ── 3. Read ──────────────────────────────────────────
 
