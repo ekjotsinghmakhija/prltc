@@ -69,17 +69,46 @@ prltc gain  # MUST show token savings, not "command not found"
 
 ## Project Initialization
 
-**For each project where you want to use PRLTC:**
+### Recommended: Global Hook-First Setup
+
+**Best for: All projects, automatic PRLTC usage**
 
 ```bash
-# Navigate to project directory
+prltc init -g
+# → Installs hook to ~/.claude/hooks/prltc-rewrite.sh
+# → Creates ~/.claude/PRLTC.md (10 lines, meta commands only)
+# → Adds @PRLTC.md reference to ~/.claude/CLAUDE.md
+# → Prints settings.json instructions
+
+# Follow printed instructions to add hook to ~/.claude/settings.json
+# Then restart Claude Code
+
+# Verify installation
+prltc init --show  # Check hook is installed and executable
+```
+
+**Token savings**: ~99.5% reduction (2000 tokens → 10 tokens in context)
+
+### Alternative: Local Project Setup
+
+**Best for: Single project without hook**
+
+```bash
 cd /path/to/your/project
+prltc init  # Creates ./CLAUDE.md with full PRLTC instructions (137 lines)
+```
 
-# Initialize PRLTC for this project (creates ./CLAUDE.md)
-prltc init
+**Token savings**: Instructions loaded only for this project
 
-# OR initialize globally (creates ~/CLAUDE.md for all projects)
-prltc init --global
+### Upgrading from Previous Version
+
+If you previously used `prltc init -g` with the old system (137-line injection):
+
+```bash
+prltc init -g  # Automatically migrates to hook-first mode
+# → Removes old 137-line block
+# → Installs hook + PRLTC.md
+# → Adds @PRLTC.md reference
 ```
 
 ## Installation Verification

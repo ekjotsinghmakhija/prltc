@@ -93,20 +93,24 @@ Download from [ekjotsinghmakhija/releases](https://github.com/ekjotsinghmakhija/
 ## Quick Start
 
 ```bash
-# Run installation check script (recommended first step)
-bash scripts/check-installation.sh
+# 1. Verify installation
+prltc gain  # Must show token stats, not "command not found"
 
-# OR manually verify correct installation
-prltc gain  # Must show token stats, not error
+# 2. Initialize for Claude Code (RECOMMENDED: hook-first mode)
+prltc init --global
+# → Installs hook + creates slim PRLTC.md (10 lines, 99.5% token savings)
+# → Follow printed instructions to add hook to ~/.claude/settings.json
 
-# Initialize prltc for Claude Code
-prltc init --global    # Add to ~/.claude/CLAUDE.md (all projects)
-prltc init             # Add to ./CLAUDE.md (this project)
+# 3. Test it works
+prltc git status  # Should show ultra-compact output
+prltc init --show # Verify hook is installed and executable
 
-# Test basic commands
-prltc ls .
-prltc git status
+# Alternative modes:
+# prltc init --global --claude-md  # Legacy: full injection (137 lines)
+# prltc init                       # Local project only (./CLAUDE.md)
 ```
+
+**New in v0.9.5**: Hook-first installation eliminates ~2000 tokens from Claude's context while maintaining full PRLTC functionality through transparent command rewriting.
 
 ## Global Flags
 
@@ -298,13 +302,23 @@ FAILED: 2/15 tests
 
 ## Configuration
 
-prltc reads from `CLAUDE.md` files to instruct Claude Code to use prltc automatically:
+### Installation Modes
+
+| Command | Scope | Hook | PRLTC.md | CLAUDE.md | Tokens in Context | Use Case |
+|---------|-------|------|--------|-----------|-------------------|----------|
+| `prltc init -g` | Global | ✅ | ✅ (10 lines) | @PRLTC.md | ~10 | **Recommended**: All projects, automatic |
+| `prltc init -g --claude-md` | Global | ❌ | ❌ | Full (137 lines) | ~2000 | Legacy compatibility |
+| `prltc init -g --hook-only` | Global | ✅ | ❌ | Nothing | 0 | Minimal setup, hook-only |
+| `prltc init` | Local | ❌ | ❌ | Full (137 lines) | ~2000 | Single project, no hook |
 
 ```bash
-prltc init --show    # Show current configuration
-prltc init           # Create local CLAUDE.md
-prltc init --global  # Create ~/CLAUDE.md
+prltc init --show         # Show current configuration
+prltc init -g             # Install hook + PRLTC.md (recommended)
+prltc init -g --claude-md # Legacy: full injection into CLAUDE.md
+prltc init                # Local project: full injection into ./CLAUDE.md
 ```
+
+**Migration**: If you previously used `prltc init -g` with the old system (137-line injection), simply re-run `prltc init -g` to automatically migrate to the new hook-first approach.
 
 example of 3 days session:
 ```bash
@@ -336,13 +350,27 @@ Daily Savings (last 30 days):
 
 The most effective way to use prltc is with the **auto-rewrite hook** for Claude Code. Instead of relying on CLAUDE.md instructions (which subagents may ignore), this hook transparently intercepts Bash commands and rewrites them to their prltc equivalents before execution.
 
-**Result**: 100% prltc adoption across all conversations and subagents, zero token overhead.
+**Result**: 100% prltc adoption across all conversations and subagents, zero token overhead in Claude's context.
 
 ### How It Works
 
 The hook runs as a Claude Code [PreToolUse hook](https://docs.anthropic.com/en/docs/claude-code/hooks). When Claude Code is about to execute a Bash command like `git status`, the hook rewrites it to `prltc git status` before the command reaches the shell. Claude Code never sees the rewrite — it's transparent.
 
-### Global Install (all projects)
+### Quick Install (Automated)
+
+```bash
+prltc init -g
+# → Installs hook to ~/.claude/hooks/prltc-rewrite.sh (with executable permissions)
+# → Creates ~/.claude/PRLTC.md (10 lines, minimal context footprint)
+# → Adds @PRLTC.md reference to ~/.claude/CLAUDE.md
+# → Prints settings.json instructions (manual step required)
+
+# Follow the printed instructions to add hook to ~/.claude/settings.json
+```
+
+### Manual Install (Fallback)
+
+If `prltc init -g` doesn't work for your setup:
 
 ```bash
 # 1. Copy the hook script

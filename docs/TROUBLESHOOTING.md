@@ -123,7 +123,20 @@ cat ~/.claude/CLAUDE.md | grep prltc
 cat ./CLAUDE.md | grep prltc
 ```
 
-**4. Optional: Install auto-rewrite hook (recommended):**
+**4. Install auto-rewrite hook (recommended for automatic PRLTC usage):**
+
+**Option A: Automatic (recommended)**
+```bash
+prltc init -g
+# → Installs hook + PRLTC.md automatically
+# → Follow printed instructions to add hook to ~/.claude/settings.json
+# → Restart Claude Code
+
+# Verify installation
+prltc init --show  # Should show "✅ Hook: executable, with guards"
+```
+
+**Option B: Manual (fallback)**
 ```bash
 # Copy hook to Claude Code hooks directory
 mkdir -p ~/.claude/hooks
@@ -131,7 +144,7 @@ cp .claude/hooks/prltc-rewrite.sh ~/.claude/hooks/
 chmod +x ~/.claude/hooks/prltc-rewrite.sh
 ```
 
-Then add to `~/.claude/settings.json`:
+Then add to `~/.claude/settings.json` (replace `~` with full path):
 ```json
 {
   "hooks": {
@@ -141,7 +154,7 @@ Then add to `~/.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/prltc-rewrite.sh"
+            "command": "/Users/yourname/.claude/hooks/prltc-rewrite.sh"
           }
         ]
       }
@@ -149,6 +162,8 @@ Then add to `~/.claude/settings.json`:
   }
 }
 ```
+
+**Note**: Use absolute path in `settings.json`, not `~/.claude/...`
 
 ---
 
