@@ -372,20 +372,61 @@ section "Docker / Kubectl (help only)"
 assert_help    "prltc docker"                   prltc docker
 assert_help    "prltc kubectl"                  prltc kubectl
 
-# ── 27. Global flags ────────────────────────────────
+# ── 27. Python (conditional) ────────────────────────
+
+section "Python (conditional)"
+
+if command -v pytest &>/dev/null; then
+    assert_help    "prltc pytest"                    prltc pytest --help
+else
+    skip "pytest not installed"
+fi
+
+if command -v ruff &>/dev/null; then
+    assert_help    "prltc ruff"                      prltc ruff --help
+else
+    skip "ruff not installed"
+fi
+
+if command -v pip &>/dev/null; then
+    assert_help    "prltc pip"                       prltc pip --help
+else
+    skip "pip not installed"
+fi
+
+# ── 28. Go (conditional) ────────────────────────────
+
+section "Go (conditional)"
+
+if command -v go &>/dev/null; then
+    assert_help    "prltc go"                        prltc go --help
+    assert_help    "prltc go test"                   prltc go test -h
+    assert_help    "prltc go build"                  prltc go build -h
+    assert_help    "prltc go vet"                    prltc go vet -h
+else
+    skip "go not installed"
+fi
+
+if command -v golangci-lint &>/dev/null; then
+    assert_help    "prltc golangci-lint"             prltc golangci-lint --help
+else
+    skip "golangci-lint not installed"
+fi
+
+# ── 29. Global flags ────────────────────────────────
 
 section "Global flags"
 
 assert_ok      "prltc -u ls ."                  prltc -u ls .
 assert_ok      "prltc --skip-env npm --help"    prltc --skip-env npm --help
 
-# ── 28. CcEconomics ─────────────────────────────────
+# ── 30. CcEconomics ─────────────────────────────────
 
 section "CcEconomics"
 
 assert_ok      "prltc cc-economics"             prltc cc-economics
 
-# ── 29. Learn ───────────────────────────────────────
+# ── 31. Learn ───────────────────────────────────────
 
 section "Learn"
 

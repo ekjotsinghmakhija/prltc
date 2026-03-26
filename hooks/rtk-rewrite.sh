@@ -112,6 +112,28 @@ elif echo "$FIRST_CMD" | grep -qE '^curl\s+'; then
 # --- pnpm package management ---
 elif echo "$FIRST_CMD" | grep -qE '^pnpm\s+(list|ls|outdated)(\s|$)'; then
   REWRITTEN=$(echo "$CMD" | sed 's/^pnpm /prltc pnpm /')
+
+# --- Python tooling ---
+elif echo "$FIRST_CMD" | grep -qE '^pytest(\s|$)'; then
+  REWRITTEN=$(echo "$CMD" | sed 's/^pytest/prltc pytest/')
+elif echo "$FIRST_CMD" | grep -qE '^python\s+-m\s+pytest(\s|$)'; then
+  REWRITTEN=$(echo "$CMD" | sed 's/^python -m pytest/prltc pytest/')
+elif echo "$FIRST_CMD" | grep -qE '^ruff\s+(check|format)(\s|$)'; then
+  REWRITTEN=$(echo "$CMD" | sed 's/^ruff /prltc ruff /')
+elif echo "$FIRST_CMD" | grep -qE '^pip\s+(list|outdated|install|show)(\s|$)'; then
+  REWRITTEN=$(echo "$CMD" | sed 's/^pip /prltc pip /')
+elif echo "$FIRST_CMD" | grep -qE '^uv\s+pip\s+(list|outdated|install|show)(\s|$)'; then
+  REWRITTEN=$(echo "$CMD" | sed 's/^uv pip /prltc pip /')
+
+# --- Go tooling ---
+elif echo "$FIRST_CMD" | grep -qE '^go\s+test(\s|$)'; then
+  REWRITTEN=$(echo "$CMD" | sed 's/^go test/prltc go test/')
+elif echo "$FIRST_CMD" | grep -qE '^go\s+build(\s|$)'; then
+  REWRITTEN=$(echo "$CMD" | sed 's/^go build/prltc go build/')
+elif echo "$FIRST_CMD" | grep -qE '^go\s+vet(\s|$)'; then
+  REWRITTEN=$(echo "$CMD" | sed 's/^go vet/prltc go vet/')
+elif echo "$FIRST_CMD" | grep -qE '^golangci-lint(\s|$)'; then
+  REWRITTEN=$(echo "$CMD" | sed 's/^golangci-lint/prltc golangci-lint/')
 fi
 
 # If no rewrite needed, approve as-is
