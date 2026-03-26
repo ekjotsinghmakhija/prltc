@@ -118,10 +118,22 @@ assert_contains "prltc --help" "Usage:" prltc --help
 section "Ls"
 
 assert_ok      "prltc ls ."                     prltc ls .
-assert_ok      "prltc ls -a ."                  prltc ls -a .
-assert_ok      "prltc ls --depth 2 ."           prltc ls --depth 2 .
-assert_ok      "prltc ls -f tree ."             prltc ls -f tree .
-assert_contains "prltc ls shows src/"           "src/" prltc ls .
+assert_ok      "prltc ls -la ."                 prltc ls -la .
+assert_ok      "prltc ls -lh ."                 prltc ls -lh .
+assert_contains "prltc ls -a shows hidden"      ".git" prltc ls -a .
+
+# ── 2b. Tree ─────────────────────────────────────────
+
+section "Tree"
+
+if command -v tree >/dev/null 2>&1; then
+    assert_ok      "prltc tree ."                prltc tree .
+    assert_ok      "prltc tree -L 2 ."           prltc tree -L 2 .
+    assert_ok      "prltc tree -d -L 1 ."        prltc tree -d -L 1 .
+    assert_contains "prltc tree shows src/"      "src" prltc tree -L 1 .
+else
+    skip_test "prltc tree" "tree not installed"
+fi
 
 # ── 3. Read ──────────────────────────────────────────
 
@@ -132,6 +144,10 @@ assert_ok      "prltc read --level none Cargo.toml"  prltc read --level none Car
 assert_ok      "prltc read --level aggressive Cargo.toml" prltc read --level aggressive Cargo.toml
 assert_ok      "prltc read -n Cargo.toml"       prltc read -n Cargo.toml
 assert_ok      "prltc read --max-lines 5 Cargo.toml" prltc read --max-lines 5 Cargo.toml
+
+section "Read (stdin support)"
+
+assert_ok      "prltc read stdin pipe"          bash -c 'echo "fn main() {}" | prltc read -'
 
 # ── 4. Git ───────────────────────────────────────────
 
@@ -152,6 +168,12 @@ assert_ok      "prltc git branch"               prltc git branch
 assert_ok      "prltc git fetch"                prltc git fetch
 assert_ok      "prltc git stash list"           prltc git stash list
 assert_ok      "prltc git worktree"             prltc git worktree
+
+section "Git (passthrough: unsupported subcommands)"
+
+assert_ok      "prltc git tag --list"           prltc git tag --list
+assert_ok      "prltc git remote -v"            prltc git remote -v
+assert_ok      "prltc git rev-parse HEAD"       prltc git rev-parse HEAD
 
 # ── 5. GitHub CLI ────────────────────────────────────
 
@@ -209,6 +231,10 @@ assert_help    "prltc pnpm"                     prltc pnpm
 assert_help    "prltc pnpm build"               prltc pnpm build
 assert_help    "prltc pnpm typecheck"           prltc pnpm typecheck
 
+if command -v pnpm >/dev/null 2>&1; then
+    assert_ok  "prltc pnpm help"                prltc pnpm help
+fi
+
 # ── 10. Grep ─────────────────────────────────────────
 
 section "Grep"
@@ -216,6 +242,11 @@ section "Grep"
 assert_ok      "prltc grep pattern"             prltc grep "pub fn" src/
 assert_contains "prltc grep finds results"      "pub fn" prltc grep "pub fn" src/
 assert_ok      "prltc grep with file type"      prltc grep "pub fn" src/ -t rust
+
+section "Grep (extra args passthrough)"
+
+assert_ok      "prltc grep -i case insensitive" prltc grep "fn" src/ -i
+assert_ok      "prltc grep -A context lines"    prltc grep "fn run" src/ -A 2
 
 # ── 11. Find ─────────────────────────────────────────
 
@@ -361,6 +392,13 @@ assert_ok      "prltc --skip-env npm --help"    prltc --skip-env npm --help
 section "CcEconomics"
 
 assert_ok      "prltc cc-economics"             prltc cc-economics
+
+# ── 29. Learn ───────────────────────────────────────
+
+section "Learn"
+
+assert_ok      "prltc learn --help"             prltc learn --help
+assert_ok      "prltc learn (no sessions)"      prltc learn --since 0 2>&1 || true
 
 # ══════════════════════════════════════════════════════
 # Report
