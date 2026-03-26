@@ -244,6 +244,9 @@ enum Commands {
         /// Filter by file type (e.g., ts, py, rust)
         #[arg(short = 't', long)]
         file_type: Option<String>,
+        /// Extra ripgrep arguments (e.g., -i, -A 3, -w, --glob)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        extra_args: Vec<String>,
     },
 
     /// Initialize prltc instructions in CLAUDE.md
@@ -417,6 +420,13 @@ enum Commands {
         /// Output format: text, json
         #[arg(short, long, default_value = "text")]
         format: String,
+    },
+
+    /// Execute command without filtering but track usage
+    Proxy {
+        /// Command and arguments to execute
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<OsString>,
     },
 }
 
@@ -864,6 +874,7 @@ fn main() -> Result<()> {
             max,
             context_only,
             file_type,
+            extra_args,
         } => {
             grep_cmd::run(
                 &pattern,
@@ -872,6 +883,7 @@ fn main() -> Result<()> {
                 max,
                 context_only,
                 file_type.as_deref(),
+                &extra_args,
                 cli.verbose,
             )?;
         }
@@ -1093,6 +1105,49 @@ fn main() -> Result<()> {
                     // Generic passthrough with npm boilerplate filter
                     npm_cmd::run(&args, cli.verbose, cli.skip_env)?;
                 }
+            }
+        }
+
+        Commands::Proxy { args } => {
+            use std::process::Command;
+
+            if args.is_empty() {
+                anyhow::bail!("proxy requires a command to execute\nUsage: prltc proxy <command> [args...]");
+            }
+
+            let timer = tracking::TimedExecution::start();
+
+            let cmd_name = args[0].to_string_lossy();
+            let cmd_args: Vec<String> = args[1..].iter().map(|s| s.to_string_lossy().into_owned()).collect();
+
+            if cli.verbose > 0 {
+                eprintln!("Proxy mode: {} {}", cmd_name, cmd_args.join(" "));
+            }
+
+            let output = Command::new(cmd_name.as_ref())
+                .args(&cmd_args)
+                .output()
+                .context(format!("Failed to execute command: {}", cmd_name))?;
+
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let full_output = format!("{}{}", stdout, stderr);
+
+            // Print output
+            print!("{}", stdout);
+            eprint!("{}", stderr);
+
+            // Track usage (input = output since no filtering)
+            timer.track(
+                &format!("{} {}", cmd_name, cmd_args.join(" ")),
+                &format!("prltc proxy {} {}", cmd_name, cmd_args.join(" ")),
+                &full_output,
+                &full_output,
+            );
+
+            // Exit with same code as child process
+            if !output.status.success() {
+                std::process::exit(output.status.code().unwrap_or(1));
             }
         }
     }

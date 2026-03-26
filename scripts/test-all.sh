@@ -239,6 +239,11 @@ assert_ok      "prltc grep pattern"             prltc grep "pub fn" src/
 assert_contains "prltc grep finds results"      "pub fn" prltc grep "pub fn" src/
 assert_ok      "prltc grep with file type"      prltc grep "pub fn" src/ -t rust
 
+section "Grep (extra args passthrough)"
+
+assert_ok      "prltc grep -i case insensitive" prltc grep "fn" src/ -i
+assert_ok      "prltc grep -A context lines"    prltc grep "fn run" src/ -A 2
+
 # ── 11. Find ─────────────────────────────────────────
 
 section "Find"
