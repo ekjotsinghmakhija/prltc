@@ -1,6 +1,6 @@
 #!/bin/sh
 # prltc installer - https://github.com/pszymkowiak/prltc
-# Usage: curl -fsSL https://raw.githubusercontent.com/pszymkowiak/prltc/main/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/ekjotsinghmakhija/prltc/refs/heads/master/install.sh | sh
 
 set -e
 
