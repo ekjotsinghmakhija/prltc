@@ -723,6 +723,12 @@ enum CargoCommands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
+    /// Install with compact output (strip dep compilation, keep installed/errors)
+    Install {
+        /// Additional cargo install arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Passthrough: runs any unsupported cargo subcommand directly
     #[command(external_subcommand)]
     Other(Vec<OsString>),
@@ -1116,6 +1122,9 @@ fn main() -> Result<()> {
             }
             CargoCommands::Check { args } => {
                 cargo_cmd::run(cargo_cmd::CargoCommand::Check, &args, cli.verbose)?;
+            }
+            CargoCommands::Install { args } => {
+                cargo_cmd::run(cargo_cmd::CargoCommand::Install, &args, cli.verbose)?;
             }
             CargoCommands::Other(args) => {
                 cargo_cmd::run_passthrough(&args, cli.verbose)?;
