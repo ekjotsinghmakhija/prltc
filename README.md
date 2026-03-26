@@ -318,6 +318,35 @@ prltc init -g --claude-md # Legacy: full injection into CLAUDE.md
 prltc init                # Local project: full injection into ./CLAUDE.md
 ```
 
+### Installation Flags
+
+**Settings.json Control**:
+```bash
+prltc init -g                 # Default: prompt to patch [y/N]
+prltc init -g --auto-patch    # Patch settings.json without prompting
+prltc init -g --no-patch      # Skip patching, show manual instructions
+```
+
+**Mode Control**:
+```bash
+prltc init -g --claude-md     # Legacy: full 137-line injection (no hook)
+prltc init -g --hook-only     # Hook only, no PRLTC.md
+```
+
+**Uninstall**:
+```bash
+prltc init -g --uninstall     # Remove all PRLTC artifacts
+```
+
+**What is settings.json?**
+Claude Code configuration file that registers the PRLTC hook. The hook transparently rewrites commands (e.g., `git status` → `prltc git status`) before execution. Without this registration, Claude won't use the hook.
+
+**Backup Behavior**:
+PRLTC creates `~/.claude/settings.json.bak` before making changes. If something breaks, restore with:
+```bash
+cp ~/.claude/settings.json.bak ~/.claude/settings.json
+```
+
 **Migration**: If you previously used `prltc init -g` with the old system (137-line injection), simply re-run `prltc init -g` to automatically migrate to the new hook-first approach.
 
 example of 3 days session:
@@ -352,6 +381,17 @@ The most effective way to use prltc is with the **auto-rewrite hook** for Claude
 
 **Result**: 100% prltc adoption across all conversations and subagents, zero token overhead in Claude's context.
 
+### What Are Hooks?
+
+**For Beginners**:
+Claude Code hooks are scripts that run before/after Claude executes commands. PRLTC uses a **PreToolUse** hook that intercepts Bash commands and rewrites them (e.g., `git status` → `prltc git status`) before execution. This is **transparent** - Claude never sees the rewrite, it just gets optimized output.
+
+**Why settings.json?**
+Claude Code reads `~/.claude/settings.json` to find registered hooks. Without this file, Claude doesn't know the PRLTC hook exists. Think of it as the hook registry.
+
+**Is it safe?**
+Yes. PRLTC creates a backup (`settings.json.bak`) before changes. The hook is read-only (it only modifies command strings, never deletes files or accesses secrets). Review the hook script at `~/.claude/hooks/prltc-rewrite.sh` anytime.
+
 ### How It Works
 
 The hook runs as a Claude Code [PreToolUse hook](https://docs.anthropic.com/en/docs/claude-code/hooks). When Claude Code is about to execute a Bash command like `git status`, the hook rewrites it to `prltc git status` before the command reaches the shell. Claude Code never sees the rewrite — it's transparent.
@@ -363,14 +403,39 @@ prltc init -g
 # → Installs hook to ~/.claude/hooks/prltc-rewrite.sh (with executable permissions)
 # → Creates ~/.claude/PRLTC.md (10 lines, minimal context footprint)
 # → Adds @PRLTC.md reference to ~/.claude/CLAUDE.md
-# → Prints settings.json instructions (manual step required)
+# → Prompts: "Patch settings.json? [y/N]"
+# → If yes: creates backup (~/.claude/settings.json.bak), patches file
 
-# Follow the printed instructions to add hook to ~/.claude/settings.json
+# Verify installation
+prltc init --show  # Shows hook status, settings.json registration
 ```
+
+**Settings.json Patching Options**:
+```bash
+prltc init -g                 # Default: prompts for consent [y/N]
+prltc init -g --auto-patch    # Patch immediately without prompting (CI/CD)
+prltc init -g --no-patch      # Skip patching, print manual JSON snippet
+```
+
+**What is settings.json?**
+Claude Code's configuration file that registers the PRLTC hook. Without this, Claude won't use the hook. PRLTC backs up the file before changes (`settings.json.bak`).
+
+**Restart Required**: After installation, restart Claude Code, then test with `git status`.
 
 ### Manual Install (Fallback)
 
-If `prltc init -g` doesn't work for your setup:
+If automatic patching fails or you prefer manual control:
+
+```bash
+# 1. Install hook and PRLTC.md
+prltc init -g --no-patch  # Prints JSON snippet
+
+# 2. Manually edit ~/.claude/settings.json (add the printed snippet)
+
+# 3. Restart Claude Code
+```
+
+**Alternative: Full manual setup**
 
 ```bash
 # 1. Copy the hook script
@@ -480,6 +545,39 @@ chmod +x ~/.claude/hooks/prltc-suggest.sh
 
 The suggest hook detects the same commands as the rewrite hook but outputs a `systemMessage` instead of `updatedInput`, informing Claude Code that an prltc alternative exists.
 
+## Uninstalling PRLTC
+
+**Complete Removal (Global Only)**:
+```bash
+prltc init -g --uninstall
+
+# Removes:
+#   - ~/.claude/hooks/prltc-rewrite.sh
+#   - ~/.claude/PRLTC.md
+#   - @PRLTC.md reference from ~/.claude/CLAUDE.md
+#   - PRLTC hook entry from ~/.claude/settings.json
+
+# Restart Claude Code after uninstall
+```
+
+**Restore from Backup** (if needed):
+```bash
+cp ~/.claude/settings.json.bak ~/.claude/settings.json
+```
+
+**Local Projects**: Manually remove PRLTC instructions from `./CLAUDE.md`
+
+**Binary Removal**:
+```bash
+# If installed via cargo
+cargo uninstall prltc
+
+# If installed via package manager
+brew uninstall prltc          # macOS Homebrew
+sudo apt remove prltc         # Debian/Ubuntu
+sudo dnf remove prltc         # Fedora/RHEL
+```
+
 ## Documentation
 
 - **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - ⚠️ Fix common issues (wrong prltc installed, missing commands, PATH issues)
@@ -488,6 +586,70 @@ The suggest hook detects the same commands as the rewrite hook but outputs a `sy
 - **[CLAUDE.md](CLAUDE.md)** - Claude Code integration instructions and project context
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture and development guide
 - **[SECURITY.md](SECURITY.md)** - Security policy, vulnerability reporting, and PR review process
+
+## Troubleshooting
+
+### Settings.json Patching Failed
+
+**Problem**: `prltc init -g` fails to patch settings.json
+
+**Solutions**:
+```bash
+# Check if settings.json is valid JSON
+cat ~/.claude/settings.json | python3 -m json.tool
+
+# Use manual patching
+prltc init -g --no-patch  # Prints JSON snippet
+
+# Restore from backup
+cp ~/.claude/settings.json.bak ~/.claude/settings.json
+
+# Check permissions
+ls -la ~/.claude/settings.json
+chmod 644 ~/.claude/settings.json
+```
+
+### Hook Not Working After Install
+
+**Problem**: Commands still not using PRLTC after `prltc init -g`
+
+**Solutions**:
+```bash
+# Verify hook is registered
+prltc init --show
+
+# Check settings.json manually
+cat ~/.claude/settings.json | grep prltc-rewrite
+
+# Restart Claude Code (critical step!)
+
+# Test with a command
+git status  # Should use prltc automatically
+```
+
+### Uninstall Didn't Remove Everything
+
+**Problem**: PRLTC traces remain after `prltc init -g --uninstall`
+
+**Manual Cleanup**:
+```bash
+# Remove hook
+rm ~/.claude/hooks/prltc-rewrite.sh
+
+# Remove PRLTC.md
+rm ~/.claude/PRLTC.md
+
+# Remove @PRLTC.md reference
+nano ~/.claude/CLAUDE.md  # Delete @PRLTC.md line
+
+# Remove from settings.json
+nano ~/.claude/settings.json  # Remove PRLTC hook entry
+
+# Restore from backup
+cp ~/.claude/settings.json.bak ~/.claude/settings.json
+```
+
+See **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** for more issues and solutions.
 
 ## For Maintainers
 
