@@ -88,7 +88,7 @@ pub trait OutputParser: Sized {
     /// Implementation should follow three-tier fallback:
     /// 1. Try JSON parsing (if tool supports --json/--format json)
     /// 2. Try regex/text extraction with partial data
-    /// 3. Return truncated passthrough with [PRLTC:PASSTHROUGH] marker
+    /// 3. Return truncated passthrough with `[PRLTC:PASSTHROUGH]` marker
     fn parse(input: &str) -> ParseResult<Self::Output>;
 
     /// Parse with explicit tier preference (for testing/debugging)
