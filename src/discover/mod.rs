@@ -92,6 +92,7 @@ pub fn run(
                         prltc_equivalent,
                         category,
                         estimated_savings_pct,
+                        status,
                     } => {
                         let bucket = supported_map.entry(prltc_equivalent).or_insert_with(|| {
                             SupportedBucket {
@@ -120,9 +121,13 @@ pub fn run(
                             (output_tokens as f64 * estimated_savings_pct / 100.0) as usize;
                         bucket.total_output_tokens += savings;
 
-                        // Track the display name
+                        // Track the display name with status
                         let display_name = truncate_command(part);
-                        *bucket.command_counts.entry(display_name).or_insert(0) += 1;
+                        let entry = bucket
+                            .command_counts
+                            .entry(format!("{}:{:?}", display_name, status))
+                            .or_insert(0);
+                        *entry += 1;
                     }
                     Classification::Unsupported { base_command } => {
                         let bucket = unsupported_map.entry(base_command).or_insert_with(|| {
@@ -150,21 +155,35 @@ pub fn run(
         .into_values()
         .map(|bucket| {
             // Pick the most common command as the display name
-            let command = bucket
+            let (command_with_status, status) = bucket
                 .command_counts
                 .into_iter()
                 .max_by_key(|(_, c)| *c)
-                .map(|(name, _)| name)
-                .unwrap_or_default();
+                .map(|(name, _)| {
+                    // Extract status from "command:Status" format
+                    if let Some(colon_pos) = name.rfind(':') {
+                        let cmd = name[..colon_pos].to_string();
+                        let status_str = &name[colon_pos + 1..];
+                        let status = match status_str {
+                            "Passthrough" => report::RtkStatus::Passthrough,
+                            "NotSupported" => report::RtkStatus::NotSupported,
+                            _ => report::RtkStatus::Existing,
+                        };
+                        (cmd, status)
+                    } else {
+                        (name, report::RtkStatus::Existing)
+                    }
+                })
+                .unwrap_or_else(|| (String::new(), report::RtkStatus::Existing));
 
             SupportedEntry {
-                command,
+                command: command_with_status,
                 count: bucket.count,
                 prltc_equivalent: bucket.prltc_equivalent,
                 category: bucket.category,
                 estimated_savings_tokens: bucket.total_output_tokens,
                 estimated_savings_pct: bucket.savings_pct,
-                prltc_status: report::RtkStatus::Existing,
+                prltc_status: status,
             }
         })
         .collect();

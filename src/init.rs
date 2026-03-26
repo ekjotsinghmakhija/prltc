@@ -8,88 +8,139 @@ use anyhow::Result;
 use std::fs;
 use std::path::PathBuf;
 
-const PRLTC_INSTRUCTIONS: &str = r#"# Instructions: Utiliser prltc pour économiser des tokens
+const PRLTC_INSTRUCTIONS: &str = r##"<!-- prltc-instructions v2 -->
+# PRLTC (Rust Token Killer) - Token-Optimized Commands
 
-## Règle obligatoire
-Remplacer les commandes Unix standard par `prltc` pour minimiser la consommation de tokens.
+## Golden Rule
 
-**IMPORTANT:** Même lors du chaînage de commandes avec `&&`, utiliser `prltc`:
+**Always prefix commands with `prltc`**. If PRLTC has a dedicated filter, it uses it. If not, it passes through unchanged. This means PRLTC is always safe to use.
+
+**Important**: Even in command chains with `&&`, use `prltc`:
 ```bash
-# ❌ Ne pas faire
+# ❌ Wrong
 git add . && git commit -m "msg" && git push
 
-# ✅ Faire
-prltc git add && prltc git commit -m "msg" && prltc git push
+# ✅ Correct
+prltc git add . && prltc git commit -m "msg" && prltc git push
 ```
 
-## Substitutions
+## PRLTC Commands by Workflow
 
-| ❌ Ne pas utiliser | ✅ Utiliser |
-|-------------------|-------------|
-| `ls`, `tree` | `prltc ls <path>` |
-| `cat`, `head`, `tail` | `prltc read <file>` |
-| `cat` pour comprendre du code | `prltc read <file> -l aggressive` |
-| `find`, `fd` | `prltc find <pattern>` |
-| `git status` | `prltc git status` |
-| `git log` | `prltc git log` |
-| `git diff` | `prltc git diff` |
-| `git add .` | `prltc git add` |
-| `git commit -m "msg"` | `prltc git commit -m "msg"` |
-| `git push` | `prltc git push` |
-| `git pull` | `prltc git pull` |
-| `cargo test`, `pytest`, `npm test` | `prltc test <cmd>` |
-| `<cmd> 2>&1 \| grep -i error` | `prltc err <cmd>` |
-| `cat file.log` | `prltc log <file>` |
-| `cat package.json` | `prltc json <file>` |
-| `cat Cargo.toml` (pour deps) | `prltc deps` |
-| `env`, `printenv` | `prltc env` |
-| `docker ps` | `prltc docker ps` |
-| `docker images` | `prltc docker images` |
-| `docker logs <c>` | `prltc docker logs <c>` |
-| `kubectl get pods` | `prltc kubectl pods` |
-| `kubectl logs <pod>` | `prltc kubectl logs <pod>` |
-| `grep -rn`, `rg` | `prltc grep <pattern>` |
-| `<longue commande>` | `prltc summary <cmd>` |
-
-## Commandes prltc (15 total)
-
+### Build & Compile (80-90% savings)
 ```bash
-# Fichiers
-prltc ls .                        # Arbre filtré (-82% tokens)
-prltc read file.rs -l aggressive  # Signatures seules (-74% tokens)
-prltc smart file.rs               # Résumé 2 lignes
-prltc find "*.rs" .               # Find compact groupé par dossier
-
-# Git
-prltc git status                  # Status compact
-prltc git log -n 10               # 10 commits compacts
-prltc git diff                    # Diff compact
-prltc git add                     # Add → "ok ✓"
-prltc git commit -m "msg"         # Commit → "ok ✓ abc1234"
-prltc git push                    # Push → "ok ✓ main"
-prltc git pull                    # Pull → "ok ✓ 3 files"
-prltc grep "pattern"              # Grep groupé par fichier
-
-# Commandes
-prltc test cargo test             # Échecs seuls (-90% tokens)
-prltc err npm run build           # Erreurs seules (-80% tokens)
-prltc summary <cmd>               # Résumé heuristique
-prltc log app.log                 # Logs dédupliqués (erreurs ×N)
-
-# Données
-prltc json config.json            # Structure sans valeurs
-prltc deps                        # Résumé dépendances
-prltc env -f AWS                  # Vars filtrées
-
-# Conteneurs
-prltc docker ps                   # Conteneurs compacts
-prltc docker images               # Images compactes
-prltc docker logs <container>     # Logs dédupliqués
-prltc kubectl pods                # Pods compacts
-prltc kubectl services            # Services compacts
-prltc kubectl logs <pod>          # Logs dédupliqués
+prltc cargo build         # Cargo build output
+prltc cargo check         # Cargo check output
+prltc cargo clippy        # Clippy warnings grouped by file (80%)
+prltc tsc                 # TypeScript errors grouped by file/code (83%)
+prltc lint                # ESLint/Biome violations grouped (84%)
+prltc prettier --check    # Files needing format only (70%)
+prltc next build          # Next.js build with route metrics (87%)
 ```
-"#;
+
+### Test (90-99% savings)
+```bash
+prltc cargo test          # Cargo test failures only (90%)
+prltc vitest run          # Vitest failures only (99.5%)
+prltc playwright test     # Playwright failures only (94%)
+prltc test <cmd>          # Generic test wrapper - failures only
+```
+
+### Git (59-80% savings)
+```bash
+prltc git status          # Compact status
+prltc git log             # Compact log (works with all git flags)
+prltc git diff            # Compact diff (80%)
+prltc git show            # Compact show (80%)
+prltc git add             # Ultra-compact confirmations (59%)
+prltc git commit          # Ultra-compact confirmations (59%)
+prltc git push            # Ultra-compact confirmations
+prltc git pull            # Ultra-compact confirmations
+prltc git branch          # Compact branch list
+prltc git fetch           # Compact fetch
+prltc git stash           # Compact stash
+prltc git worktree        # Compact worktree
+```
+
+Note: Git passthrough works for ALL subcommands, even those not explicitly listed.
+
+### GitHub (26-87% savings)
+```bash
+prltc gh pr view <num>    # Compact PR view (87%)
+prltc gh pr checks        # Compact PR checks (79%)
+prltc gh run list         # Compact workflow runs (82%)
+prltc gh issue list       # Compact issue list (80%)
+prltc gh api              # Compact API responses (26%)
+```
+
+### JavaScript/TypeScript Tooling (70-90% savings)
+```bash
+prltc pnpm list           # Compact dependency tree (70%)
+prltc pnpm outdated       # Compact outdated packages (80%)
+prltc pnpm install        # Compact install output (90%)
+prltc npm run <script>    # Compact npm script output
+prltc npx <cmd>           # Compact npx command output
+prltc prisma              # Prisma without ASCII art (88%)
+```
+
+### Files & Search (60-75% savings)
+```bash
+prltc ls <path>           # Tree format, compact (65%)
+prltc read <file>         # Code reading with filtering (60%)
+prltc grep <pattern>      # Search grouped by file (75%)
+prltc find <pattern>      # Find grouped by directory (70%)
+```
+
+### Analysis & Debug (70-90% savings)
+```bash
+prltc err <cmd>           # Filter errors only from any command
+prltc log <file>          # Deduplicated logs with counts
+prltc json <file>         # JSON structure without values
+prltc deps                # Dependency overview
+prltc env                 # Environment variables compact
+prltc summary <cmd>       # Smart summary of command output
+prltc diff                # Ultra-compact diffs
+```
+
+### Infrastructure (85% savings)
+```bash
+prltc docker ps           # Compact container list
+prltc docker images       # Compact image list
+prltc docker logs <c>     # Deduplicated logs
+prltc kubectl get         # Compact resource list
+prltc kubectl logs        # Deduplicated pod logs
+```
+
+### Network (65-70% savings)
+```bash
+prltc curl <url>          # Compact HTTP responses (70%)
+prltc wget <url>          # Compact download output (65%)
+```
+
+### Meta Commands
+```bash
+prltc gain                # View token savings statistics
+prltc gain --history      # View command history with savings
+prltc discover            # Analyze Claude Code sessions for missed PRLTC usage
+prltc proxy <cmd>         # Run command without filtering (for debugging)
+prltc init                # Add PRLTC instructions to CLAUDE.md
+prltc init --global       # Add PRLTC to ~/.claude/CLAUDE.md
+```
+
+## Token Savings Overview
+
+| Category | Commands | Typical Savings |
+|----------|----------|-----------------|
+| Tests | vitest, playwright, cargo test | 90-99% |
+| Build | next, tsc, lint, prettier | 70-87% |
+| Git | status, log, diff, add, commit | 59-80% |
+| GitHub | gh pr, gh run, gh issue | 26-87% |
+| Package Managers | pnpm, npm, npx | 70-90% |
+| Files | ls, read, grep, find | 60-75% |
+| Infrastructure | docker, kubectl | 85% |
+| Network | curl, wget | 65-70% |
+
+Overall average: **60-90% token reduction** on common development operations.
+"##;
 
 pub fn run(global: bool, verbose: u8) -> Result<()> {
     let path = if global {
@@ -114,8 +165,8 @@ pub fn run(global: bool, verbose: u8) -> Result<()> {
     if path.exists() {
         let existing = fs::read_to_string(&path)?;
 
-        // Check if prltc instructions already present
-        if existing.contains("prltc") && existing.contains("Utiliser prltc") {
+        // Check if prltc instructions already present using version marker
+        if existing.contains("<!-- prltc-instructions") {
             println!("✅ {} already contains prltc instructions", path.display());
             return Ok(());
         }
@@ -177,4 +228,44 @@ pub fn show_config() -> Result<()> {
     println!("  prltc init --global # Add prltc to global ~/.claude/CLAUDE.md");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_init_mentions_all_top_level_commands() {
+        // Verify PRLTC_INSTRUCTIONS mentions key commands
+        for cmd in [
+            "prltc cargo",
+            "prltc gh",
+            "prltc vitest",
+            "prltc tsc",
+            "prltc lint",
+            "prltc prettier",
+            "prltc next",
+            "prltc playwright",
+            "prltc prisma",
+            "prltc pnpm",
+            "prltc npm",
+            "prltc curl",
+            "prltc git",
+            "prltc docker",
+            "prltc kubectl",
+        ] {
+            assert!(
+                PRLTC_INSTRUCTIONS.contains(cmd),
+                "Missing {cmd} in PRLTC_INSTRUCTIONS"
+            );
+        }
+    }
+
+    #[test]
+    fn test_init_has_version_marker() {
+        assert!(
+            PRLTC_INSTRUCTIONS.contains("<!-- prltc-instructions"),
+            "PRLTC_INSTRUCTIONS must have version marker for idempotency"
+        );
+    }
 }

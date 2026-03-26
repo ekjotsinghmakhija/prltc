@@ -24,13 +24,18 @@ If `prltc gain` fails, you have the wrong package installed.
 
 ## Development Commands
 
+> **Note**: If prltc is installed, prefer `prltc <cmd>` over raw commands for token-optimized output.
+> All commands work with passthrough support even for subcommands prltc doesn't specifically handle.
+
 ### Build & Run
 ```bash
 # Development build
-cargo build
+cargo build                   # raw
+prltc cargo build               # preferred (token-optimized)
 
 # Release build (optimized)
 cargo build --release
+prltc cargo build --release
 
 # Run directly
 cargo run -- <command>
@@ -42,31 +47,38 @@ cargo install --path .
 ### Testing
 ```bash
 # Run all tests
-cargo test
+cargo test                    # raw
+prltc cargo test                # preferred (token-optimized)
 
 # Run specific test
 cargo test <test_name>
+prltc cargo test <test_name>
 
 # Run tests with output
 cargo test -- --nocapture
+prltc cargo test -- --nocapture
 
 # Run tests in specific module
 cargo test <module_name>::
+prltc cargo test <module_name>::
 ```
 
 ### Linting & Quality
 ```bash
 # Check without building
-cargo check
+cargo check                   # raw
+prltc cargo check               # preferred (token-optimized)
 
 # Format code
-cargo fmt
+cargo fmt                     # passthrough (0% savings, but works)
 
 # Run clippy lints
-cargo clippy
+cargo clippy                  # raw
+prltc cargo clippy              # preferred (token-optimized)
 
 # Check all targets
 cargo clippy --all-targets
+prltc cargo clippy --all-targets
 ```
 
 ### Package Building
@@ -241,7 +253,7 @@ All code follows Red-Green-Refactor. See `.claude/skills/prltc-tdd/` for the ful
 
 ### Pre-commit gate
 ```bash
-cargo fmt --all --check && cargo clippy --all-targets && cargo test
+cargo fmt --all --check && prltc cargo clippy --all-targets && prltc cargo test
 ```
 
 ### Test commands

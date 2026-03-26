@@ -13,6 +13,7 @@ struct RtkRule {
     category: &'static str,
     savings_pct: f64,
     subcmd_savings: &'static [(&'static str, f64)],
+    subcmd_status: &'static [(&'static str, super::report::RtkStatus)],
 }
 
 /// Result of classifying a command.
@@ -22,6 +23,7 @@ pub enum Classification {
         prltc_equivalent: &'static str,
         category: &'static str,
         estimated_savings_pct: f64,
+        status: super::report::RtkStatus,
     },
     Unsupported {
         base_command: String,
@@ -55,7 +57,7 @@ pub fn category_avg_tokens(category: &str, subcmd: &str) -> usize {
 const PATTERNS: &[&str] = &[
     r"^git\s+(status|log|diff|show|add|commit|push|pull|branch|fetch|stash|worktree)",
     r"^gh\s+(pr|issue|run|repo|api)",
-    r"^cargo\s+(build|test|clippy|fmt)",
+    r"^cargo\s+(build|test|clippy|check|fmt)",
     r"^pnpm\s+(list|ls|outdated|install)",
     r"^npm\s+(run|exec)",
     r"^npx\s+",
@@ -87,126 +89,147 @@ const RULES: &[RtkRule] = &[
             ("add", 59.0),
             ("commit", 59.0),
         ],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc gh",
         category: "GitHub",
         savings_pct: 82.0,
         subcmd_savings: &[("pr", 87.0), ("run", 82.0), ("issue", 80.0)],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc cargo",
         category: "Cargo",
         savings_pct: 80.0,
-        subcmd_savings: &[("test", 90.0)],
+        subcmd_savings: &[("test", 90.0), ("check", 80.0)],
+        subcmd_status: &[("fmt", super::report::RtkStatus::Passthrough)],
     },
     RtkRule {
         prltc_cmd: "prltc pnpm",
         category: "PackageManager",
         savings_pct: 80.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc npm",
         category: "PackageManager",
         savings_pct: 70.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc npx",
         category: "PackageManager",
         savings_pct: 70.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc read",
         category: "Files",
         savings_pct: 60.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc grep",
         category: "Files",
         savings_pct: 75.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc ls",
         category: "Files",
         savings_pct: 65.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc find",
         category: "Files",
         savings_pct: 70.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc tsc",
         category: "Build",
         savings_pct: 83.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc lint",
         category: "Build",
         savings_pct: 84.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc prettier",
         category: "Build",
         savings_pct: 70.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc next",
         category: "Build",
         savings_pct: 87.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc vitest",
         category: "Tests",
         savings_pct: 99.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc playwright",
         category: "Tests",
         savings_pct: 94.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc prisma",
         category: "Build",
         savings_pct: 88.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc docker",
         category: "Infra",
         savings_pct: 85.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc kubectl",
         category: "Infra",
         savings_pct: 85.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc curl",
         category: "Network",
         savings_pct: 70.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
     RtkRule {
         prltc_cmd: "prltc wget",
         category: "Network",
         savings_pct: 65.0,
         subcmd_savings: &[],
+        subcmd_status: &[],
     },
 ];
 
@@ -308,29 +331,39 @@ pub fn classify_command(cmd: &str) -> Classification {
     if let Some(&idx) = matches.last() {
         let rule = &RULES[idx];
 
-        // Extract subcommand for savings override
-        let savings = if !rule.subcmd_savings.is_empty() {
-            if let Some(caps) = COMPILED[idx].captures(cmd_clean) {
-                if let Some(sub) = caps.get(1) {
-                    rule.subcmd_savings
-                        .iter()
-                        .find(|(s, _)| *s == sub.as_str())
-                        .map(|(_, pct)| *pct)
-                        .unwrap_or(rule.savings_pct)
-                } else {
-                    rule.savings_pct
-                }
+        // Extract subcommand for savings override and status detection
+        let (savings, status) = if let Some(caps) = COMPILED[idx].captures(cmd_clean) {
+            if let Some(sub) = caps.get(1) {
+                let subcmd = sub.as_str();
+                // Check if this subcommand has a special status
+                let status = rule
+                    .subcmd_status
+                    .iter()
+                    .find(|(s, _)| *s == subcmd)
+                    .map(|(_, st)| *st)
+                    .unwrap_or(super::report::RtkStatus::Existing);
+
+                // Check if this subcommand has custom savings
+                let savings = rule
+                    .subcmd_savings
+                    .iter()
+                    .find(|(s, _)| *s == subcmd)
+                    .map(|(_, pct)| *pct)
+                    .unwrap_or(rule.savings_pct);
+
+                (savings, status)
             } else {
-                rule.savings_pct
+                (rule.savings_pct, super::report::RtkStatus::Existing)
             }
         } else {
-            rule.savings_pct
+            (rule.savings_pct, super::report::RtkStatus::Existing)
         };
 
         Classification::Supported {
             prltc_equivalent: rule.prltc_cmd,
             category: rule.category,
             estimated_savings_pct: savings,
+            status,
         }
     } else {
         // Extract base command for unsupported
@@ -461,6 +494,7 @@ pub fn split_command_chain(cmd: &str) -> Vec<&str> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::report::RtkStatus;
     use super::*;
 
     #[test]
@@ -471,6 +505,7 @@ mod tests {
                 prltc_equivalent: "prltc git",
                 category: "Git",
                 estimated_savings_pct: 70.0,
+                status: RtkStatus::Existing,
             }
         );
     }
@@ -483,6 +518,7 @@ mod tests {
                 prltc_equivalent: "prltc git",
                 category: "Git",
                 estimated_savings_pct: 80.0,
+                status: RtkStatus::Existing,
             }
         );
     }
@@ -495,6 +531,7 @@ mod tests {
                 prltc_equivalent: "prltc cargo",
                 category: "Cargo",
                 estimated_savings_pct: 90.0,
+                status: RtkStatus::Existing,
             }
         );
     }
@@ -507,6 +544,7 @@ mod tests {
                 prltc_equivalent: "prltc tsc",
                 category: "Build",
                 estimated_savings_pct: 83.0,
+                status: RtkStatus::Existing,
             }
         );
     }
@@ -519,6 +557,7 @@ mod tests {
                 prltc_equivalent: "prltc read",
                 category: "Files",
                 estimated_savings_pct: 60.0,
+                status: RtkStatus::Existing,
             }
         );
     }
@@ -559,6 +598,7 @@ mod tests {
                 prltc_equivalent: "prltc git",
                 category: "Git",
                 estimated_savings_pct: 70.0,
+                status: RtkStatus::Existing,
             }
         );
     }
@@ -571,8 +611,98 @@ mod tests {
                 prltc_equivalent: "prltc docker",
                 category: "Infra",
                 estimated_savings_pct: 85.0,
+                status: RtkStatus::Existing,
             }
         );
+    }
+
+    #[test]
+    fn test_classify_cargo_check() {
+        assert_eq!(
+            classify_command("cargo check"),
+            Classification::Supported {
+                prltc_equivalent: "prltc cargo",
+                category: "Cargo",
+                estimated_savings_pct: 80.0,
+                status: RtkStatus::Existing,
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_cargo_check_all_targets() {
+        assert_eq!(
+            classify_command("cargo check --all-targets"),
+            Classification::Supported {
+                prltc_equivalent: "prltc cargo",
+                category: "Cargo",
+                estimated_savings_pct: 80.0,
+                status: RtkStatus::Existing,
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_cargo_fmt_passthrough() {
+        assert_eq!(
+            classify_command("cargo fmt"),
+            Classification::Supported {
+                prltc_equivalent: "prltc cargo",
+                category: "Cargo",
+                estimated_savings_pct: 80.0,
+                status: RtkStatus::Passthrough,
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_cargo_clippy_savings() {
+        assert_eq!(
+            classify_command("cargo clippy --all-targets"),
+            Classification::Supported {
+                prltc_equivalent: "prltc cargo",
+                category: "Cargo",
+                estimated_savings_pct: 80.0,
+                status: RtkStatus::Existing,
+            }
+        );
+    }
+
+    #[test]
+    fn test_patterns_rules_length_match() {
+        assert_eq!(
+            PATTERNS.len(),
+            RULES.len(),
+            "PATTERNS and RULES must be aligned"
+        );
+    }
+
+    #[test]
+    fn test_registry_covers_all_cargo_subcommands() {
+        // Verify that every CargoCommand variant (Build, Test, Clippy, Check, Fmt)
+        // except Other has a matching pattern in the registry
+        for subcmd in ["build", "test", "clippy", "check", "fmt"] {
+            let cmd = format!("cargo {subcmd}");
+            match classify_command(&cmd) {
+                Classification::Supported { .. } => {}
+                other => panic!("cargo {subcmd} should be Supported, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_registry_covers_all_git_subcommands() {
+        // Verify that every GitCommand subcommand has a matching pattern
+        for subcmd in [
+            "status", "log", "diff", "show", "add", "commit", "push", "pull", "branch", "fetch",
+            "stash", "worktree",
+        ] {
+            let cmd = format!("git {subcmd}");
+            match classify_command(&cmd) {
+                Classification::Supported { .. } => {}
+                other => panic!("git {subcmd} should be Supported, got {other:?}"),
+            }
+        }
     }
 
     #[test]
