@@ -227,6 +227,10 @@ assert_help    "prltc pnpm"                     prltc pnpm
 assert_help    "prltc pnpm build"               prltc pnpm build
 assert_help    "prltc pnpm typecheck"           prltc pnpm typecheck
 
+if command -v pnpm >/dev/null 2>&1; then
+    assert_ok  "prltc pnpm help"                prltc pnpm help
+fi
+
 # ── 10. Grep ─────────────────────────────────────────
 
 section "Grep"
