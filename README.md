@@ -176,6 +176,8 @@ prltc gain --all --format json    # JSON export for APIs/dashboards
 prltc gain --all --format csv     # CSV export for Excel/analysis
 ```
 
+> 📖 **API Documentation**: For programmatic access to tracking data (Rust library usage, CI/CD integration, custom dashboards), see [docs/tracking.md](docs/tracking.md).
+
 ### Discover — Find Missed Savings
 
 Scans your Claude Code session history to find commands where prltc would have saved tokens. Use it to:
