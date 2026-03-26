@@ -145,6 +145,10 @@ assert_ok      "prltc read --level aggressive Cargo.toml" prltc read --level agg
 assert_ok      "prltc read -n Cargo.toml"       prltc read -n Cargo.toml
 assert_ok      "prltc read --max-lines 5 Cargo.toml" prltc read --max-lines 5 Cargo.toml
 
+section "Read (stdin support)"
+
+assert_ok      "prltc read stdin pipe"          bash -c 'echo "fn main() {}" | prltc read -'
+
 # ── 4. Git ───────────────────────────────────────────
 
 section "Git (existing)"

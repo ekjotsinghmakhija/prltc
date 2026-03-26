@@ -130,6 +130,8 @@ fn run_diff(args: &[String], max_lines: Option<usize>, verbose: u8) -> Result<()
 }
 
 fn run_show(args: &[String], max_lines: Option<usize>, verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     // If user wants --stat or --format only, pass through
     let wants_stat_only = args
         .iter()
@@ -153,6 +155,14 @@ fn run_show(args: &[String], max_lines: Option<usize>, verbose: u8) -> Result<()
         }
         let stdout = String::from_utf8_lossy(&output.stdout);
         println!("{}", stdout.trim());
+
+        timer.track(
+            &format!("git show {}", args.join(" ")),
+            &format!("prltc git show {} (passthrough)", args.join(" ")),
+            &stdout,
+            &stdout,
+        );
+
         return Ok(());
     }
 
@@ -205,15 +215,22 @@ fn run_show(args: &[String], max_lines: Option<usize>, verbose: u8) -> Result<()
     let diff_stdout = String::from_utf8_lossy(&diff_output.stdout);
     let diff_text = diff_stdout.trim();
 
+    let mut final_output = summary.to_string();
     if !diff_text.is_empty() {
         if verbose > 0 {
             println!("\n--- Changes ---");
         }
         let compacted = compact_diff(diff_text, max_lines.unwrap_or(100));
         println!("{}", compacted);
+        final_output.push_str(&format!("\n{}", compacted));
     }
 
-    tracking::track("git show", "prltc git show", &raw_output, &summary);
+    timer.track(
+        &format!("git show {}", args.join(" ")),
+        &format!("prltc git show {}", args.join(" ")),
+        &raw_output,
+        &final_output,
+    );
 
     Ok(())
 }
@@ -701,6 +718,8 @@ fn run_commit(message: &str, verbose: u8) -> Result<()> {
 }
 
 fn run_push(args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     if verbose > 0 {
         eprintln!("git push");
     }
@@ -718,24 +737,34 @@ fn run_push(args: &[String], verbose: u8) -> Result<()> {
     let raw = format!("{}{}", stdout, stderr);
 
     if output.status.success() {
-        if stderr.contains("Everything up-to-date") {
-            println!("ok (up-to-date)");
-            tracking::track("git push", "prltc git push", &raw, "ok (up-to-date)");
+        let compact = if stderr.contains("Everything up-to-date") {
+            "ok (up-to-date)".to_string()
         } else {
+            let mut result = String::new();
             for line in stderr.lines() {
                 if line.contains("->") {
                     let parts: Vec<&str> = line.split_whitespace().collect();
                     if parts.len() >= 3 {
-                        let msg = format!("ok ✓ {}", parts[parts.len() - 1]);
-                        println!("{}", msg);
-                        tracking::track("git push", "prltc git push", &raw, &msg);
-                        return Ok(());
+                        result = format!("ok ✓ {}", parts[parts.len() - 1]);
+                        break;
                     }
                 }
             }
-            println!("ok ✓");
-            tracking::track("git push", "prltc git push", &raw, "ok ✓");
-        }
+            if !result.is_empty() {
+                result
+            } else {
+                "ok ✓".to_string()
+            }
+        };
+
+        println!("{}", compact);
+
+        timer.track(
+            &format!("git push {}", args.join(" ")),
+            &format!("prltc git push {}", args.join(" ")),
+            &raw,
+            &compact,
+        );
     } else {
         eprintln!("FAILED: git push");
         if !stderr.trim().is_empty() {
@@ -835,6 +864,8 @@ fn run_pull(args: &[String], verbose: u8) -> Result<()> {
 }
 
 fn run_branch(args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     if verbose > 0 {
         eprintln!("git branch");
     }
@@ -881,7 +912,12 @@ fn run_branch(args: &[String], verbose: u8) -> Result<()> {
     let filtered = filter_branch_output(&stdout);
     println!("{}", filtered);
 
-    tracking::track("git branch -a", "prltc git branch", &raw, &filtered);
+    timer.track(
+        &format!("git branch {}", args.join(" ")),
+        &format!("prltc git branch {}", args.join(" ")),
+        &raw,
+        &filtered,
+    );
 
     Ok(())
 }
@@ -1310,16 +1346,8 @@ M  file7.rs
     #[test]
     fn test_run_passthrough_accepts_args() {
         // Test that run_passthrough compiles and has correct signature
-        let args: Vec<OsString> = vec![OsString::from("tag"), OsString::from("--list")];
-        // We can't actually run git in tests without proper setup,
-        // but we can verify the function signature compiles
-        let _ = std::panic::catch_unwind(|| {
-            // This would fail without git, but verifies type signatures
-            let _result: Result<()> = (|| {
-                // Placeholder to verify types without executing
-                Ok(())
-            })();
-        });
+        let _args: Vec<OsString> = vec![OsString::from("tag"), OsString::from("--list")];
+        // Compile-time verification that the function exists with correct signature
     }
 
     #[test]
