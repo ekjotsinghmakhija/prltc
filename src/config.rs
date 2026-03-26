@@ -22,6 +22,8 @@ pub struct Config {
 pub struct TrackingConfig {
     pub enabled: bool,
     pub history_days: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub database_path: Option<PathBuf>,
 }
 
 impl Default for TrackingConfig {
@@ -29,6 +31,7 @@ impl Default for TrackingConfig {
         Self {
             enabled: true,
             history_days: 90,
+            database_path: None,
         }
     }
 }

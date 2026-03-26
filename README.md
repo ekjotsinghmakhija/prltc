@@ -375,6 +375,23 @@ Daily Savings (last 30 days):
 01-26 │████████████████████████████████████████ 13.0K
 ```
 
+### Custom Database Path
+
+By default, PRLTC stores tracking data in `~/.local/share/prltc/history.db`. You can override this:
+
+**Environment variable** (highest priority):
+```bash
+export PRLTC_DB_PATH="/path/to/custom.db"
+```
+
+**Config file** (`~/.config/prltc/config.toml`):
+```toml
+[tracking]
+database_path = "/path/to/custom.db"
+```
+
+Priority: `PRLTC_DB_PATH` env var > `config.toml` > default location.
+
 ## Auto-Rewrite Hook (Recommended)
 
 The most effective way to use prltc is with the **auto-rewrite hook** for Claude Code. Instead of relying on CLAUDE.md instructions (which subagents may ignore), this hook transparently intercepts Bash commands and rewrites them to their prltc equivalents before execution.

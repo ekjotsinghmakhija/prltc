@@ -124,11 +124,14 @@ main.rs (CLI entry)
 - Records: original_cmd, prltc_cmd, input_tokens, output_tokens, savings_pct
 - 90-day retention policy with automatic cleanup
 - Powers the `prltc gain` analytics command
+- **Configurable database path**: Via `PRLTC_DB_PATH` env var or `config.toml`
+  - Priority: env var > config file > default location
 
 **4. Configuration System** (src/config.rs, src/init.rs)
 - Manages CLAUDE.md initialization (global vs local)
 - Reads ~/.config/prltc/config.toml for user preferences
 - `prltc init` command bootstraps LLM integration
+- **New**: `tracking.database_path` field for custom DB location
 
 **5. Shared Utilities** (src/utils.rs)
 - Common functions for command modules: truncate, strip_ansi, execute_command
