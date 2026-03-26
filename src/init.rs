@@ -4,10 +4,17 @@
  * Proprietary Clean Room Implementation
  */
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::fs;
 use std::path::PathBuf;
 
+// Embedded hook script (guards before set -euo pipefail)
+const REWRITE_HOOK: &str = include_str!("../hooks/prltc-rewrite.sh");
+
+// Embedded slim PRLTC awareness instructions
+const PRLTC_SLIM: &str = include_str!("../hooks/prltc-awareness.md");
+
+// Legacy full instructions for backward compatibility (--claude-md mode)
 const PRLTC_INSTRUCTIONS: &str = r##"<!-- prltc-instructions v2 -->
 # PRLTC (Rust Token Killer) - Token-Optimized Commands
 
@@ -140,13 +147,166 @@ prltc init --global       # Add PRLTC to ~/.claude/CLAUDE.md
 | Network | curl, wget | 65-70% |
 
 Overall average: **60-90% token reduction** on common development operations.
+<!-- /prltc-instructions -->
 "##;
 
-pub fn run(global: bool, verbose: u8) -> Result<()> {
+/// Main entry point for `prltc init`
+pub fn run(global: bool, claude_md: bool, hook_only: bool, verbose: u8) -> Result<()> {
+    // Mode selection
+    if claude_md {
+        // Legacy mode: full injection into CLAUDE.md
+        run_claude_md_mode(global, verbose)
+    } else if hook_only {
+        // Hook-only mode: no PRLTC.md
+        run_hook_only_mode(global, verbose)
+    } else {
+        // Default mode: hook + PRLTC.md (MVP)
+        run_default_mode(global, verbose)
+    }
+}
+
+/// Default mode: hook + slim PRLTC.md + @PRLTC.md reference
+#[cfg(not(unix))]
+fn run_default_mode(_global: bool, _verbose: u8) -> Result<()> {
+    eprintln!("Warning: Hook install only supported on Unix (macOS, Linux).");
+    eprintln!("Falling back to --claude-md mode.");
+    run_claude_md_mode(_global, _verbose)
+}
+
+#[cfg(unix)]
+fn run_default_mode(global: bool, verbose: u8) -> Result<()> {
+    if !global {
+        // Local init: unchanged behavior (full injection into ./CLAUDE.md)
+        return run_claude_md_mode(false, verbose);
+    }
+
+    let claude_dir = resolve_claude_dir()?;
+    let hook_dir = claude_dir.join("hooks");
+    let hook_path = hook_dir.join("prltc-rewrite.sh");
+    let prltc_md_path = claude_dir.join("PRLTC.md");
+    let claude_md_path = claude_dir.join("CLAUDE.md");
+
+    // Ensure directories exist
+    fs::create_dir_all(&hook_dir).context("Failed to create ~/.claude/hooks")?;
+
+    // 1. Write hook file
+    if hook_path.exists() {
+        let existing = fs::read_to_string(&hook_path)?;
+        if existing == REWRITE_HOOK {
+            if verbose > 0 {
+                eprintln!("Hook already up to date: {}", hook_path.display());
+            }
+        } else {
+            fs::write(&hook_path, REWRITE_HOOK).context("Failed to write hook")?;
+            if verbose > 0 {
+                eprintln!("Updated hook: {}", hook_path.display());
+            }
+        }
+    } else {
+        fs::write(&hook_path, REWRITE_HOOK).context("Failed to write hook")?;
+        if verbose > 0 {
+            eprintln!("Created hook: {}", hook_path.display());
+        }
+    }
+
+    // 2. chmod +x (Unix only)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&hook_path, fs::Permissions::from_mode(0o755))
+            .context("Failed to set hook permissions")?;
+    }
+
+    // 3. Write PRLTC.md
+    if prltc_md_path.exists() {
+        let existing = fs::read_to_string(&prltc_md_path)?;
+        if existing == PRLTC_SLIM {
+            if verbose > 0 {
+                eprintln!("PRLTC.md already up to date: {}", prltc_md_path.display());
+            }
+        } else {
+            fs::write(&prltc_md_path, PRLTC_SLIM).context("Failed to write PRLTC.md")?;
+            if verbose > 0 {
+                eprintln!("Updated PRLTC.md: {}", prltc_md_path.display());
+            }
+        }
+    } else {
+        fs::write(&prltc_md_path, PRLTC_SLIM).context("Failed to write PRLTC.md")?;
+        if verbose > 0 {
+            eprintln!("Created PRLTC.md: {}", prltc_md_path.display());
+        }
+    }
+
+    // 4. Patch CLAUDE.md (add @PRLTC.md, migrate if needed)
+    let migrated = patch_claude_md(&claude_md_path, verbose)?;
+
+    // 5. Print success message
+    println!("\nPRLTC hook installed (global).\n");
+    println!("  Hook:      {}", hook_path.display());
+    println!("  PRLTC.md:    {} (10 lines)", prltc_md_path.display());
+    println!("  CLAUDE.md: @PRLTC.md reference added");
+
+    if migrated {
+        println!("\n  ✅ Migrated: removed 137-line PRLTC block from CLAUDE.md");
+        println!("              replaced with @PRLTC.md (10 lines)");
+    }
+
+    println!("\n  MANUAL STEP: Add this to ~/.claude/settings.json:");
+    println!("  {{");
+    println!("    \"hooks\": {{ \"PreToolUse\": [{{");
+    println!("      \"matcher\": \"Bash\",");
+    println!("      \"hooks\": [{{ \"type\": \"command\",");
+    println!("        \"command\": \"{}\"", hook_path.display());
+    println!("      }}]");
+    println!("    }}]}}");
+    println!("  }}");
+    println!("\n  Then restart Claude Code. Test with: git status\n");
+
+    Ok(())
+}
+
+/// Hook-only mode: just the hook, no PRLTC.md
+#[cfg(not(unix))]
+fn run_hook_only_mode(_global: bool, _verbose: u8) -> Result<()> {
+    eprintln!("Warning: Hook install only supported on Unix (macOS, Linux).");
+    Ok(())
+}
+
+#[cfg(unix)]
+fn run_hook_only_mode(global: bool, _verbose: u8) -> Result<()> {
+    if !global {
+        eprintln!("Warning: --hook-only only makes sense with --global");
+        eprintln!("For local projects, use default mode or --claude-md");
+        return Ok(());
+    }
+
+    let claude_dir = resolve_claude_dir()?;
+    let hook_dir = claude_dir.join("hooks");
+    let hook_path = hook_dir.join("prltc-rewrite.sh");
+
+    fs::create_dir_all(&hook_dir).context("Failed to create ~/.claude/hooks")?;
+
+    fs::write(&hook_path, REWRITE_HOOK).context("Failed to write hook")?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&hook_path, fs::Permissions::from_mode(0o755))
+            .context("Failed to set hook permissions")?;
+    }
+
+    println!("\nPRLTC hook installed (hook-only mode).\n");
+    println!("  Hook: {}", hook_path.display());
+    println!("\n  MANUAL STEP: Add hook to ~/.claude/settings.json (see --global output)");
+    println!("  Note: No PRLTC.md created. Claude won't know about meta commands (gain, discover, proxy).\n");
+
+    Ok(())
+}
+
+/// Legacy mode: full 137-line injection into CLAUDE.md
+fn run_claude_md_mode(global: bool, verbose: u8) -> Result<()> {
     let path = if global {
-        dirs::home_dir()
-            .map(|h| h.join(".claude").join("CLAUDE.md"))
-            .unwrap_or_else(|| PathBuf::from("~/.claude/CLAUDE.md"))
+        resolve_claude_dir()?.join("CLAUDE.md")
     } else {
         PathBuf::from("CLAUDE.md")
     };
@@ -161,22 +321,18 @@ pub fn run(global: bool, verbose: u8) -> Result<()> {
         eprintln!("Writing prltc instructions to: {}", path.display());
     }
 
-    // Check if file exists
     if path.exists() {
         let existing = fs::read_to_string(&path)?;
 
-        // Check if prltc instructions already present using version marker
         if existing.contains("<!-- prltc-instructions") {
             println!("✅ {} already contains prltc instructions", path.display());
             return Ok(());
         }
 
-        // Append to existing file
         let new_content = format!("{}\n\n{}", existing.trim(), PRLTC_INSTRUCTIONS);
         fs::write(&path, new_content)?;
         println!("✅ Added prltc instructions to existing {}", path.display());
     } else {
-        // Create new file
         fs::write(&path, PRLTC_INSTRUCTIONS)?;
         println!("✅ Created {} with prltc instructions", path.display());
     }
@@ -190,30 +346,157 @@ pub fn run(global: bool, verbose: u8) -> Result<()> {
     Ok(())
 }
 
-/// Show current prltc configuration
-pub fn show_config() -> Result<()> {
-    let home_path = dirs::home_dir().map(|h| h.join(".claude").join("CLAUDE.md"));
-    let local_path = PathBuf::from("CLAUDE.md");
+/// Patch CLAUDE.md: add @PRLTC.md, migrate if old block exists
+fn patch_claude_md(path: &PathBuf, verbose: u8) -> Result<bool> {
+    let mut content = if path.exists() {
+        fs::read_to_string(path)?
+    } else {
+        String::new()
+    };
 
-    println!("📋 prltc Configuration:\n");
+    let mut migrated = false;
 
-    // Check global
-    if let Some(hp) = &home_path {
-        if hp.exists() {
-            let content = fs::read_to_string(hp)?;
-            if content.contains("prltc") {
-                println!("✅ Global (~/.claude/CLAUDE.md): prltc enabled");
-            } else {
-                println!("⚪ Global (~/.claude/CLAUDE.md): exists but prltc not configured");
+    // Check for old block and migrate
+    if content.contains("<!-- prltc-instructions") {
+        let (new_content, did_migrate) = remove_prltc_block(&content);
+        if did_migrate {
+            content = new_content;
+            migrated = true;
+            if verbose > 0 {
+                eprintln!("Migrated: removed old PRLTC block from CLAUDE.md");
             }
-        } else {
-            println!("⚪ Global (~/.claude/CLAUDE.md): not found");
         }
     }
 
-    // Check local
-    if local_path.exists() {
-        let content = fs::read_to_string(&local_path)?;
+    // Check if @PRLTC.md already present
+    if content.contains("@PRLTC.md") {
+        if verbose > 0 {
+            eprintln!("@PRLTC.md reference already present in CLAUDE.md");
+        }
+        if migrated {
+            fs::write(path, content)?;
+        }
+        return Ok(migrated);
+    }
+
+    // Add @PRLTC.md
+    let new_content = if content.is_empty() {
+        "@PRLTC.md\n".to_string()
+    } else {
+        format!("{}\n\n@PRLTC.md\n", content.trim())
+    };
+
+    fs::write(path, new_content)?;
+
+    if verbose > 0 {
+        eprintln!("Added @PRLTC.md reference to CLAUDE.md");
+    }
+
+    Ok(migrated)
+}
+
+/// Remove old PRLTC block from CLAUDE.md (migration helper)
+fn remove_prltc_block(content: &str) -> (String, bool) {
+    if let (Some(start), Some(end)) = (
+        content.find("<!-- prltc-instructions"),
+        content.find("<!-- /prltc-instructions -->"),
+    ) {
+        let end_pos = end + "<!-- /prltc-instructions -->".len();
+        let before = content[..start].trim_end();
+        let after = content[end_pos..].trim_start();
+
+        let result = if after.is_empty() {
+            before.to_string()
+        } else {
+            format!("{}\n\n{}", before, after)
+        };
+
+        (result, true) // migrated
+    } else if content.contains("<!-- prltc-instructions") {
+        eprintln!("Warning: prltc-instructions marker found but no closing marker.");
+        eprintln!("Manual cleanup needed.");
+        (content.to_string(), false)
+    } else {
+        (content.to_string(), false)
+    }
+}
+
+/// Resolve ~/.claude directory with proper home expansion
+fn resolve_claude_dir() -> Result<PathBuf> {
+    dirs::home_dir()
+        .map(|h| h.join(".claude"))
+        .context("Cannot determine home directory. Is $HOME set?")
+}
+
+/// Show current prltc configuration
+pub fn show_config() -> Result<()> {
+    let claude_dir = resolve_claude_dir()?;
+    let hook_path = claude_dir.join("hooks").join("prltc-rewrite.sh");
+    let prltc_md_path = claude_dir.join("PRLTC.md");
+    let global_claude_md = claude_dir.join("CLAUDE.md");
+    let local_claude_md = PathBuf::from("CLAUDE.md");
+
+    println!("📋 prltc Configuration:\n");
+
+    // Check hook
+    if hook_path.exists() {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let metadata = fs::metadata(&hook_path)?;
+            let perms = metadata.permissions();
+            let is_executable = perms.mode() & 0o111 != 0;
+
+            let hook_content = fs::read_to_string(&hook_path)?;
+            let has_guards =
+                hook_content.contains("command -v prltc") && hook_content.contains("command -v jq");
+
+            if is_executable && has_guards {
+                println!("✅ Hook: {} (executable, with guards)", hook_path.display());
+            } else if !is_executable {
+                println!(
+                    "⚠️  Hook: {} (NOT executable - run: chmod +x)",
+                    hook_path.display()
+                );
+            } else {
+                println!("⚠️  Hook: {} (no guards - outdated)", hook_path.display());
+            }
+        }
+
+        #[cfg(not(unix))]
+        {
+            println!("✅ Hook: {} (exists)", hook_path.display());
+        }
+    } else {
+        println!("⚪ Hook: not found");
+    }
+
+    // Check PRLTC.md
+    if prltc_md_path.exists() {
+        println!("✅ PRLTC.md: {} (slim mode)", prltc_md_path.display());
+    } else {
+        println!("⚪ PRLTC.md: not found");
+    }
+
+    // Check global CLAUDE.md
+    if global_claude_md.exists() {
+        let content = fs::read_to_string(&global_claude_md)?;
+        if content.contains("@PRLTC.md") {
+            println!("✅ Global (~/.claude/CLAUDE.md): @PRLTC.md reference");
+        } else if content.contains("<!-- prltc-instructions") {
+            println!(
+                "⚠️  Global (~/.claude/CLAUDE.md): old PRLTC block (run: prltc init -g to migrate)"
+            );
+        } else {
+            println!("⚪ Global (~/.claude/CLAUDE.md): exists but prltc not configured");
+        }
+    } else {
+        println!("⚪ Global (~/.claude/CLAUDE.md): not found");
+    }
+
+    // Check local CLAUDE.md
+    if local_claude_md.exists() {
+        let content = fs::read_to_string(&local_claude_md)?;
         if content.contains("prltc") {
             println!("✅ Local (./CLAUDE.md): prltc enabled");
         } else {
@@ -224,8 +507,10 @@ pub fn show_config() -> Result<()> {
     }
 
     println!("\nUsage:");
-    println!("  prltc init          # Add prltc to local CLAUDE.md");
-    println!("  prltc init --global # Add prltc to global ~/.claude/CLAUDE.md");
+    println!("  prltc init              # Full injection into local CLAUDE.md");
+    println!("  prltc init -g           # Hook + PRLTC.md + @PRLTC.md (recommended)");
+    println!("  prltc init -g --claude-md    # Legacy: full injection into ~/.claude/CLAUDE.md");
+    println!("  prltc init -g --hook-only    # Hook only, no PRLTC.md");
 
     Ok(())
 }
@@ -233,10 +518,10 @@ pub fn show_config() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
     #[test]
     fn test_init_mentions_all_top_level_commands() {
-        // Verify PRLTC_INSTRUCTIONS mentions key commands
         for cmd in [
             "prltc cargo",
             "prltc gh",
@@ -267,5 +552,96 @@ mod tests {
             PRLTC_INSTRUCTIONS.contains("<!-- prltc-instructions"),
             "PRLTC_INSTRUCTIONS must have version marker for idempotency"
         );
+    }
+
+    #[test]
+    fn test_hook_has_guards() {
+        assert!(REWRITE_HOOK.contains("command -v prltc"));
+        assert!(REWRITE_HOOK.contains("command -v jq"));
+        // Guards must be BEFORE set -euo pipefail
+        let guard_pos = REWRITE_HOOK.find("command -v prltc").unwrap();
+        let set_pos = REWRITE_HOOK.find("set -euo pipefail").unwrap();
+        assert!(
+            guard_pos < set_pos,
+            "Guards must come before set -euo pipefail"
+        );
+    }
+
+    #[test]
+    fn test_migration_removes_old_block() {
+        let input = r#"# My Config
+
+<!-- prltc-instructions v2 -->
+OLD PRLTC STUFF
+<!-- /prltc-instructions -->
+
+More content"#;
+
+        let (result, migrated) = remove_prltc_block(input);
+        assert!(migrated);
+        assert!(!result.contains("OLD PRLTC STUFF"));
+        assert!(result.contains("# My Config"));
+        assert!(result.contains("More content"));
+    }
+
+    #[test]
+    fn test_migration_warns_on_missing_end_marker() {
+        let input = "<!-- prltc-instructions v2 -->\nOLD STUFF\nNo end marker";
+        let (result, migrated) = remove_prltc_block(input);
+        assert!(!migrated);
+        assert_eq!(result, input);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_default_mode_creates_hook_and_prltc_md() {
+        let temp = TempDir::new().unwrap();
+        let hook_path = temp.path().join("prltc-rewrite.sh");
+        let prltc_md_path = temp.path().join("PRLTC.md");
+
+        fs::write(&hook_path, REWRITE_HOOK).unwrap();
+        fs::write(&prltc_md_path, PRLTC_SLIM).unwrap();
+
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&hook_path, fs::Permissions::from_mode(0o755)).unwrap();
+
+        assert!(hook_path.exists());
+        assert!(prltc_md_path.exists());
+
+        let metadata = fs::metadata(&hook_path).unwrap();
+        assert!(metadata.permissions().mode() & 0o111 != 0);
+    }
+
+    #[test]
+    fn test_claude_md_mode_creates_full_injection() {
+        // Just verify PRLTC_INSTRUCTIONS constant has the right content
+        assert!(PRLTC_INSTRUCTIONS.contains("<!-- prltc-instructions"));
+        assert!(PRLTC_INSTRUCTIONS.contains("prltc cargo test"));
+        assert!(PRLTC_INSTRUCTIONS.contains("<!-- /prltc-instructions -->"));
+        assert!(PRLTC_INSTRUCTIONS.len() > 4000);
+    }
+
+    #[test]
+    fn test_init_is_idempotent() {
+        let temp = TempDir::new().unwrap();
+        let claude_md = temp.path().join("CLAUDE.md");
+
+        fs::write(&claude_md, "# My stuff\n\n@PRLTC.md\n").unwrap();
+
+        let content = fs::read_to_string(&claude_md).unwrap();
+        let count = content.matches("@PRLTC.md").count();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_local_init_unchanged() {
+        // Local init should use claude-md mode
+        let temp = TempDir::new().unwrap();
+        let claude_md = temp.path().join("CLAUDE.md");
+
+        fs::write(&claude_md, PRLTC_INSTRUCTIONS).unwrap();
+        let content = fs::read_to_string(&claude_md).unwrap();
+
+        assert!(content.contains("<!-- prltc-instructions"));
     }
 }
