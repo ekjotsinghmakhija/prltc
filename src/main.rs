@@ -252,7 +252,7 @@ enum Commands {
 
     /// Initialize prltc instructions in CLAUDE.md
     Init {
-        /// Add to global ~/CLAUDE.md instead of local
+        /// Add to global ~/.claude/CLAUDE.md instead of local
         #[arg(short, long)]
         global: bool,
 
