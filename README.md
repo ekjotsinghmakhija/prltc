@@ -4,6 +4,8 @@
 
 **High-performance CLI proxy to minimize LLM token consumption.**
 
+[Website](https://www.github.com/ekjotsinghmakhija/prltc) | [GitHub](https://github.com/ekjotsinghmakhija/prltc) | [Install](INSTALL.md)
+
 prltc filters and compresses command outputs before they reach your LLM context, saving 60-90% of tokens on common operations.
 
 ## ⚠️ Important: Name Collision Warning
@@ -728,3 +730,9 @@ MIT License - see [LICENSE](LICENSE) for details.
 Contributions welcome! Please open an issue or PR on GitHub.
 
 **For external contributors**: Your PR will undergo automated security review (see [SECURITY.md](SECURITY.md)). This protects PRLTC's shell execution capabilities against injection attacks and supply chain vulnerabilities.
+
+## Contact
+
+- Website: https://www.github.com/ekjotsinghmakhija/prltc
+- Email: ekjotmakhija@gmail.com
+- Issues: https://github.com/ekjotsinghmakhija/prltc/issues

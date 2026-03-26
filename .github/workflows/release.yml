@@ -222,7 +222,7 @@ jobs:
           cat > prltc.rb << 'FORMULA'
           class Rtk < Formula
             desc "Rust Token Killer - High-performance CLI proxy to minimize LLM token consumption"
-            homepage "https://github.com/ekjotsinghmakhija/prltc"
+            homepage "https://www.github.com/ekjotsinghmakhija/prltc"
             version "VERSION_PLACEHOLDER"
             license "MIT"
 
@@ -258,7 +258,7 @@ jobs:
                   # Measure your token savings
                   prltc gain
 
-                Full documentation: https://github.com/ekjotsinghmakhija/prltc
+                Full documentation: https://www.github.com/ekjotsinghmakhija/prltc
               EOS
             end
 

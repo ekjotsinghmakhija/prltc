@@ -5,7 +5,7 @@
 # To install: brew tap ekjotsinghmakhija/tap && brew install prltc
 class Rtk < Formula
   desc "High-performance CLI proxy to minimize LLM token consumption"
-  homepage "https://github.com/ekjotsinghmakhija/prltc"
+  homepage "https://www.github.com/ekjotsinghmakhija/prltc"
   version "0.1.0"
   license "MIT"
 

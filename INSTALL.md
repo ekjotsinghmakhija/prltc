@@ -317,6 +317,8 @@ cargo install --path . --force
 
 ## Support and Contributing
 
+- **Website**: https://www.github.com/ekjotsinghmakhija/prltc
+- **Contact**: ekjotmakhija@gmail.com
 - **Troubleshooting**: See [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for common issues
 - **GitHub issues**: https://github.com/ekjotsinghmakhija/prltc/issues
 - **Pull Requests**: https://github.com/ekjotsinghmakhija/prltc/pulls
