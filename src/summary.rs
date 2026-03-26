@@ -5,6 +5,7 @@
  */
 
 use crate::tracking;
+use crate::utils::truncate;
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::process::{Command, Stdio};
@@ -299,12 +300,4 @@ fn extract_number(text: &str, after: &str) -> Option<usize> {
     re.captures(text)
         .and_then(|c| c.get(1))
         .and_then(|m| m.as_str().parse().ok())
-}
-
-fn truncate(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max_len - 3])
-    }
 }

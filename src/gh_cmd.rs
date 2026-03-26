@@ -12,7 +12,7 @@
 use crate::git;
 use crate::json_cmd;
 use crate::tracking;
-use crate::utils::ok_confirmation;
+use crate::utils::{ok_confirmation, truncate};
 use anyhow::{Context, Result};
 use serde_json::Value;
 use std::process::Command;
@@ -1085,14 +1085,6 @@ fn run_passthrough(cmd: &str, subcommand: &str, args: &[String]) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn truncate(s: &str, max_len: usize) -> String {
-    if s.chars().count() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...", s.chars().take(max_len - 3).collect::<String>())
-    }
 }
 
 #[cfg(test)]

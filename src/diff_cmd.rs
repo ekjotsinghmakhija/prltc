@@ -5,6 +5,7 @@
  */
 
 use crate::tracking;
+use crate::utils::truncate;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
@@ -158,14 +159,6 @@ fn similarity(a: &str, b: &str) -> f64 {
         1.0
     } else {
         intersection as f64 / union as f64
-    }
-}
-
-fn truncate(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max_len - 3])
     }
 }
 

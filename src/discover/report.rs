@@ -6,6 +6,27 @@
 
 use serde::Serialize;
 
+/// PRLTC support status for a command.
+#[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
+pub enum RtkStatus {
+    /// Dedicated handler with filtering (e.g., git status → git.rs:run_status())
+    Existing,
+    /// Works via external_subcommand passthrough, no filtering (e.g., cargo fmt → Other)
+    Passthrough,
+    /// PRLTC doesn't handle this command at all
+    NotSupported,
+}
+
+impl RtkStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RtkStatus::Existing => "existing",
+            RtkStatus::Passthrough => "passthrough",
+            RtkStatus::NotSupported => "not-supported",
+        }
+    }
+}
+
 /// A supported command that PRLTC already handles.
 #[derive(Debug, Serialize)]
 pub struct SupportedEntry {
@@ -15,6 +36,7 @@ pub struct SupportedEntry {
     pub category: &'static str,
     pub estimated_savings_tokens: usize,
     pub estimated_savings_pct: f64,
+    pub prltc_status: RtkStatus,
 }
 
 /// An unsupported command not yet handled by PRLTC.
@@ -79,24 +101,25 @@ pub fn format_text(report: &DiscoverReport, limit: usize, verbose: bool) -> Stri
     // Missed savings
     if !report.supported.is_empty() {
         out.push_str("\nMISSED SAVINGS -- Commands PRLTC already handles\n");
-        out.push_str(&"-".repeat(52));
+        out.push_str(&"-".repeat(72));
         out.push('\n');
         out.push_str(&format!(
-            "{:<24} {:>5}    {:<22} {:>12}\n",
-            "Command", "Count", "PRLTC Equivalent", "Est. Savings"
+            "{:<24} {:>5}    {:<18} {:<13} {:>12}\n",
+            "Command", "Count", "PRLTC Equivalent", "Status", "Est. Savings"
         ));
 
         for entry in report.supported.iter().take(limit) {
             out.push_str(&format!(
-                "{:<24} {:>5}    {:<22} ~{}\n",
+                "{:<24} {:>5}    {:<18} {:<13} ~{}\n",
                 truncate_str(&entry.command, 23),
                 entry.count,
                 entry.prltc_equivalent,
+                entry.prltc_status.as_str(),
                 format_tokens(entry.estimated_savings_tokens),
             ));
         }
 
-        out.push_str(&"-".repeat(52));
+        out.push_str(&"-".repeat(72));
         out.push('\n');
         out.push_str(&format!(
             "Total: {} commands -> ~{} saveable\n",
