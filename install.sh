@@ -1,10 +1,10 @@
 #!/bin/sh
-# prltc installer - https://github.com/pszymkowiak/prltc
+# prltc installer - https://github.com/ekjotsinghmakhija/prltc
 # Usage: curl -fsSL https://raw.githubusercontent.com/ekjotsinghmakhija/prltc/refs/heads/master/install.sh | sh
 
 set -e
 
-REPO="pszymkowiak/prltc"
+REPO="ekjotsinghmakhija/prltc"
 BINARY_NAME="prltc"
 INSTALL_DIR="/usr/local/bin"
 

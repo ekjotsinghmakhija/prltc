@@ -44,7 +44,7 @@ cargo uninstall prltc
 ### Quick Install (Linux/macOS)
 
 ```bash
-curl -fsSL https://github.com/ekjotsinghmakhija/prltc/blob/master/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ekjotsinghmakhija/prltc/master/install.sh | sh
 ```
 
 After installation, **verify you have the correct prltc**:
