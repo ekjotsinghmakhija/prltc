@@ -1,6 +1,6 @@
 [package]
 name = "prltc"
-version = "0.15.3"
+version = "0.16.0"
 edition = "2021"
 authors = ["Patrick Szymkowiak"]
 description = "Rust Token Killer - High-performance CLI proxy to minimize LLM token consumption"
@@ -27,7 +27,6 @@ toml = "0.8"
 chrono = "0.4"
 thiserror = "1.0"
 tempfile = "3"
-sha2 = "0.10"
 
 [dev-dependencies]
 

@@ -401,5 +401,4 @@ mod tests {
         let result = truncate(cjk, 6);
         assert!(result.ends_with("..."));
     }
-
 }

@@ -10,8 +10,6 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 
-use crate::integrity;
-
 // Embedded hook script (guards before set -euo pipefail)
 const REWRITE_HOOK: &str = include_str!("../hooks/prltc-rewrite.sh");
 
@@ -231,19 +229,6 @@ fn ensure_hook_installed(hook_path: &Path, verbose: u8) -> Result<bool> {
     fs::set_permissions(hook_path, fs::Permissions::from_mode(0o755))
         .with_context(|| format!("Failed to set hook permissions: {}", hook_path.display()))?;
 
-    // Store SHA-256 hash for runtime integrity verification.
-    // Always store (idempotent) to ensure baseline exists even for
-    // hooks installed before integrity checks were added.
-    integrity::store_hash(hook_path).with_context(|| {
-        format!(
-            "Failed to store integrity hash for {}",
-            hook_path.display()
-        )
-    })?;
-    if verbose > 0 && changed {
-        eprintln!("Stored integrity hash for hook");
-    }
-
     Ok(changed)
 }
 
@@ -435,11 +420,6 @@ pub fn uninstall(global: bool, verbose: u8) -> Result<()> {
         fs::remove_file(&hook_path)
             .with_context(|| format!("Failed to remove hook: {}", hook_path.display()))?;
         removed.push(format!("Hook: {}", hook_path.display()));
-    }
-
-    // 1b. Remove integrity hash file
-    if integrity::remove_hash(&hook_path)? {
-        removed.push("Integrity hash: removed".to_string());
     }
 
     // 2. Remove PRLTC.md
@@ -793,15 +773,48 @@ fn run_claude_md_mode(global: bool, verbose: u8) -> Result<()> {
 
     if path.exists() {
         let existing = fs::read_to_string(&path)?;
+        // upsert_prltc_block handles all 4 cases: add, update, unchanged, malformed
+        let (new_content, action) = upsert_prltc_block(&existing, PRLTC_INSTRUCTIONS);
 
-        if existing.contains("<!-- prltc-instructions") {
-            println!("✅ {} already contains prltc instructions", path.display());
-            return Ok(());
+        match action {
+            RtkBlockUpsert::Added => {
+                fs::write(&path, new_content)?;
+                println!("✅ Added prltc instructions to existing {}", path.display());
+            }
+            RtkBlockUpsert::Updated => {
+                fs::write(&path, new_content)?;
+                println!("✅ Updated prltc instructions in {}", path.display());
+            }
+            RtkBlockUpsert::Unchanged => {
+                println!(
+                    "✅ {} already contains up-to-date prltc instructions",
+                    path.display()
+                );
+                return Ok(());
+            }
+            RtkBlockUpsert::Malformed => {
+                eprintln!(
+                    "⚠️  Warning: Found '<!-- prltc-instructions' without closing marker in {}",
+                    path.display()
+                );
+
+                if let Some((line_num, _)) = existing
+                    .lines()
+                    .enumerate()
+                    .find(|(_, line)| line.contains("<!-- prltc-instructions"))
+                {
+                    eprintln!("    Location: line {}", line_num + 1);
+                }
+
+                eprintln!("    Action: Manually remove the incomplete block, then re-run:");
+                if global {
+                    eprintln!("            prltc init -g --claude-md");
+                } else {
+                    eprintln!("            prltc init --claude-md");
+                }
+                return Ok(());
+            }
         }
-
-        let new_content = format!("{}\n\n{}", existing.trim(), PRLTC_INSTRUCTIONS);
-        fs::write(&path, new_content)?;
-        println!("✅ Added prltc instructions to existing {}", path.display());
     } else {
         fs::write(&path, PRLTC_INSTRUCTIONS)?;
         println!("✅ Created {} with prltc instructions", path.display());
@@ -814,6 +827,69 @@ fn run_claude_md_mode(global: bool, verbose: u8) -> Result<()> {
     }
 
     Ok(())
+}
+
+// --- upsert_prltc_block: idempotent PRLTC block management ---
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum RtkBlockUpsert {
+    /// No existing block found — appended new block
+    Added,
+    /// Existing block found with different content — replaced
+    Updated,
+    /// Existing block found with identical content — no-op
+    Unchanged,
+    /// Opening marker found without closing marker — not safe to rewrite
+    Malformed,
+}
+
+/// Insert or replace the PRLTC instructions block in `content`.
+///
+/// Returns `(new_content, action)` describing what happened.
+/// The caller decides whether to write `new_content` based on `action`.
+fn upsert_prltc_block(content: &str, block: &str) -> (String, RtkBlockUpsert) {
+    let start_marker = "<!-- prltc-instructions";
+    let end_marker = "<!-- /prltc-instructions -->";
+
+    if let Some(start) = content.find(start_marker) {
+        if let Some(relative_end) = content[start..].find(end_marker) {
+            let end = start + relative_end;
+            let end_pos = end + end_marker.len();
+            let current_block = content[start..end_pos].trim();
+            let desired_block = block.trim();
+
+            if current_block == desired_block {
+                return (content.to_string(), RtkBlockUpsert::Unchanged);
+            }
+
+            // Replace stale block with desired block
+            let before = content[..start].trim_end();
+            let after = content[end_pos..].trim_start();
+
+            let result = match (before.is_empty(), after.is_empty()) {
+                (true, true) => desired_block.to_string(),
+                (true, false) => format!("{desired_block}\n\n{after}"),
+                (false, true) => format!("{before}\n\n{desired_block}"),
+                (false, false) => format!("{before}\n\n{desired_block}\n\n{after}"),
+            };
+
+            return (result, RtkBlockUpsert::Updated);
+        }
+
+        // Opening marker without closing marker — malformed
+        return (content.to_string(), RtkBlockUpsert::Malformed);
+    }
+
+    // No existing block — append
+    let trimmed = content.trim();
+    if trimmed.is_empty() {
+        (block.to_string(), RtkBlockUpsert::Added)
+    } else {
+        (
+            format!("{trimmed}\n\n{}", block.trim()),
+            RtkBlockUpsert::Added,
+        )
+    }
 }
 
 /// Patch CLAUDE.md: add @PRLTC.md, migrate if old block exists
@@ -958,25 +1034,6 @@ pub fn show_config() -> Result<()> {
         println!("✅ PRLTC.md: {} (slim mode)", prltc_md_path.display());
     } else {
         println!("⚪ PRLTC.md: not found");
-    }
-
-    // Check hook integrity
-    match integrity::verify_hook_at(&hook_path) {
-        Ok(integrity::IntegrityStatus::Verified) => {
-            println!("✅ Integrity: hook hash verified");
-        }
-        Ok(integrity::IntegrityStatus::Tampered { .. }) => {
-            println!("❌ Integrity: hook modified outside prltc init (run: prltc verify)");
-        }
-        Ok(integrity::IntegrityStatus::NoBaseline) => {
-            println!("⚠️  Integrity: no baseline hash (run: prltc init -g to establish)");
-        }
-        Ok(integrity::IntegrityStatus::NotInstalled) | Ok(integrity::IntegrityStatus::OrphanedHash) => {
-            // Don't show integrity line if hook isn't installed
-        }
-        Err(_) => {
-            println!("⚠️  Integrity: check failed");
-        }
     }
 
     // Check global CLAUDE.md
@@ -1146,6 +1203,55 @@ More content"#;
         assert!(PRLTC_INSTRUCTIONS.contains("prltc cargo test"));
         assert!(PRLTC_INSTRUCTIONS.contains("<!-- /prltc-instructions -->"));
         assert!(PRLTC_INSTRUCTIONS.len() > 4000);
+    }
+
+    // --- upsert_prltc_block tests ---
+
+    #[test]
+    fn test_upsert_prltc_block_appends_when_missing() {
+        let input = "# Team instructions";
+        let (content, action) = upsert_prltc_block(input, PRLTC_INSTRUCTIONS);
+        assert_eq!(action, RtkBlockUpsert::Added);
+        assert!(content.contains("# Team instructions"));
+        assert!(content.contains("<!-- prltc-instructions"));
+    }
+
+    #[test]
+    fn test_upsert_prltc_block_updates_stale_block() {
+        let input = r#"# Team instructions
+
+<!-- prltc-instructions v1 -->
+OLD PRLTC CONTENT
+<!-- /prltc-instructions -->
+
+More notes
+"#;
+
+        let (content, action) = upsert_prltc_block(input, PRLTC_INSTRUCTIONS);
+        assert_eq!(action, RtkBlockUpsert::Updated);
+        assert!(!content.contains("OLD PRLTC CONTENT"));
+        assert!(content.contains("prltc cargo test")); // from current PRLTC_INSTRUCTIONS
+        assert!(content.contains("# Team instructions"));
+        assert!(content.contains("More notes"));
+    }
+
+    #[test]
+    fn test_upsert_prltc_block_noop_when_already_current() {
+        let input = format!(
+            "# Team instructions\n\n{}\n\nMore notes\n",
+            PRLTC_INSTRUCTIONS
+        );
+        let (content, action) = upsert_prltc_block(&input, PRLTC_INSTRUCTIONS);
+        assert_eq!(action, RtkBlockUpsert::Unchanged);
+        assert_eq!(content, input);
+    }
+
+    #[test]
+    fn test_upsert_prltc_block_detects_malformed_block() {
+        let input = "<!-- prltc-instructions v2 -->\npartial";
+        let (content, action) = upsert_prltc_block(input, PRLTC_INSTRUCTIONS);
+        assert_eq!(action, RtkBlockUpsert::Malformed);
+        assert_eq!(content, input);
     }
 
     #[test]
