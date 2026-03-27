@@ -103,15 +103,16 @@ pub trait OutputParser: Sized {
 
 /// Truncate output to max length with ellipsis
 pub fn truncate_output(output: &str, max_chars: usize) -> String {
-    if output.len() <= max_chars {
+    let chars: Vec<char> = output.chars().collect();
+    if chars.len() <= max_chars {
         return output.to_string();
     }
 
-    let truncated = &output[..max_chars];
+    let truncated: String = chars[..max_chars].iter().collect();
     format!(
         "{}\n\n[PRLTC:PASSTHROUGH] Output truncated ({} chars → {} chars)",
         truncated,
-        output.len(),
+        chars.len(),
         max_chars
     )
 }
@@ -235,6 +236,24 @@ mod tests {
         let truncated = truncate_output(&long, 100);
         assert!(truncated.contains("[PRLTC:PASSTHROUGH]"));
         assert!(truncated.contains("1000 chars → 100 chars"));
+    }
+
+    #[test]
+    fn test_truncate_output_multibyte() {
+        // Thai text: each char is 3 bytes
+        let thai = "สวัสดีครับ".repeat(100);
+        // Try truncating at a byte offset that might land mid-character
+        let result = truncate_output(&thai, 50);
+        assert!(result.contains("[PRLTC:PASSTHROUGH]"));
+        // Should be valid UTF-8 (no panic)
+        let _ = result.len();
+    }
+
+    #[test]
+    fn test_truncate_output_emoji() {
+        let emoji = "🎉".repeat(200);
+        let result = truncate_output(&emoji, 100);
+        assert!(result.contains("[PRLTC:PASSTHROUGH]"));
     }
 
     #[test]

@@ -385,7 +385,8 @@ fn filter_log_output(output: &str, limit: usize) -> String {
         .take(limit)
         .map(|line| {
             if line.len() > 80 {
-                format!("{}...", &line[..77])
+                let truncated: String = line.chars().take(77).collect();
+                format!("{}...", truncated)
             } else {
                 line.to_string()
             }
@@ -427,8 +428,8 @@ fn format_status_output(porcelain: &str) -> String {
         if line.len() < 3 {
             continue;
         }
-        let status = &line[0..2];
-        let file = &line[3..];
+        let status = line.get(0..2).unwrap_or("  ");
+        let file = line.get(3..).unwrap_or("");
 
         match status.chars().next().unwrap_or(' ') {
             'M' | 'A' | 'D' | 'R' | 'C' => {
@@ -1482,5 +1483,42 @@ no changes added to commit (use "git add" and/or "git commit -a")
         let output = "nothing to commit, working tree clean\n";
         let result = filter_status_with_args(output);
         assert!(result.contains("nothing to commit"));
+    }
+
+    #[test]
+    fn test_filter_log_output_multibyte() {
+        // Thai characters: each is 3 bytes. A line with >80 bytes but few chars
+        let thai_msg = format!("abc1234 {} (2 days ago) <author>", "ก".repeat(30));
+        let result = filter_log_output(&thai_msg, 10);
+        // Should not panic
+        assert!(result.contains("abc1234"));
+        // The line has 30 Thai chars (90 bytes) + other text, so > 80 bytes
+        // It should be truncated with "..."
+        assert!(result.contains("..."));
+    }
+
+    #[test]
+    fn test_filter_log_output_emoji() {
+        let emoji_msg = "abc1234 🎉🎊🎈🎁🎂🎄🎃🎆🎇✨🎉🎊🎈🎁🎂🎄🎃🎆🎇✨ (1 day ago) <user>";
+        let result = filter_log_output(emoji_msg, 10);
+        // Should not panic, should have "..."
+        assert!(result.contains("..."));
+    }
+
+    #[test]
+    fn test_format_status_output_thai_filename() {
+        let porcelain = "## main\n M สวัสดี.txt\n?? ทดสอบ.rs\n";
+        let result = format_status_output(porcelain);
+        // Should not panic
+        assert!(result.contains("📌 main"));
+        assert!(result.contains("สวัสดี.txt"));
+        assert!(result.contains("ทดสอบ.rs"));
+    }
+
+    #[test]
+    fn test_format_status_output_emoji_filename() {
+        let porcelain = "## main\nA  🎉-party.txt\n M 日本語ファイル.rs\n";
+        let result = format_status_output(porcelain);
+        assert!(result.contains("📌 main"));
     }
 }

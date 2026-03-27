@@ -377,4 +377,29 @@ mod tests {
         let pm = detect_package_manager();
         assert!(["pnpm", "yarn", "npm"].contains(&pm));
     }
+
+    #[test]
+    fn test_truncate_multibyte_thai() {
+        // Thai characters are 3 bytes each
+        let thai = "สวัสดีครับ";
+        let result = truncate(thai, 5);
+        // Should not panic, should produce valid UTF-8
+        assert!(result.len() <= thai.len());
+        assert!(result.ends_with("..."));
+    }
+
+    #[test]
+    fn test_truncate_multibyte_emoji() {
+        let emoji = "🎉🎊🎈🎁🎂🎄🎃🎆🎇✨";
+        let result = truncate(emoji, 5);
+        assert!(result.ends_with("..."));
+    }
+
+    #[test]
+    fn test_truncate_multibyte_cjk() {
+        let cjk = "你好世界测试字符串";
+        let result = truncate(cjk, 6);
+        assert!(result.ends_with("..."));
+    }
+
 }
