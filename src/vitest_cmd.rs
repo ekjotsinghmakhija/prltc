@@ -7,13 +7,14 @@
 use anyhow::{Context, Result};
 use regex::Regex;
 use serde::Deserialize;
+use std::process::Command;
 
 use crate::parser::{
-    emit_degradation_warning, emit_passthrough_warning, extract_json_object, truncate_output,
-    FormatMode, OutputParser, ParseResult, TestFailure, TestResult, TokenFormatter,
+    emit_degradation_warning, emit_passthrough_warning, truncate_output, FormatMode, OutputParser,
+    ParseResult, TestFailure, TestResult, TokenFormatter,
 };
 use crate::tracking;
-use crate::utils::{package_manager_exec, strip_ansi};
+use crate::utils::strip_ansi;
 
 /// Vitest JSON output structures (tool-specific format)
 #[derive(Debug, Deserialize)]
@@ -57,17 +58,8 @@ impl OutputParser for VitestParser {
     type Output = TestResult;
 
     fn parse(input: &str) -> ParseResult<TestResult> {
-        // Tier 1: Try JSON parsing (with extraction fallback for pnpm/dotenv prefixes)
-        let json_result = serde_json::from_str::<VitestJsonOutput>(input).or_else(|first_err| {
-            // Fallback: Try extracting JSON object from prefixed output
-            if let Some(extracted) = extract_json_object(input) {
-                serde_json::from_str::<VitestJsonOutput>(extracted)
-            } else {
-                Err(first_err)
-            }
-        });
-
-        match json_result {
+        // Tier 1: Try JSON parsing
+        match serde_json::from_str::<VitestJsonOutput>(input) {
             Ok(json) => {
                 let failures = extract_failures_from_json(&json);
                 let duration_ms = match (json.start_time, json.end_time) {
@@ -87,7 +79,7 @@ impl OutputParser for VitestParser {
                 ParseResult::Full(result)
             }
             Err(e) => {
-                // Tier 2: Try regex extraction (only fires if user overrides --reporter flag)
+                // Tier 2: Try regex extraction
                 match extract_stats_regex(input) {
                     Some(result) => {
                         ParseResult::Degraded(result, vec![format!("JSON parse failed: {}", e)])
@@ -214,6 +206,8 @@ fn extract_failures_regex(output: &str) -> Vec<TestFailure> {
     failures
 }
 
+/// Strip ANSI escape sequences
+
 #[derive(Debug, Clone)]
 pub enum VitestCommand {
     Run,
@@ -228,7 +222,8 @@ pub fn run(cmd: VitestCommand, args: &[String], verbose: u8) -> Result<()> {
 fn run_vitest(args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
-    let mut cmd = package_manager_exec("vitest");
+    let mut cmd = Command::new("pnpm");
+    cmd.arg("vitest");
     cmd.arg("run"); // Force non-watch mode
 
     // Add JSON reporter for structured output
@@ -332,55 +327,5 @@ mod tests {
         let output = strip_ansi(input);
         assert_eq!(output, "✓ test passed");
         assert!(!output.contains("\x1b"));
-    }
-
-    #[test]
-    fn test_vitest_parser_with_pnpm_prefix() {
-        let input = r#"
-Scope: all 6 workspace projects
- WARN  deprecated inflight@1.0.6: This module is not supported
-
-{"numTotalTests": 13, "numPassedTests": 13, "numFailedTests": 0, "numPendingTests": 0, "testResults": [], "startTime": 1000, "endTime": 1450}
-"#;
-        let result = VitestParser::parse(input);
-        assert_eq!(result.tier(), 1, "Should succeed with Tier 1 (full parse)");
-        assert!(result.is_ok());
-
-        let data = result.unwrap();
-        assert_eq!(data.total, 13);
-        assert_eq!(data.passed, 13);
-        assert_eq!(data.failed, 0);
-    }
-
-    #[test]
-    fn test_vitest_parser_with_dotenv_prefix() {
-        let input = r#"[dotenv] Loading environment variables from .env
-[dotenv] Injected 5 variables
-
-{"numTotalTests": 5, "numPassedTests": 4, "numFailedTests": 1, "numPendingTests": 0, "testResults": [], "startTime": 2000, "endTime": 2300}
-"#;
-        let result = VitestParser::parse(input);
-        assert_eq!(result.tier(), 1, "Should succeed with Tier 1 (full parse)");
-        assert!(result.is_ok());
-
-        let data = result.unwrap();
-        assert_eq!(data.total, 5);
-        assert_eq!(data.passed, 4);
-        assert_eq!(data.failed, 1);
-        assert_eq!(data.duration_ms, Some(300));
-    }
-
-    #[test]
-    fn test_vitest_parser_with_nested_json() {
-        let input = r#"prefix text
-{"numTotalTests": 2, "numPassedTests": 2, "numFailedTests": 0, "numPendingTests": 0, "testResults": [{"name": "test.js", "assertionResults": [{"fullName": "nested test", "status": "passed", "failureMessages": []}]}], "startTime": 1000, "endTime": 1100}
-"#;
-        let result = VitestParser::parse(input);
-        assert_eq!(result.tier(), 1, "Should succeed with Tier 1 (full parse)");
-        assert!(result.is_ok());
-
-        let data = result.unwrap();
-        assert_eq!(data.total, 2);
-        assert_eq!(data.passed, 2);
     }
 }
