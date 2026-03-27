@@ -24,6 +24,7 @@ mod go_cmd;
 mod golangci_cmd;
 mod grep_cmd;
 mod init;
+mod integrity;
 mod json_cmd;
 mod learn;
 mod lint_cmd;
@@ -480,6 +481,9 @@ enum Commands {
         args: Vec<OsString>,
     },
 
+    /// Verify hook integrity (SHA-256 check)
+    Verify,
+
     /// Ruff linter/formatter with compact output
     Ruff {
         /// Ruff arguments (e.g., check, format --check)
@@ -801,6 +805,13 @@ enum GoCommands {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+
+    // Runtime integrity check for operational commands.
+    // Meta commands (init, gain, verify, config, etc.) skip the check
+    // because they don't go through the hook pipeline.
+    if is_operational_command(&cli.command) {
+        integrity::runtime_check()?;
+    }
 
     match cli.command {
         Commands::Ls { args } => {
@@ -1390,7 +1401,29 @@ fn main() -> Result<()> {
                 std::process::exit(output.status.code().unwrap_or(1));
             }
         }
+
+        Commands::Verify => {
+            integrity::run_verify(cli.verbose)?;
+        }
     }
 
     Ok(())
+}
+
+/// Returns true for commands that are invoked via the hook pipeline
+/// (i.e., commands that process rewritten shell commands).
+/// Meta commands (init, gain, verify, etc.) are excluded because
+/// they are run directly by the user, not through the hook.
+fn is_operational_command(cmd: &Commands) -> bool {
+    !matches!(
+        cmd,
+        Commands::Init { .. }
+            | Commands::Gain { .. }
+            | Commands::CcEconomics { .. }
+            | Commands::Config { .. }
+            | Commands::Discover { .. }
+            | Commands::Learn { .. }
+            | Commands::Verify
+            | Commands::Proxy { .. }
+    )
 }
