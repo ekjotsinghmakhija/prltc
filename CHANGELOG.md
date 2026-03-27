@@ -5,6 +5,14 @@ All notable changes to prltc (Rust Token Killer) will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0](https://github.com/ekjotsinghmakhija/prltc/compare/v0.16.0...v0.17.0) (2026-02-15)
+
+
+### Features
+
+* **cargo:** add cargo nextest support with failures-only output ([#107](https://github.com/ekjotsinghmakhija/prltc/issues/107)) ([68fd570](https://github.com/ekjotsinghmakhija/prltc/commit/68fd570f2b7d5aaae7b37b07eb24eae21542595e))
+* **hook:** handle global options before subcommands ([#99](https://github.com/ekjotsinghmakhija/prltc/issues/99)) ([7401f10](https://github.com/ekjotsinghmakhija/prltc/commit/7401f1099f3ef14598f11947262756e3f19fce8f))
+
 ## [0.16.0](https://github.com/ekjotsinghmakhija/prltc/compare/v0.15.4...v0.16.0) (2026-02-14)
 
 
