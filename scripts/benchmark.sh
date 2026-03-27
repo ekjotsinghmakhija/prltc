@@ -293,6 +293,24 @@ if [ -f "package.json" ]; then
       bench "prisma generate" "prisma generate 2>&1 || true" "$PRLTC prisma generate"
     fi
   fi
+
+  if command -v vitest &> /dev/null || [ -f "node_modules/.bin/vitest" ]; then
+    bench "vitest run" "vitest run --reporter=json 2>&1 || true" "$PRLTC vitest run"
+  fi
+
+  if command -v pnpm &> /dev/null; then
+    bench "pnpm list" "pnpm list --depth 0 2>&1 || true" "$PRLTC pnpm list --depth 0"
+    bench "pnpm outdated" "pnpm outdated 2>&1 || true" "$PRLTC pnpm outdated"
+  fi
+fi
+
+# ===================
+# gh (skip si pas dispo ou pas dans un repo)
+# ===================
+if command -v gh &> /dev/null && git rev-parse --git-dir &> /dev/null; then
+  section "gh"
+  bench "gh pr list" "gh pr list 2>&1 || true" "$PRLTC gh pr list"
+  bench "gh run list" "gh run list 2>&1 || true" "$PRLTC gh run list"
 fi
 
 # ===================
