@@ -69,6 +69,24 @@ prltc gain  # MUST show token savings, not "command not found"
 
 ## Project Initialization
 
+### Which mode to choose?
+
+```
+  Do you want PRLTC active across ALL Claude Code projects?
+  │
+  ├─ YES → prltc init -g              (recommended)
+  │         Hook + PRLTC.md (~10 tokens in context)
+  │         Commands auto-rewritten transparently
+  │
+  ├─ YES, minimal → prltc init -g --hook-only
+  │         Hook only, nothing added to CLAUDE.md
+  │         Zero tokens in context
+  │
+  └─ NO, single project → prltc init
+            Local CLAUDE.md only (137 lines)
+            No hook, no global effect
+```
+
 ### Recommended: Global Hook-First Setup
 
 **Best for: All projects, automatic PRLTC usage**
@@ -93,6 +111,25 @@ prltc init --show  # Check hook is installed and executable
 
 **What is settings.json?**
 Claude Code's hook registry. PRLTC adds a PreToolUse hook that rewrites commands transparently. Without this, Claude won't invoke the hook automatically.
+
+```
+  Claude Code          settings.json        prltc-rewrite.sh        PRLTC binary
+       │                    │                     │                    │
+       │  "git status"      │                     │                    │
+       │ ──────────────────►│                     │                    │
+       │                    │  PreToolUse trigger  │                    │
+       │                    │ ───────────────────►│                    │
+       │                    │                     │  rewrite command   │
+       │                    │                     │  → prltc git status  │
+       │                    │◄────────────────────│                    │
+       │                    │  updated command     │                    │
+       │                    │                                          │
+       │  execute: prltc git status                                      │
+       │ ─────────────────────────────────────────────────────────────►│
+       │                                                               │  filter
+       │  "3 modified, 1 untracked ✓"                                  │
+       │◄──────────────────────────────────────────────────────────────│
+```
 
 **Backup Safety**:
 PRLTC backs up existing settings.json before changes. Restore if needed:

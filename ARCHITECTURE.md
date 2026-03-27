@@ -71,6 +71,54 @@ $ 3 commits      ←─  Terminal      ←─   Format      ←─   Compact Sta
 4. **Fail-Safe**: If filtering fails, fall back to original output
 5. **Transparent**: Users can always see raw output with `-v` flags
 
+### Hook Architecture (v0.9.5+)
+
+The recommended deployment mode uses a Claude Code PreToolUse hook for 100% transparent command rewriting.
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                    Hook-Based Command Rewriting                        │
+└────────────────────────────────────────────────────────────────────────┘
+
+Claude Code             settings.json        prltc-rewrite.sh        PRLTC binary
+     │                       │                     │                    │
+     │  Bash: "git status"   │                     │                    │
+     │ ─────────────────────►│                     │                    │
+     │                       │  PreToolUse hook    │                    │
+     │                       │ ───────────────────►│                    │
+     │                       │                     │  detect: git       │
+     │                       │                     │  rewrite:          │
+     │                       │                     │  prltc git status    │
+     │                       │◄────────────────────│                    │
+     │                       │  updatedInput        │                    │
+     │                       │                                          │
+     │  execute: prltc git status ────────────────────────────────────────►
+     │                                                                  │  run git
+     │                                                                  │  filter
+     │                                                                  │  track
+     │◄──────────────────────────────────────────────────────────────────
+     │  "3 modified, 1 untracked ✓"    (~10 tokens vs ~200 raw)
+     │
+     │  Claude never sees the rewrite — it only sees optimized output.
+
+Files:
+  ~/.claude/hooks/prltc-rewrite.sh  ← shell script (command detection + rewrite)
+  ~/.claude/settings.json         ← hook registry (PreToolUse registration)
+  ~/.claude/PRLTC.md                ← minimal context hint (10 lines)
+```
+
+Two hook strategies:
+
+```
+Auto-Rewrite (default)              Suggest (non-intrusive)
+─────────────────────               ────────────────────────
+Hook intercepts command             Hook emits systemMessage hint
+Rewrites before execution           Claude decides autonomously
+100% adoption                       ~70-85% adoption
+Zero context overhead               Minimal context overhead
+Best for: production                Best for: learning / auditing
+```
+
 ---
 
 ## Command Lifecycle
