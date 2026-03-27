@@ -46,46 +46,31 @@ fi
 REWRITTEN=""
 
 # --- Git commands ---
-if echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+status([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git status/prltc git status/')"
-elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+diff([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git diff/prltc git diff/')"
-elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+log([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git log/prltc git log/')"
-elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+add([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git add/prltc git add/')"
-elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+commit([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git commit/prltc git commit/')"
-elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+push([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git push/prltc git push/')"
-elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+pull([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git pull/prltc git pull/')"
-elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+branch([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git branch/prltc git branch/')"
-elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+fetch([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git fetch/prltc git fetch/')"
-elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+stash([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git stash/prltc git stash/')"
-elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+show([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git show/prltc git show/')"
+if echo "$MATCH_CMD" | grep -qE '^git[[:space:]]'; then
+  GIT_SUBCMD=$(echo "$MATCH_CMD" | sed -E \
+    -e 's/^git[[:space:]]+//' \
+    -e 's/(-C|-c)[[:space:]]+[^[:space:]]+[[:space:]]*//g' \
+    -e 's/--[a-z-]+=[^[:space:]]+[[:space:]]*//g' \
+    -e 's/--(no-pager|no-optional-locks|bare|literal-pathspecs)[[:space:]]*//g' \
+    -e 's/^[[:space:]]+//')
+  case "$GIT_SUBCMD" in
+    status|status\ *|diff|diff\ *|log|log\ *|add|add\ *|commit|commit\ *|push|push\ *|pull|pull\ *|branch|branch\ *|fetch|fetch\ *|stash|stash\ *|show|show\ *)
+      REWRITTEN="${ENV_PREFIX}prltc $CMD_BODY"
+      ;;
+  esac
 
 # --- GitHub CLI (added: api, release) ---
 elif echo "$MATCH_CMD" | grep -qE '^gh[[:space:]]+(pr|issue|run|api|release)([[:space:]]|$)'; then
   REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^gh /prltc gh /')"
 
 # --- Cargo ---
-elif echo "$MATCH_CMD" | grep -qE '^cargo[[:space:]]+test([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^cargo test/prltc cargo test/')"
-elif echo "$MATCH_CMD" | grep -qE '^cargo[[:space:]]+build([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^cargo build/prltc cargo build/')"
-elif echo "$MATCH_CMD" | grep -qE '^cargo[[:space:]]+clippy([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^cargo clippy/prltc cargo clippy/')"
-elif echo "$MATCH_CMD" | grep -qE '^cargo[[:space:]]+check([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^cargo check/prltc cargo check/')"
-elif echo "$MATCH_CMD" | grep -qE '^cargo[[:space:]]+install([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^cargo install/prltc cargo install/')"
-elif echo "$MATCH_CMD" | grep -qE '^cargo[[:space:]]+fmt([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^cargo fmt/prltc cargo fmt/')"
+elif echo "$MATCH_CMD" | grep -qE '^cargo[[:space:]]'; then
+  CARGO_SUBCMD=$(echo "$MATCH_CMD" | sed -E 's/^cargo[[:space:]]+(\+[^[:space:]]+[[:space:]]+)?//')
+  case "$CARGO_SUBCMD" in
+    test|test\ *|build|build\ *|clippy|clippy\ *|check|check\ *|install|install\ *|fmt|fmt\ *)
+      REWRITTEN="${ENV_PREFIX}prltc $CMD_BODY"
+      ;;
+  esac
 
 # --- File operations ---
 elif echo "$MATCH_CMD" | grep -qE '^cat[[:space:]]+'; then
@@ -142,12 +127,32 @@ elif echo "$MATCH_CMD" | grep -qE '^(npx[[:space:]]+)?prisma([[:space:]]|$)'; th
   REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed -E 's/^(npx )?prisma/prltc prisma/')"
 
 # --- Containers (added: docker compose, docker run/build/exec, kubectl describe/apply) ---
-elif echo "$MATCH_CMD" | grep -qE '^docker[[:space:]]+compose([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^docker /prltc docker /')"
-elif echo "$MATCH_CMD" | grep -qE '^docker[[:space:]]+(ps|images|logs|run|build|exec)([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^docker /prltc docker /')"
-elif echo "$MATCH_CMD" | grep -qE '^kubectl[[:space:]]+(get|logs|describe|apply)([[:space:]]|$)'; then
-  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^kubectl /prltc kubectl /')"
+elif echo "$MATCH_CMD" | grep -qE '^docker[[:space:]]'; then
+  if echo "$MATCH_CMD" | grep -qE '^docker[[:space:]]+compose([[:space:]]|$)'; then
+    REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^docker /prltc docker /')"
+  else
+    DOCKER_SUBCMD=$(echo "$MATCH_CMD" | sed -E \
+      -e 's/^docker[[:space:]]+//' \
+      -e 's/(-H|--context|--config)[[:space:]]+[^[:space:]]+[[:space:]]*//g' \
+      -e 's/--[a-z-]+=[^[:space:]]+[[:space:]]*//g' \
+      -e 's/^[[:space:]]+//')
+    case "$DOCKER_SUBCMD" in
+      ps|ps\ *|images|images\ *|logs|logs\ *|run|run\ *|build|build\ *|exec|exec\ *)
+        REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^docker /prltc docker /')"
+        ;;
+    esac
+  fi
+elif echo "$MATCH_CMD" | grep -qE '^kubectl[[:space:]]'; then
+  KUBE_SUBCMD=$(echo "$MATCH_CMD" | sed -E \
+    -e 's/^kubectl[[:space:]]+//' \
+    -e 's/(--context|--kubeconfig|--namespace|-n)[[:space:]]+[^[:space:]]+[[:space:]]*//g' \
+    -e 's/--[a-z-]+=[^[:space:]]+[[:space:]]*//g' \
+    -e 's/^[[:space:]]+//')
+  case "$KUBE_SUBCMD" in
+    get|get\ *|logs|logs\ *|describe|describe\ *|apply|apply\ *)
+      REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^kubectl /prltc kubectl /')"
+      ;;
+  esac
 
 # --- Network ---
 elif echo "$MATCH_CMD" | grep -qE '^curl[[:space:]]+'; then

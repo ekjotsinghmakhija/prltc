@@ -66,6 +66,8 @@ elif echo "$FIRST_CMD" | grep -qE '^cargo\s+check(\s|$)'; then
   SUGGESTION="prltc cargo check"
 elif echo "$FIRST_CMD" | grep -qE '^cargo\s+install(\s|$)'; then
   SUGGESTION="prltc cargo install"
+elif echo "$FIRST_CMD" | grep -qE '^cargo\s+nextest(\s|$)'; then
+  SUGGESTION="prltc cargo nextest"
 elif echo "$FIRST_CMD" | grep -qE '^cargo\s+fmt(\s|$)'; then
   SUGGESTION="prltc cargo fmt"
 
