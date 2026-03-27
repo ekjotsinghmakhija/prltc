@@ -3,8 +3,20 @@
 # Transparently rewrites raw commands to their prltc equivalents.
 # Outputs JSON with updatedInput to modify the command before execution.
 
+# --- Audit logging (opt-in via PRLTC_HOOK_AUDIT=1) ---
+_prltc_audit_log() {
+  if [ "${PRLTC_HOOK_AUDIT:-0}" != "1" ]; then return; fi
+  local action="$1" original="$2" rewritten="${3:--}"
+  local dir="${PRLTC_AUDIT_DIR:-${HOME}/.local/share/prltc}"
+  mkdir -p "$dir"
+  printf '%s | %s | %s | %s\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$action" "$original" "$rewritten" \
+    >> "${dir}/hook-audit.log"
+}
+
 # Guards: skip silently if dependencies missing
 if ! command -v prltc &>/dev/null || ! command -v jq &>/dev/null; then
+  _prltc_audit_log "skip:no_deps" "-"
   exit 0
 fi
 
@@ -14,6 +26,7 @@ INPUT=$(cat)
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 if [ -z "$CMD" ]; then
+  _prltc_audit_log "skip:empty" "-"
   exit 0
 fi
 
@@ -23,12 +36,12 @@ FIRST_CMD="$CMD"
 
 # Skip if already using prltc
 case "$FIRST_CMD" in
-  prltc\ *|*/prltc\ *) exit 0 ;;
+  prltc\ *|*/prltc\ *) _prltc_audit_log "skip:already_prltc" "$CMD"; exit 0 ;;
 esac
 
 # Skip commands with heredocs, variable assignments as the whole command, etc.
 case "$FIRST_CMD" in
-  *'<<'*) exit 0 ;;
+  *'<<'*) _prltc_audit_log "skip:heredoc" "$CMD"; exit 0 ;;
 esac
 
 # Strip leading env var assignments for pattern matching
@@ -186,8 +199,11 @@ fi
 
 # If no rewrite needed, approve as-is
 if [ -z "$REWRITTEN" ]; then
+  _prltc_audit_log "skip:no_match" "$CMD"
   exit 0
 fi
+
+_prltc_audit_log "rewrite" "$CMD" "$REWRITTEN"
 
 # Build the updated tool_input with all original fields preserved, only command changed
 ORIGINAL_INPUT=$(echo "$INPUT" | jq -c '.tool_input')
