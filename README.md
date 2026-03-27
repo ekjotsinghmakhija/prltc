@@ -65,6 +65,12 @@ which prltc            # Check installation path
 
 If already installed and `prltc gain` works, **DO NOT reinstall**. Skip to Quick Start.
 
+### Homebrew (macOS/Linux)
+
+```bash
+brew install prltc
+```
+
 ### Quick Install (Linux/macOS)
 
 ```bash
