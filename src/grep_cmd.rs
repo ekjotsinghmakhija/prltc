@@ -50,10 +50,18 @@ pub fn run(
         .context("grep/rg failed")?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let exit_code = output.status.code().unwrap_or(1);
 
     let raw_output = stdout.to_string();
 
     if stdout.trim().is_empty() {
+        // Show stderr for errors (bad regex, missing file, etc.)
+        if exit_code == 2 {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if !stderr.trim().is_empty() {
+                eprintln!("{}", stderr.trim());
+            }
+        }
         let msg = format!("🔍 0 for '{}'", pattern);
         println!("{}", msg);
         timer.track(
@@ -62,6 +70,9 @@ pub fn run(
             &raw_output,
             &msg,
         );
+        if exit_code != 0 {
+            std::process::exit(exit_code);
+        }
         return Ok(());
     }
 
@@ -126,6 +137,10 @@ pub fn run(
         &raw_output,
         &prltc_output,
     );
+
+    if exit_code != 0 {
+        std::process::exit(exit_code);
+    }
 
     Ok(())
 }
