@@ -22,7 +22,7 @@ prltc filters and compresses command outputs before they reach your LLM context,
 
 **How to verify you have the correct prltc:**
 ```bash
-prltc --version   # Should show "prltc X.Y.Z"
+prltc --version   # Should show "prltc 0.15.1"
 prltc gain        # Should show token savings stats
 ```
 
@@ -43,8 +43,11 @@ With prltc: **~45,000 tokens** → **70% reduction**
 | `git log` | 5× | 2,500 | 500 | -80% |
 | `git add/commit/push` | 8× | 1,600 | 120 | -92% |
 | `npm test` / `cargo test` | 5× | 25,000 | 2,500 | -90% |
+| `ruff check` | 3× | 3,000 | 600 | -80% |
+| `pytest` | 4× | 8,000 | 800 | -90% |
+| `go test` | 3× | 6,000 | 600 | -90% |
 | `docker ps` | 3× | 900 | 180 | -80% |
-| **Total** | | **~101,000** | **~22,000** | **-78%** |
+| **Total** | | **~118,000** | **~23,900** | **-80%** |
 
 > Estimates based on medium-sized TypeScript/Rust projects. Actual savings vary by project size.
 
@@ -156,6 +159,11 @@ prltc gh issue list                # Compact issue listing
 prltc gh run list                  # Workflow run status
 prltc wget https://example.com    # Download, strip progress bars
 prltc config                       # Show config (--create to generate)
+prltc ruff check                   # Python linting (JSON, 80% reduction)
+prltc pytest                       # Python tests (failures only, 90% reduction)
+prltc pip list                     # Python packages (auto-detect uv, 70% reduction)
+prltc go test                      # Go tests (NDJSON, 90% reduction)
+prltc golangci-lint run            # Go linting (JSON, 85% reduction)
 ```
 
 ### Data & Analytics
@@ -246,6 +254,23 @@ prltc playwright test              # E2E results (failures only)
 prltc prisma generate              # Schema generation (no ASCII art)
 prltc prisma migrate dev --name x  # Migration summary
 prltc prisma db-push               # Schema push summary
+```
+
+### Python & Go Stack
+```bash
+# Python
+prltc ruff check                   # Ruff linter (JSON, 80% reduction)
+prltc ruff format                  # Ruff formatter (text filter)
+prltc pytest                       # Test failures with state machine parser (90% reduction)
+prltc pip list                     # Package list (auto-detect uv, 70% reduction)
+prltc pip install <package>        # Install with compact output
+prltc pip outdated                 # Outdated packages (85% reduction)
+
+# Go
+prltc go test                      # NDJSON streaming parser (90% reduction)
+prltc go build                     # Build errors only (80% reduction)
+prltc go vet                       # Vet issues (75% reduction)
+prltc golangci-lint run            # JSON grouped by rule (85% reduction)
 ```
 
 ## Examples
@@ -505,6 +530,11 @@ The hook is included in this repository at `.claude/hooks/prltc-rewrite.sh`. To 
 | `prettier` | `prltc prettier` |
 | `playwright` | `prltc playwright` |
 | `prisma` | `prltc prisma` |
+| `ruff check/format` | `prltc ruff ...` |
+| `pytest` | `prltc pytest` |
+| `pip list/install/outdated` | `prltc pip ...` |
+| `go test/build/vet` | `prltc go ...` |
+| `golangci-lint run` | `prltc golangci-lint run` |
 | `docker ps/images/logs` | `prltc docker ...` |
 | `kubectl get/logs` | `prltc kubectl ...` |
 | `curl` | `prltc curl` |
