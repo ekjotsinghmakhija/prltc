@@ -44,6 +44,7 @@ mod read;
 mod ruff_cmd;
 mod runner;
 mod summary;
+mod tee;
 mod tracking;
 mod tree;
 mod tsc_cmd;

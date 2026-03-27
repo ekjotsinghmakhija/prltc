@@ -55,7 +55,15 @@ pub fn run_err(command: &str, verbose: u8) -> Result<()> {
         prltc.push_str(&filtered);
     }
 
-    println!("{}", prltc);
+    let exit_code = output
+        .status
+        .code()
+        .unwrap_or(if output.status.success() { 0 } else { 1 });
+    if let Some(hint) = crate::tee::tee_and_hint(&raw, "err", exit_code) {
+        println!("{}\n{}", prltc, hint);
+    } else {
+        println!("{}", prltc);
+    }
     timer.track(command, "prltc run-err", &raw, &prltc);
     Ok(())
 }
@@ -87,8 +95,16 @@ pub fn run_test(command: &str, verbose: u8) -> Result<()> {
     let stderr = String::from_utf8_lossy(&output.stderr);
     let raw = format!("{}\n{}", stdout, stderr);
 
+    let exit_code = output
+        .status
+        .code()
+        .unwrap_or(if output.status.success() { 0 } else { 1 });
     let summary = extract_test_summary(&raw, command);
-    println!("{}", summary);
+    if let Some(hint) = crate::tee::tee_and_hint(&raw, "test", exit_code) {
+        println!("{}\n{}", summary, hint);
+    } else {
+        println!("{}", summary);
+    }
     timer.track(command, "prltc run-test", &raw, &summary);
     Ok(())
 }

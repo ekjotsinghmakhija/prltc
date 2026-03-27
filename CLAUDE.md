@@ -16,7 +16,7 @@ This is a fork with critical fixes for git argument parsing and modern JavaScrip
 
 **Verify correct installation:**
 ```bash
-prltc --version  # Should show "prltc 0.18.1" (or newer)
+prltc --version  # Should show "prltc 0.18.0" (or newer)
 prltc gain       # Should show token savings stats (NOT "command not found")
 ```
 
@@ -133,7 +133,14 @@ main.rs (CLI entry)
 - `prltc init` command bootstraps LLM integration
 - **New**: `tracking.database_path` field for custom DB location
 
-**5. Shared Utilities** (src/utils.rs)
+**5. Tee Output Recovery** (src/tee.rs)
+- Saves raw unfiltered output to `~/.local/share/prltc/tee/` on command failure
+- Prints one-line hint `[full output: ~/.local/share/prltc/tee/...]` so LLMs can read instead of re-run
+- Configurable via `[tee]` section in config.toml or env vars (`PRLTC_TEE`, `PRLTC_TEE_DIR`)
+- Default mode: failures only, skip outputs < 500 chars, 20 file rotation, 1MB cap
+- Silent error handling: tee failure never affects command output or exit code
+
+**6. Shared Utilities** (src/utils.rs)
 - Common functions for command modules: truncate, strip_ansi, execute_command
 - Package manager auto-detection (pnpm/yarn/npm/npx)
 - Consistent error handling and output formatting
@@ -222,6 +229,7 @@ prltc gain --history | grep proxy
 | pip_cmd.rs | pip/uv package manager | JSON parsing, auto-detect uv (70-85% reduction) |
 | go_cmd.rs | Go commands | NDJSON for test, text for build/vet (80-90% reduction) |
 | golangci_cmd.rs | golangci-lint | JSON parsing, group by rule (85% reduction) |
+| tee.rs | Full output recovery | Save raw output to file on failure, print hint for LLM re-read |
 | utils.rs | Shared utilities | Package manager detection, common formatting |
 | discover/ | Claude Code history analysis | Scan JSONL sessions, classify commands, report missed savings |
 

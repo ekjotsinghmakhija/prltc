@@ -22,7 +22,7 @@ prltc filters and compresses command outputs before they reach your LLM context,
 
 **How to verify you have the correct prltc:**
 ```bash
-prltc --version   # Should show "prltc 0.18.1"
+prltc --version   # Should show "prltc 0.18.0"
 prltc gain        # Should show token savings stats
 ```
 
@@ -418,6 +418,36 @@ database_path = "/path/to/custom.db"
 ```
 
 Priority: `PRLTC_DB_PATH` env var > `config.toml` > default location.
+
+### Tee: Full Output Recovery
+
+When PRLTC filters command output, LLM agents lose failure details (stack traces, assertion messages) and may re-run the same command 2-3 times. The **tee** feature saves raw output to a file so the agent can read it without re-executing.
+
+**How it works**: On command failure, PRLTC writes the full unfiltered output to `~/.local/share/prltc/tee/` and prints a one-line hint:
+```
+✓ cargo test: 15 passed (1 suite, 0.01s)
+[full output: ~/.local/share/prltc/tee/1707753600_cargo_test.log]
+```
+
+The agent reads the file instead of re-running the command — saving tokens.
+
+**Default behavior**: Tee only on failures (exit code != 0), skip outputs < 500 chars.
+
+**Config** (`~/.config/prltc/config.toml`):
+```toml
+[tee]
+enabled = true          # default: true
+mode = "failures"       # "failures" (default), "always", or "never"
+max_files = 20          # max files to keep (oldest rotated out)
+max_file_size = 1048576 # 1MB per file max
+# directory = "/custom/path"  # override default location
+```
+
+**Environment overrides**:
+- `PRLTC_TEE=0` — disable tee entirely
+- `PRLTC_TEE_DIR=/path` — override output directory
+
+**Supported commands**: cargo (build/test/clippy/check/install/nextest), vitest, pytest, lint (eslint/biome/ruff/pylint/mypy), tsc, go (test/build/vet), err, test.
 
 ## Auto-Rewrite Hook (Recommended)
 
