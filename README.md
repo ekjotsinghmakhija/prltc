@@ -22,7 +22,7 @@ prltc filters and compresses command outputs before they reach your LLM context,
 
 **How to verify you have the correct prltc:**
 ```bash
-prltc --version   # Should show "prltc 0.25.0"
+prltc --version   # Should show "prltc 0.26.0"
 prltc gain        # Should show token savings stats
 ```
 
