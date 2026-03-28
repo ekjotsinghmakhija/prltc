@@ -350,19 +350,27 @@ fn rewrite_compound(cmd: &str, excluded: &[String]) -> Option<String> {
                 seg_start = i;
             }
             b'&' if !in_single && !in_double => {
-                // single `&` background execution operator
-                let seg = cmd[seg_start..i].trim();
-                let rewritten = rewrite_segment(seg, excluded).unwrap_or_else(|| seg.to_string());
-                if rewritten != seg {
-                    any_changed = true;
-                }
-                result.push_str(&rewritten);
-                result.push_str(" & ");
-                i += 1;
-                while i < len && bytes[i] == b' ' {
+                // #346: redirect detection — 2>&1 / >&2 (> before &) or &>file / &>>file (> after &)
+                let is_redirect =
+                    (i > 0 && bytes[i - 1] == b'>') || (i + 1 < len && bytes[i + 1] == b'>');
+                if is_redirect {
                     i += 1;
+                } else {
+                    // single `&` background execution operator
+                    let seg = cmd[seg_start..i].trim();
+                    let rewritten =
+                        rewrite_segment(seg, excluded).unwrap_or_else(|| seg.to_string());
+                    if rewritten != seg {
+                        any_changed = true;
+                    }
+                    result.push_str(&rewritten);
+                    result.push_str(" & ");
+                    i += 1;
+                    while i < len && bytes[i] == b' ' {
+                        i += 1;
+                    }
+                    seg_start = i;
                 }
-                seg_start = i;
             }
             b';' if !in_single && !in_double => {
                 // `;` separator
@@ -472,6 +480,11 @@ fn rewrite_segment(seg: &str, excluded: &[String]) -> Option<String> {
     let env_prefix_len = trimmed.len() - stripped_cow.len();
     let env_prefix = &trimmed[..env_prefix_len];
     let cmd_clean = stripped_cow.trim();
+
+    // #345: PRLTC_DISABLED=1 in env prefix → skip rewrite entirely
+    if env_prefix.contains("PRLTC_DISABLED=") {
+        return None;
+    }
 
     // Try each rewrite prefix (longest first) with word-boundary check
     for &prefix in rule.rewrite_prefixes {
@@ -973,6 +986,89 @@ mod tests {
         assert_eq!(
             rewrite_command("prltc git add . && cargo test", &[]),
             Some("prltc git add . && prltc cargo test".into())
+        );
+    }
+
+    // --- #345: PRLTC_DISABLED ---
+
+    #[test]
+    fn test_rewrite_prltc_disabled_curl() {
+        assert_eq!(
+            rewrite_command("PRLTC_DISABLED=1 curl https://example.com", &[]),
+            None
+        );
+    }
+
+    #[test]
+    fn test_rewrite_prltc_disabled_git_status() {
+        assert_eq!(rewrite_command("PRLTC_DISABLED=1 git status", &[]), None);
+    }
+
+    #[test]
+    fn test_rewrite_prltc_disabled_multi_env() {
+        assert_eq!(
+            rewrite_command("FOO=1 PRLTC_DISABLED=1 git status", &[]),
+            None
+        );
+    }
+
+    #[test]
+    fn test_rewrite_non_prltc_disabled_env_still_rewrites() {
+        assert_eq!(
+            rewrite_command("SOME_VAR=1 git status", &[]),
+            Some("SOME_VAR=1 prltc git status".into())
+        );
+    }
+
+    // --- #346: 2>&1 and &> redirect detection ---
+
+    #[test]
+    fn test_rewrite_redirect_2_gt_amp_1_with_pipe() {
+        assert_eq!(
+            rewrite_command("cargo test 2>&1 | head", &[]),
+            Some("prltc cargo test 2>&1 | head".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_redirect_2_gt_amp_1_trailing() {
+        assert_eq!(
+            rewrite_command("cargo test 2>&1", &[]),
+            Some("prltc cargo test 2>&1".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_redirect_plain_2_devnull() {
+        // 2>/dev/null has no `&`, never broken — non-regression
+        assert_eq!(
+            rewrite_command("git status 2>/dev/null", &[]),
+            Some("prltc git status 2>/dev/null".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_redirect_2_gt_amp_1_with_and() {
+        assert_eq!(
+            rewrite_command("cargo test 2>&1 && echo done", &[]),
+            Some("prltc cargo test 2>&1 && echo done".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_redirect_amp_gt_devnull() {
+        assert_eq!(
+            rewrite_command("cargo test &>/dev/null", &[]),
+            Some("prltc cargo test &>/dev/null".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_background_amp_non_regression() {
+        // background `&` must still work after redirect fix
+        assert_eq!(
+            rewrite_command("cargo test & git status", &[]),
+            Some("prltc cargo test & prltc git status".into())
         );
     }
 

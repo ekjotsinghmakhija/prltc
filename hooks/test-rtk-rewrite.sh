@@ -239,6 +239,44 @@ test_rewrite "kubectl apply -f deploy.yaml" \
 
 echo ""
 
+# ---- SECTION 3b: PRLTC_DISABLED and redirect fixes (#345, #346) ----
+echo "--- PRLTC_DISABLED (#345) ---"
+test_rewrite "PRLTC_DISABLED=1 git status (no rewrite)" \
+  "PRLTC_DISABLED=1 git status" \
+  ""
+
+test_rewrite "PRLTC_DISABLED=1 cargo test (no rewrite)" \
+  "PRLTC_DISABLED=1 cargo test" \
+  ""
+
+test_rewrite "FOO=1 PRLTC_DISABLED=1 git status (no rewrite)" \
+  "FOO=1 PRLTC_DISABLED=1 git status" \
+  ""
+
+echo ""
+echo "--- Redirect operators (#346) ---"
+test_rewrite "cargo test 2>&1 | head" \
+  "cargo test 2>&1 | head" \
+  "prltc cargo test 2>&1 | head"
+
+test_rewrite "cargo test 2>&1" \
+  "cargo test 2>&1" \
+  "prltc cargo test 2>&1"
+
+test_rewrite "cargo test &>/dev/null" \
+  "cargo test &>/dev/null" \
+  "prltc cargo test &>/dev/null"
+
+# Note: the bash hook rewrites only the first command segment (sed-based);
+# full compound rewriting (both sides of &) is handled by `prltc rewrite` (Rust).
+# The critical behavior tested here: `&` after `cargo test` is NOT mistaken for
+# a redirect — the hook still rewrites cargo test, no crash.
+test_rewrite "cargo test & git status (bash hook rewrites first segment only)" \
+  "cargo test & git status" \
+  "prltc cargo test & git status"
+
+echo ""
+
 # ---- SECTION 4: Vitest edge case (fixed double "run" bug) ----
 echo "--- Vitest run dedup ---"
 test_rewrite "vitest (no args)" \
