@@ -961,8 +961,6 @@ fn run_fallback(parse_error: clap::Error) -> Result<()> {
         parse_error.exit();
     }
 
-    eprintln!("[prltc: parse failed, running raw]");
-
     let raw_command = args.join(" ");
     let error_message = utils::strip_ansi(&parse_error.to_string());
 
