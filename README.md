@@ -351,12 +351,19 @@ brew uninstall prltc           # If installed via Homebrew
 - **[SECURITY.md](SECURITY.md)** - Security policy and PR review process
 - **[AUDIT_GUIDE.md](docs/AUDIT_GUIDE.md)** - Token savings analytics guide
 
+
 ## Contributing
 
-Contributions welcome! Please open an issue or PR on [GitHub](https://github.com/ekjotsinghmakhija/prltc).
+Contributions welcome! See the **[Contributing Guide](CONTRIBUTING.md)** for branch naming, PR process, testing requirements, and coding practices.
 
 Join the community on .
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
+
+## Contact
+
+- Website: https://www.github.com/ekjotsinghmakhija/prltc
+- Email: ekjotmakhija@gmail.com
+- Issues: https://github.com/ekjotsinghmakhija/prltc/issues
