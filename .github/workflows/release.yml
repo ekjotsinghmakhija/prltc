@@ -72,9 +72,6 @@ jobs:
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
-        env:
-          PRLTC_TELEMETRY_URL: ${{ vars.PRLTC_TELEMETRY_URL }}
-          PRLTC_TELEMETRY_TOKEN: ${{ secrets.PRLTC_TELEMETRY_TOKEN }}
 
       - name: Package (Unix)
         if: matrix.os != 'windows-latest'
@@ -111,9 +108,6 @@ jobs:
 
       - name: Build DEB
         run: cargo deb
-        env:
-          PRLTC_TELEMETRY_URL: ${{ vars.PRLTC_TELEMETRY_URL }}
-          PRLTC_TELEMETRY_TOKEN: ${{ secrets.PRLTC_TELEMETRY_TOKEN }}
 
       - name: Upload DEB
         uses: actions/upload-artifact@v4
@@ -138,9 +132,6 @@ jobs:
 
       - name: Build release
         run: cargo build --release
-        env:
-          PRLTC_TELEMETRY_URL: ${{ vars.PRLTC_TELEMETRY_URL }}
-          PRLTC_TELEMETRY_TOKEN: ${{ secrets.PRLTC_TELEMETRY_TOKEN }}
 
       - name: Generate RPM
         run: cargo generate-rpm
