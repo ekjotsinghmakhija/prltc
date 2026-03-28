@@ -234,12 +234,8 @@ fn ensure_hook_installed(hook_path: &Path, verbose: u8) -> Result<bool> {
     // Store SHA-256 hash for runtime integrity verification.
     // Always store (idempotent) to ensure baseline exists even for
     // hooks installed before integrity checks were added.
-    integrity::store_hash(hook_path).with_context(|| {
-        format!(
-            "Failed to store integrity hash for {}",
-            hook_path.display()
-        )
-    })?;
+    integrity::store_hash(hook_path)
+        .with_context(|| format!("Failed to store integrity hash for {}", hook_path.display()))?;
     if verbose > 0 && changed {
         eprintln!("Stored integrity hash for hook");
     }
@@ -1067,7 +1063,8 @@ pub fn show_config() -> Result<()> {
         Ok(integrity::IntegrityStatus::NoBaseline) => {
             println!("⚠️  Integrity: no baseline hash (run: prltc init -g to establish)");
         }
-        Ok(integrity::IntegrityStatus::NotInstalled) | Ok(integrity::IntegrityStatus::OrphanedHash) => {
+        Ok(integrity::IntegrityStatus::NotInstalled)
+        | Ok(integrity::IntegrityStatus::OrphanedHash) => {
             // Don't show integrity line if hook isn't installed
         }
         Err(_) => {

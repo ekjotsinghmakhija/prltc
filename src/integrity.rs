@@ -170,7 +170,10 @@ fn read_stored_hash(path: &Path) -> Result<String> {
     // sha256sum format uses two-space separator: "<hash>  <filename>"
     let parts: Vec<&str> = line.splitn(2, "  ").collect();
     if parts.len() != 2 {
-        anyhow::bail!("Invalid hash format in {} (expected 'hash  filename')", path.display());
+        anyhow::bail!(
+            "Invalid hash format in {} (expected 'hash  filename')",
+            path.display()
+        );
     }
 
     let hash = parts[0];
@@ -256,8 +259,14 @@ pub fn runtime_check() -> Result<()> {
         }
         IntegrityStatus::Tampered { expected, actual } => {
             eprintln!("prltc: hook integrity check FAILED");
-            eprintln!("  Expected hash: {}...", expected.get(..16).unwrap_or(&expected));
-            eprintln!("  Actual hash:   {}...", actual.get(..16).unwrap_or(&actual));
+            eprintln!(
+                "  Expected hash: {}...",
+                expected.get(..16).unwrap_or(&expected)
+            );
+            eprintln!(
+                "  Actual hash:   {}...",
+                actual.get(..16).unwrap_or(&actual)
+            );
             eprintln!();
             eprintln!("  The hook at ~/.claude/hooks/prltc-rewrite.sh has been modified.");
             eprintln!("  This may indicate tampering. PRLTC will not execute.");
@@ -489,7 +498,10 @@ mod tests {
         .unwrap();
 
         let result = verify_hook_at(&hook);
-        assert!(result.is_err(), "Should reject hash-only format (no filename)");
+        assert!(
+            result.is_err(),
+            "Should reject hash-only format (no filename)"
+        );
     }
 
     #[test]
