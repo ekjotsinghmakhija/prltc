@@ -4,7 +4,7 @@
 
 **High-performance CLI proxy to minimize LLM token consumption.**
 
-[Website](https://www.github.com/ekjotsinghmakhija/prltc) | [GitHub](https://github.com/ekjotsinghmakhija/prltc) | [Install](INSTALL.md)
+[Website](https://www.github.com/ekjotsinghmakhija/prltc) | [GitHub](https://github.com/ekjotsinghmakhija/prltc) | [Install](INSTALL.md) | [Contributing](CONTRIBUTING.md)
 
 prltc filters and compresses command outputs before they reach your LLM context, saving 60-90% of tokens on common operations.
 
@@ -22,7 +22,7 @@ prltc filters and compresses command outputs before they reach your LLM context,
 
 **How to verify you have the correct prltc:**
 ```bash
-prltc --version   # Should show "prltc 0.24.0"
+prltc --version   # Should show "prltc 0.23.0"
 prltc gain        # Should show token savings stats
 ```
 
@@ -175,6 +175,7 @@ prltc pytest                       # Python tests (failures only, 90% reduction)
 prltc pip list                     # Python packages (auto-detect uv, 70% reduction)
 prltc go test                      # Go tests (NDJSON, 90% reduction)
 prltc golangci-lint run            # Go linting (JSON, 85% reduction)
+prltc yarn test                    # Yarn (Vitest only) tests (failures only, 90% reduction)
 ```
 
 ### Data & Analytics
@@ -265,6 +266,13 @@ prltc playwright test              # E2E results (failures only)
 prltc prisma generate              # Schema generation (no ASCII art)
 prltc prisma migrate dev --name x  # Migration summary
 prltc prisma db-push               # Schema push summary
+```
+
+### Yarn
+```bash
+prltc yarn test                    # Jest test output, failures only (90% reduction)
+prltc yarn test --coverage         # With extra args passed through
+prltc yarn install                 # Passthrough for non-test subcommands
 ```
 
 ### Python & Go Stack
@@ -625,6 +633,8 @@ The hook is included in this repository at `.claude/hooks/prltc-rewrite.sh`. To 
 | `pip list/install/outdated` | `prltc pip ...` |
 | `go test/build/vet` | `prltc go ...` |
 | `golangci-lint run` | `prltc golangci-lint run` |
+| `yarn test` | `prltc yarn test` |
+| `yarn <subcommand>` | `prltc yarn <subcommand>` |
 | `docker ps/images/logs` | `prltc docker ...` |
 | `kubectl get/logs` | `prltc kubectl ...` |
 | `curl` | `prltc curl` |
@@ -847,7 +857,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-Contributions welcome! Please open an issue or PR on GitHub.
+Contributions welcome! See the **[Contributing Guide](CONTRIBUTING.md)** for branch naming, PR process, testing requirements, and coding practices.
 
 **For external contributors**: Your PR will undergo automated security review (see [SECURITY.md](SECURITY.md)). This protects PRLTC's shell execution capabilities against injection attacks and supply chain vulnerabilities.
 
