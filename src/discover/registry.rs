@@ -1267,6 +1267,50 @@ mod tests {
         );
     }
 
+    // --- #336: docker compose supported subcommands rewritten, unsupported skipped ---
+
+    #[test]
+    fn test_rewrite_docker_compose_ps() {
+        assert_eq!(
+            rewrite_command("docker compose ps", &[]),
+            Some("prltc docker compose ps".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_docker_compose_logs() {
+        assert_eq!(
+            rewrite_command("docker compose logs web", &[]),
+            Some("prltc docker compose logs web".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_docker_compose_build() {
+        assert_eq!(
+            rewrite_command("docker compose build", &[]),
+            Some("prltc docker compose build".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_docker_compose_up_skipped() {
+        assert_eq!(rewrite_command("docker compose up -d", &[]), None);
+    }
+
+    #[test]
+    fn test_rewrite_docker_compose_down_skipped() {
+        assert_eq!(rewrite_command("docker compose down", &[]), None);
+    }
+
+    #[test]
+    fn test_rewrite_docker_compose_config_skipped() {
+        assert_eq!(
+            rewrite_command("docker compose -f foo.yaml config --services", &[]),
+            None
+        );
+    }
+
     // --- AWS / psql (PR #216) ---
 
     #[test]
@@ -1785,10 +1829,7 @@ mod tests {
 
     #[test]
     fn test_rewrite_gh_json_skipped() {
-        assert_eq!(
-            rewrite_command("gh pr list --json number,title", &[]),
-            None
-        );
+        assert_eq!(rewrite_command("gh pr list --json number,title", &[]), None);
     }
 
     #[test]
