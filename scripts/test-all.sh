@@ -202,7 +202,7 @@ assert_ok      "prltc cargo build"              prltc cargo build
 assert_ok      "prltc cargo clippy"             prltc cargo clippy
 # cargo test exits non-zero due to pre-existing failures; check output ignoring exit code
 output_cargo_test=$(prltc cargo test 2>&1 || true)
-if echo "$output_cargo_test" | grep -q "FAILURES\|test result:"; then
+if echo "$output_cargo_test" | grep -q "FAILURES\|test result:\|passed"; then
     PASS=$((PASS + 1))
     printf "  ${GREEN}PASS${NC}  %s\n" "prltc cargo test"
 else
@@ -379,19 +379,19 @@ section "Python (conditional)"
 if command -v pytest &>/dev/null; then
     assert_help    "prltc pytest"                    prltc pytest --help
 else
-    skip "pytest not installed"
+    skip_test "prltc pytest" "pytest not installed"
 fi
 
 if command -v ruff &>/dev/null; then
     assert_help    "prltc ruff"                      prltc ruff --help
 else
-    skip "ruff not installed"
+    skip_test "prltc ruff" "ruff not installed"
 fi
 
 if command -v pip &>/dev/null; then
     assert_help    "prltc pip"                       prltc pip --help
 else
-    skip "pip not installed"
+    skip_test "prltc pip" "pip not installed"
 fi
 
 # ── 28. Go (conditional) ────────────────────────────
@@ -404,13 +404,13 @@ if command -v go &>/dev/null; then
     assert_help    "prltc go build"                  prltc go build -h
     assert_help    "prltc go vet"                    prltc go vet -h
 else
-    skip "go not installed"
+    skip_test "prltc go" "go not installed"
 fi
 
 if command -v golangci-lint &>/dev/null; then
     assert_help    "prltc golangci-lint"             prltc golangci-lint --help
 else
-    skip "golangci-lint not installed"
+    skip_test "prltc golangci-lint" "golangci-lint not installed"
 fi
 
 # ── 29. Global flags ────────────────────────────────
