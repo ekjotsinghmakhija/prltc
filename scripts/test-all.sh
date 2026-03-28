@@ -68,6 +68,19 @@ assert_exit_ok() {
     fi
 }
 
+assert_fails() {
+    local name="$1"
+    shift
+    if "$@" >/dev/null 2>&1; then
+        FAIL=$((FAIL + 1))
+        FAILURES+=("$name (expected failure, got success)")
+        printf "  ${RED}FAIL${NC}  %s (expected failure)\n" "$name"
+    else
+        PASS=$((PASS + 1))
+        printf "  ${GREEN}PASS${NC}  %s\n" "$name"
+    fi
+}
+
 assert_help() {
     local name="$1"
     shift
@@ -432,6 +445,91 @@ section "Learn"
 
 assert_ok      "prltc learn --help"             prltc learn --help
 assert_ok      "prltc learn (no sessions)"      prltc learn --since 0 2>&1 || true
+
+# ── 32. Rewrite ───────────────────────────────────────
+
+section "Rewrite"
+
+assert_contains "rewrite git status"          "prltc git status"         prltc rewrite "git status"
+assert_contains "rewrite cargo test"          "prltc cargo test"         prltc rewrite "cargo test"
+assert_contains "rewrite compound &&"         "prltc git status"         prltc rewrite "git status && cargo test"
+assert_contains "rewrite pipe preserves"      "| head"                 prltc rewrite "git log | head"
+
+section "Rewrite (#345: PRLTC_DISABLED skip)"
+
+assert_fails   "rewrite PRLTC_DISABLED=1 skip"                          prltc rewrite "PRLTC_DISABLED=1 git status"
+assert_fails   "rewrite env PRLTC_DISABLED skip"                        prltc rewrite "FOO=1 PRLTC_DISABLED=1 cargo test"
+
+section "Rewrite (#346: 2>&1 preserved)"
+
+assert_contains "rewrite 2>&1 preserved"      "2>&1"                  prltc rewrite "cargo test 2>&1 | head"
+
+section "Rewrite (#196: gh --json skip)"
+
+assert_fails   "rewrite gh --json skip"                               prltc rewrite "gh pr list --json number"
+assert_fails   "rewrite gh --jq skip"                                 prltc rewrite "gh api /repos --jq .name"
+assert_fails   "rewrite gh --template skip"                           prltc rewrite "gh pr view 1 --template '{{.title}}'"
+assert_contains "rewrite gh normal works"     "prltc gh pr list"        prltc rewrite "gh pr list"
+
+# ── 33. Verify ────────────────────────────────────────
+
+section "Verify"
+
+assert_ok      "prltc verify"                   prltc verify
+
+# ── 34. Proxy ─────────────────────────────────────────
+
+section "Proxy"
+
+assert_ok      "prltc proxy echo hello"         prltc proxy echo hello
+assert_contains "prltc proxy passthrough"       "hello" prltc proxy echo hello
+
+# ── 35. Discover ──────────────────────────────────────
+
+section "Discover"
+
+assert_ok      "prltc discover"                 prltc discover
+
+# ── 36. Diff ──────────────────────────────────────────
+
+section "Diff"
+
+assert_ok      "prltc diff two files"           prltc diff Cargo.toml LICENSE
+
+# ── 37. Wc ────────────────────────────────────────────
+
+section "Wc"
+
+assert_ok      "prltc wc Cargo.toml"            prltc wc Cargo.toml
+
+# ── 38. Smart ─────────────────────────────────────────
+
+section "Smart"
+
+assert_ok      "prltc smart src/main.rs"        prltc smart src/main.rs
+
+# ── 39. Json edge cases ──────────────────────────────
+
+section "Json (edge cases)"
+
+assert_fails   "prltc json on TOML (#347)"                              prltc json Cargo.toml
+
+# ── 40. Docker (conditional) ─────────────────────────
+
+section "Docker (conditional)"
+
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    assert_ok  "prltc docker ps"               prltc docker ps
+    assert_ok  "prltc docker images"           prltc docker images
+else
+    skip_test "prltc docker" "docker not running"
+fi
+
+# ── 41. Hook check ───────────────────────────────────
+
+section "Hook check (#344)"
+
+assert_contains "prltc init --show hook version" "version" prltc init --show
 
 # ══════════════════════════════════════════════════════
 # Report

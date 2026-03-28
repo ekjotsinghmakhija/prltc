@@ -1,8 +1,16 @@
 #!/bin/bash
 set -e
 
-PRLTC="$(cd "$(dirname ./target/release/prltc)" && pwd)/$(basename ./target/release/prltc)"
-BENCH_DIR="./scripts/benchmark"
+# Use local release build if available, otherwise fall back to installed prltc
+if [ -f "./target/release/prltc" ]; then
+  PRLTC="$(cd "$(dirname ./target/release/prltc)" && pwd)/$(basename ./target/release/prltc)"
+elif command -v prltc &> /dev/null; then
+  PRLTC="$(command -v prltc)"
+else
+  echo "Error: prltc not found. Run 'cargo build --release' or install prltc."
+  exit 1
+fi
+BENCH_DIR="$(pwd)/scripts/benchmark"
 
 # Mode local : générer les fichiers debug
 if [ -z "$CI" ]; then
@@ -259,6 +267,50 @@ bench "summary cargo --help" "cargo --help" "$PRLTC summary cargo --help"
 bench "summary rustc --help" "rustc --help 2>/dev/null || echo 'rustc not found'" "$PRLTC summary rustc --help"
 
 # ===================
+# cargo
+# ===================
+section "cargo"
+bench "cargo build" "cargo build 2>&1 || true" "$PRLTC cargo build"
+bench "cargo test" "cargo test 2>&1 || true" "$PRLTC cargo test"
+bench "cargo clippy" "cargo clippy 2>&1 || true" "$PRLTC cargo clippy"
+bench "cargo check" "cargo check 2>&1 || true" "$PRLTC cargo check"
+
+# ===================
+# diff
+# ===================
+section "diff"
+bench "diff" "diff Cargo.toml LICENSE 2>&1 || true" "$PRLTC diff Cargo.toml LICENSE"
+
+# ===================
+# smart
+# ===================
+section "smart"
+bench "smart main.rs" "cat src/main.rs" "$PRLTC smart src/main.rs"
+
+# ===================
+# wc
+# ===================
+section "wc"
+bench "wc" "wc Cargo.toml src/main.rs" "$PRLTC wc Cargo.toml src/main.rs"
+
+# ===================
+# curl
+# ===================
+section "curl"
+if command -v curl &> /dev/null; then
+  bench "curl json" "curl -s https://httpbin.org/json" "$PRLTC curl https://httpbin.org/json"
+  bench "curl text" "curl -s https://httpbin.org/robots.txt" "$PRLTC curl https://httpbin.org/robots.txt"
+fi
+
+# ===================
+# wget
+# ===================
+if command -v wget &> /dev/null; then
+  section "wget"
+  bench "wget" "wget -qO- https://httpbin.org/robots.txt" "$PRLTC wget https://httpbin.org/robots.txt -O"
+fi
+
+# ===================
 # Modern JavaScript Stack (skip si pas de package.json)
 # ===================
 if [ -f "package.json" ]; then
@@ -381,8 +433,8 @@ def test_process_data_none():
     assert process_data(None) == []
 PYEOF
 
-  bench "ruff check" "ruff check . 2>&1 || true" "$PRLTC test ruff check ."
-  bench "pytest" "pytest -v 2>&1 || true" "$PRLTC test pytest -v"
+  bench "ruff check" "ruff check . 2>&1 || true" "$PRLTC ruff check ."
+  bench "pytest" "pytest -v 2>&1 || true" "$PRLTC pytest -v"
 
   cd - > /dev/null
   rm -rf "$PYTHON_FIXTURE"
@@ -445,8 +497,10 @@ func TestMultiply(t *testing.T) {
 }
 GOEOF
 
-  bench "golangci-lint" "golangci-lint run 2>&1 || true" "$PRLTC test golangci-lint run"
-  bench "go test" "go test -v 2>&1 || true" "$PRLTC test go test -v"
+  bench "golangci-lint" "golangci-lint run 2>&1 || true" "$PRLTC golangci-lint run"
+  bench "go test" "go test -v 2>&1 || true" "$PRLTC go test -v"
+  bench "go build" "go build ./... 2>&1 || true" "$PRLTC go build ./..."
+  bench "go vet" "go vet ./... 2>&1 || true" "$PRLTC go vet ./..."
 
   cd - > /dev/null
   rm -rf "$GO_FIXTURE"
