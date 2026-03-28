@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# prltc-hook-version: 2
 # PRLTC Claude Code hook — rewrites commands to use prltc for token savings.
 # Requires: prltc >= 0.23.0, jq
 #
