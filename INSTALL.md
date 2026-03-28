@@ -150,13 +150,28 @@ prltc init  # Creates ./CLAUDE.md with full PRLTC instructions (137 lines)
 
 ### Upgrading from Previous Version
 
-If you previously used `prltc init -g` with the old system (137-line injection):
+#### From old 137-line CLAUDE.md injection (pre-0.22)
 
 ```bash
 prltc init -g  # Automatically migrates to hook-first mode
 # → Removes old 137-line block
 # → Installs hook + PRLTC.md
 # → Adds @PRLTC.md reference
+```
+
+#### From old hook with inline logic (pre-0.24) — ⚠️ Breaking Change
+
+PRLTC 0.24.0 replaced the inline command-detection hook (~200 lines) with a **thin delegator** that calls `prltc rewrite`. The binary now contains the rewrite logic, so adding new commands no longer requires a hook update.
+
+The old hook still works but won't benefit from new rules added in future releases.
+
+```bash
+# Upgrade hook to thin delegator
+prltc init --global
+
+# Verify the new hook is active
+prltc init --show
+# Should show: ✅ Hook: ... (thin delegator, up to date)
 ```
 
 ## Common User Flows

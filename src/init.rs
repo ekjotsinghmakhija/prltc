@@ -682,7 +682,7 @@ fn run_default_mode(global: bool, patch_mode: PatchMode, verbose: u8) -> Result<
 
     // 1. Prepare hook directory and install hook
     let (_hook_dir, hook_path) = prepare_hook_paths()?;
-    ensure_hook_installed(&hook_path, verbose)?;
+    let hook_changed = ensure_hook_installed(&hook_path, verbose)?;
 
     // 2. Write PRLTC.md
     write_if_changed(&prltc_md_path, PRLTC_SLIM, "PRLTC.md", verbose)?;
@@ -691,7 +691,12 @@ fn run_default_mode(global: bool, patch_mode: PatchMode, verbose: u8) -> Result<
     let migrated = patch_claude_md(&claude_md_path, verbose)?;
 
     // 4. Print success message
-    println!("\nPRLTC hook installed (global).\n");
+    let hook_status = if hook_changed {
+        "installed/updated"
+    } else {
+        "already up to date"
+    };
+    println!("\nPRLTC hook {} (global).\n", hook_status);
     println!("  Hook:      {}", hook_path.display());
     println!("  PRLTC.md:    {} (10 lines)", prltc_md_path.display());
     println!("  CLAUDE.md: @PRLTC.md reference added");
@@ -739,9 +744,14 @@ fn run_hook_only_mode(global: bool, patch_mode: PatchMode, verbose: u8) -> Resul
 
     // Prepare and install hook
     let (_hook_dir, hook_path) = prepare_hook_paths()?;
-    ensure_hook_installed(&hook_path, verbose)?;
+    let hook_changed = ensure_hook_installed(&hook_path, verbose)?;
 
-    println!("\nPRLTC hook installed (hook-only mode).\n");
+    let hook_status = if hook_changed {
+        "installed/updated"
+    } else {
+        "already up to date"
+    };
+    println!("\nPRLTC hook {} (hook-only mode).\n", hook_status);
     println!("  Hook: {}", hook_path.display());
     println!(
         "  Note: No PRLTC.md created. Claude won't know about meta commands (gain, discover, proxy)."
@@ -1024,12 +1034,24 @@ pub fn show_config() -> Result<()> {
             let hook_content = fs::read_to_string(&hook_path)?;
             let has_guards =
                 hook_content.contains("command -v prltc") && hook_content.contains("command -v jq");
+            let is_thin_delegator = hook_content.contains("prltc rewrite");
 
-            if is_executable && has_guards {
-                println!("✅ Hook: {} (executable, with guards)", hook_path.display());
-            } else if !is_executable {
+            if !is_executable {
                 println!(
                     "⚠️  Hook: {} (NOT executable - run: chmod +x)",
+                    hook_path.display()
+                );
+            } else if !is_thin_delegator {
+                println!(
+                    "⚠️  Hook: {} (outdated — inline logic, not thin delegator)",
+                    hook_path.display()
+                );
+                println!(
+                    "   → Run `prltc init --global` to upgrade to the single source of truth hook"
+                );
+            } else if is_executable && has_guards {
+                println!(
+                    "✅ Hook: {} (thin delegator, up to date)",
                     hook_path.display()
                 );
             } else {
@@ -1178,12 +1200,13 @@ mod tests {
     fn test_hook_has_guards() {
         assert!(REWRITE_HOOK.contains("command -v prltc"));
         assert!(REWRITE_HOOK.contains("command -v jq"));
-        // Guards must be BEFORE set -euo pipefail
-        let guard_pos = REWRITE_HOOK.find("command -v prltc").unwrap();
-        let set_pos = REWRITE_HOOK.find("set -euo pipefail").unwrap();
+        // Guards (prltc/jq availability checks) must appear before the actual delegation call.
+        // The thin delegating hook no longer uses set -euo pipefail.
+        let jq_pos = REWRITE_HOOK.find("command -v jq").unwrap();
+        let prltc_delegate_pos = REWRITE_HOOK.find("prltc rewrite \"$CMD\"").unwrap();
         assert!(
-            guard_pos < set_pos,
-            "Guards must come before set -euo pipefail"
+            jq_pos < prltc_delegate_pos,
+            "Guards must appear before prltc rewrite delegation"
         );
     }
 
