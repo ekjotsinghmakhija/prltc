@@ -16,7 +16,7 @@ This is a fork with critical fixes for git argument parsing and modern JavaScrip
 
 **Verify correct installation:**
 ```bash
-prltc --version  # Should show "prltc 0.26.0" (or newer)
+prltc --version  # Should show "prltc 0.27.1" (or newer)
 prltc gain       # Should show token savings stats (NOT "command not found")
 ```
 

@@ -1488,4 +1488,4 @@ When implementing a new command, consider:
 
 **Last Updated**: 2026-02-22
 **Architecture Version**: 2.2
-**prltc Version**: 0.26.0
+**prltc Version**: 0.27.1

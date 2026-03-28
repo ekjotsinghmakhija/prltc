@@ -90,7 +90,7 @@ Download from [releases](https://github.com/ekjotsinghmakhija/prltc/releases):
 ### Verify Installation
 
 ```bash
-prltc --version   # Should show "prltc 0.27.x"
+prltc --version   # Should show "prltc 0.27.1"
 prltc gain        # Should show token savings stats
 ```
 
