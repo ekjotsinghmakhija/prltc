@@ -180,6 +180,10 @@ elif echo "$MATCH_CMD" | grep -qE '^pip[[:space:]]+(list|outdated|install|show)(
   REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^pip /prltc pip /')"
 elif echo "$MATCH_CMD" | grep -qE '^uv[[:space:]]+pip[[:space:]]+(list|outdated|install|show)([[:space:]]|$)'; then
   REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^uv pip /prltc pip /')"
+elif echo "$MATCH_CMD" | grep -qE '^mypy([[:space:]]|$)'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^mypy/prltc mypy/')"
+elif echo "$MATCH_CMD" | grep -qE '^python[[:space:]]+-m[[:space:]]+mypy([[:space:]]|$)'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^python -m mypy/prltc mypy/')"
 
 # --- Go tooling ---
 elif echo "$MATCH_CMD" | grep -qE '^go[[:space:]]+test([[:space:]]|$)'; then
