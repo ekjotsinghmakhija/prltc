@@ -199,6 +199,14 @@ elif echo "$MATCH_CMD" | grep -qE '^go[[:space:]]+vet([[:space:]]|$)'; then
   REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^go vet/prltc go vet/')"
 elif echo "$MATCH_CMD" | grep -qE '^golangci-lint([[:space:]]|$)'; then
   REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^golangci-lint/prltc golangci-lint/')"
+
+# --- AWS CLI ---
+elif echo "$MATCH_CMD" | grep -qE '^aws[[:space:]]+'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^aws /prltc aws /')"
+
+# --- PostgreSQL ---
+elif echo "$MATCH_CMD" | grep -qE '^psql([[:space:]]|$)'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^psql/prltc psql/')"
 fi
 
 # If no rewrite needed, approve as-is
