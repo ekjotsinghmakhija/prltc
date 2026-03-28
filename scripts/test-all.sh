@@ -426,20 +426,31 @@ else
     skip_test "prltc golangci-lint" "golangci-lint not installed"
 fi
 
-# ── 29. Global flags ────────────────────────────────
+# ── 29. Graphite (conditional) ─────────────────────
+
+section "Graphite (conditional)"
+
+if command -v gt &>/dev/null; then
+    assert_help   "prltc gt"                          prltc gt --help
+    assert_ok     "prltc gt log short"                prltc gt log short
+else
+    skip "gt not installed"
+fi
+
+# ── 30. Global flags ────────────────────────────────
 
 section "Global flags"
 
 assert_ok      "prltc -u ls ."                  prltc -u ls .
 assert_ok      "prltc --skip-env npm --help"    prltc --skip-env npm --help
 
-# ── 30. CcEconomics ─────────────────────────────────
+# ── 31. CcEconomics ─────────────────────────────────
 
 section "CcEconomics"
 
 assert_ok      "prltc cc-economics"             prltc cc-economics
 
-# ── 31. Learn ───────────────────────────────────────
+# ── 32. Learn ───────────────────────────────────────
 
 section "Learn"
 
