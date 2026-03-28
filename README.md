@@ -4,7 +4,7 @@
 
 **High-performance CLI proxy to minimize LLM token consumption.**
 
-[Website](https://www.github.com/ekjotsinghmakhija/prltc) | [GitHub](https://github.com/ekjotsinghmakhija/prltc) | [Install](INSTALL.md) | [Contributing](CONTRIBUTING.md)
+[Website](https://www.github.com/ekjotsinghmakhija/prltc) | [GitHub](https://github.com/ekjotsinghmakhija/prltc) | [Install](INSTALL.md)
 
 prltc filters and compresses command outputs before they reach your LLM context, saving 60-90% of tokens on common operations.
 
@@ -22,7 +22,7 @@ prltc filters and compresses command outputs before they reach your LLM context,
 
 **How to verify you have the correct prltc:**
 ```bash
-prltc --version   # Should show "prltc 0.24.0"
+prltc --version   # Should show "prltc 0.25.0"
 prltc gain        # Should show token savings stats
 ```
 
@@ -455,6 +455,18 @@ database_path = "/path/to/custom.db"
 
 Priority: `PRLTC_DB_PATH` env var > `config.toml` > default location.
 
+### Excluding Commands from Auto-Rewrite
+
+By default, the hook rewrites all supported commands automatically. To exclude specific commands (e.g., keep raw `curl` output without schema extraction), add to your config:
+
+**Config file** (`~/.config/prltc/config.toml`, macOS: `~/Library/Application Support/prltc/config.toml`):
+```toml
+[hooks]
+exclude_commands = ["curl", "playwright"]
+```
+
+Excluded commands pass through the hook unchanged — no PRLTC filtering. This survives `prltc init -g` re-runs since the config file is user-owned.
+
 ### Tee: Full Output Recovery
 
 When PRLTC filters command output, LLM agents lose failure details (stack traces, assertion messages) and may re-run the same command 2-3 times. The **tee** feature saves raw output to a file so the agent can read it without re-executing.
@@ -847,7 +859,9 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-Contributions welcome! See the **[Contributing Guide](CONTRIBUTING.md)** for branch naming, PR process, testing requirements, and coding practices.
+Contributions welcome! Please open an issue or PR on GitHub.
+
+**For external contributors**: Your PR will undergo automated security review (see [SECURITY.md](SECURITY.md)). This protects PRLTC's shell execution capabilities against injection attacks and supply chain vulnerabilities.
 
 ## Contact
 

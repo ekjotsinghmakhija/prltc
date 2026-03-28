@@ -51,6 +51,7 @@ mod ruff_cmd;
 mod runner;
 mod summary;
 mod tee;
+mod telemetry;
 mod tracking;
 mod tree;
 mod tsc_cmd;
@@ -996,6 +997,9 @@ fn run_fallback(parse_error: clap::Error) -> Result<()> {
 }
 
 fn main() -> Result<()> {
+    // Fire-and-forget telemetry ping (1/day, non-blocking)
+    telemetry::maybe_ping();
+
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(e) => {
