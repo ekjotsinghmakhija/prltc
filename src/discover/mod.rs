@@ -13,10 +13,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 
 use provider::{ClaudeProvider, SessionProvider};
-use registry::{
-    category_avg_tokens, classify_command, has_prltc_disabled_prefix, split_command_chain,
-    strip_disabled_prefix, Classification,
-};
+use registry::{category_avg_tokens, classify_command, split_command_chain, Classification};
 use report::{DiscoverReport, SupportedEntry, UnsupportedEntry};
 
 /// Aggregation bucket for supported commands.
@@ -71,8 +68,6 @@ pub fn run(
     let mut total_commands: usize = 0;
     let mut already_prltc: usize = 0;
     let mut parse_errors: usize = 0;
-    let mut prltc_disabled_count: usize = 0;
-    let mut prltc_disabled_cmds: HashMap<String, usize> = HashMap::new();
     let mut supported_map: HashMap<&'static str, SupportedBucket> = HashMap::new();
     let mut unsupported_map: HashMap<String, UnsupportedBucket> = HashMap::new();
 
@@ -92,23 +87,6 @@ pub fn run(
             let parts = split_command_chain(&ext_cmd.command);
             for part in parts {
                 total_commands += 1;
-
-                // Detect PRLTC_DISABLED= bypass before classification
-                if has_prltc_disabled_prefix(part) {
-                    let actual_cmd = strip_disabled_prefix(part);
-                    // Only count if the underlying command is one PRLTC supports
-                    match classify_command(actual_cmd) {
-                        Classification::Supported { .. } => {
-                            prltc_disabled_count += 1;
-                            let display = truncate_command(actual_cmd);
-                            *prltc_disabled_cmds.entry(display).or_insert(0) += 1;
-                        }
-                        _ => {
-                            // PRLTC_DISABLED on unsupported/ignored command — not interesting
-                        }
-                    }
-                    continue;
-                }
 
                 match classify_command(part) {
                     Classification::Supported {
@@ -226,17 +204,6 @@ pub fn run(
     // Sort by count descending
     unsupported.sort_by(|a, b| b.count.cmp(&a.count));
 
-    // Build PRLTC_DISABLED examples sorted by frequency (top 5)
-    let prltc_disabled_examples: Vec<String> = {
-        let mut sorted: Vec<_> = prltc_disabled_cmds.into_iter().collect();
-        sorted.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        sorted
-            .into_iter()
-            .take(5)
-            .map(|(cmd, count)| format!("{} ({}x)", cmd, count))
-            .collect()
-    };
-
     let report = DiscoverReport {
         sessions_scanned: sessions.len(),
         total_commands,
@@ -245,8 +212,6 @@ pub fn run(
         supported,
         unsupported,
         parse_errors,
-        prltc_disabled_count,
-        prltc_disabled_examples,
     };
 
     match format {

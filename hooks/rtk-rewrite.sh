@@ -8,12 +8,10 @@
 # To add or change rewrite rules, edit the Rust registry — not this file.
 
 if ! command -v jq &>/dev/null; then
-  echo "[prltc] WARNING: jq is not installed. Hook cannot rewrite commands. Install jq: https://jqlang.github.io/jq/download/" >&2
   exit 0
 fi
 
 if ! command -v prltc &>/dev/null; then
-  echo "[prltc] WARNING: prltc is not installed or not in PATH. Hook cannot rewrite commands. Install: https://github.com/ekjotsinghmakhija/prltc#installation" >&2
   exit 0
 fi
 

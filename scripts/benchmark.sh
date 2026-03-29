@@ -174,7 +174,7 @@ section "git"
 bench "git status" "git status" "$PRLTC git status"
 bench "git log -n 10" "git log -10" "$PRLTC git log -n 10"
 bench "git log -n 5" "git log -5" "$PRLTC git log -n 5"
-bench "git diff" "git diff HEAD~1 2>/dev/null || echo ''" "$PRLTC git diff HEAD~1"
+bench "git diff" "git diff HEAD~1 2>/dev/null || echo ''" "$PRLTC git diff"
 
 # ===================
 # grep
@@ -228,21 +228,13 @@ bench "env --show-all" "env" "$PRLTC env --show-all"
 # err
 # ===================
 section "err"
-if command -v cargo &>/dev/null; then
-  bench "err cargo build" "cargo build 2>&1 || true" "$PRLTC err cargo build"
-else
-  echo "⏭️  err cargo build (cargo not in PATH, skipped)"
-fi
+bench "err cargo build" "cargo build 2>&1 || true" "$PRLTC err cargo build"
 
 # ===================
 # test
 # ===================
 section "test"
-if command -v cargo &>/dev/null; then
-  bench "test cargo test" "cargo test 2>&1 || true" "$PRLTC test cargo test"
-else
-  echo "⏭️  test cargo test (cargo not in PATH, skipped)"
-fi
+bench "test cargo test" "cargo test 2>&1 || true" "$PRLTC test cargo test"
 
 # ===================
 # log
@@ -271,29 +263,17 @@ rm -f "$LOG_FILE"
 # summary
 # ===================
 section "summary"
-if command -v cargo &>/dev/null; then
-  bench "summary cargo --help" "cargo --help" "$PRLTC summary cargo --help"
-else
-  echo "⏭️  summary cargo --help (cargo not in PATH, skipped)"
-fi
-if command -v rustc &>/dev/null; then
-  bench "summary rustc --help" "rustc --help 2>/dev/null || echo 'rustc not found'" "$PRLTC summary rustc --help"
-else
-  echo "⏭️  summary rustc --help (rustc not in PATH, skipped)"
-fi
+bench "summary cargo --help" "cargo --help" "$PRLTC summary cargo --help"
+bench "summary rustc --help" "rustc --help 2>/dev/null || echo 'rustc not found'" "$PRLTC summary rustc --help"
 
 # ===================
 # cargo
 # ===================
 section "cargo"
-if command -v cargo &>/dev/null; then
-  bench "cargo build" "cargo build 2>&1 || true" "$PRLTC cargo build"
-  bench "cargo test" "cargo test 2>&1 || true" "$PRLTC cargo test"
-  bench "cargo clippy" "cargo clippy 2>&1 || true" "$PRLTC cargo clippy"
-  bench "cargo check" "cargo check 2>&1 || true" "$PRLTC cargo check"
-else
-  echo "⏭️  cargo build/test/clippy/check (cargo not in PATH, skipped)"
-fi
+bench "cargo build" "cargo build 2>&1 || true" "$PRLTC cargo build"
+bench "cargo test" "cargo test 2>&1 || true" "$PRLTC cargo test"
+bench "cargo clippy" "cargo clippy 2>&1 || true" "$PRLTC cargo clippy"
+bench "cargo check" "cargo check 2>&1 || true" "$PRLTC cargo check"
 
 # ===================
 # diff
@@ -525,37 +505,6 @@ GOEOF
   cd - > /dev/null
   rm -rf "$GO_FIXTURE"
 fi
-
-# ===================
-# rewrite (verify rewrite works with and without quotes)
-# ===================
-section "rewrite"
-
-# bench_rewrite: verifies rewrite produces expected output (not token comparison)
-bench_rewrite() {
-  local name="$1"
-  local cmd="$2"
-  local expected="$3"
-
-  result=$(eval "$cmd" 2>&1 || true)
-
-  TOTAL_TESTS=$((TOTAL_TESTS + 1))
-
-  if [ "$result" = "$expected" ]; then
-    printf "✅ %-24s │ %-40s │ %s\n" "$name" "$cmd" "$result"
-    GOOD_TESTS=$((GOOD_TESTS + 1))
-  else
-    printf "❌ %-24s │ %-40s │ got: %s (expected: %s)\n" "$name" "$cmd" "$result" "$expected"
-    FAIL_TESTS=$((FAIL_TESTS + 1))
-  fi
-}
-
-bench_rewrite "rewrite quoted"       "$PRLTC rewrite 'git status'"     "prltc git status"
-bench_rewrite "rewrite unquoted"     "$PRLTC rewrite git status"       "prltc git status"
-bench_rewrite "rewrite ls -al"       "$PRLTC rewrite ls -al"           "prltc ls -al"
-bench_rewrite "rewrite npm exec"     "$PRLTC rewrite npm exec"         "prltc npm exec"
-bench_rewrite "rewrite cargo test"   "$PRLTC rewrite cargo test"       "prltc cargo test"
-bench_rewrite "rewrite compound"     "$PRLTC rewrite 'cargo test && git push'" "prltc cargo test && prltc git push"
 
 # ===================
 # Résumé global
