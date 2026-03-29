@@ -55,7 +55,6 @@ mod read;
 mod rewrite_cmd;
 mod ruff_cmd;
 mod runner;
-mod session_cmd;
 mod summary;
 mod tee;
 mod telemetry;
@@ -543,9 +542,6 @@ enum Commands {
         #[arg(short, long, default_value = "text")]
         format: String,
     },
-
-    /// Show PRLTC adoption across Claude Code sessions
-    Session {},
 
     /// Learn CLI corrections from Claude Code error history
     Learn {
@@ -1801,10 +1797,6 @@ fn main() -> Result<()> {
             format,
         } => {
             discover::run(project.as_deref(), all, since, limit, &format, cli.verbose)?;
-        }
-
-        Commands::Session {} => {
-            session_cmd::run(cli.verbose)?;
         }
 
         Commands::Learn {

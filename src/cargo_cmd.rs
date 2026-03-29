@@ -5,7 +5,7 @@
  */
 
 use crate::tracking;
-use crate::utils::{resolved_command, truncate};
+use crate::utils::resolved_command;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::ffi::OsString;
