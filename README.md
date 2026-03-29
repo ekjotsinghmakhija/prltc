@@ -108,9 +108,7 @@ prltc init --global
 git status  # Automatically rewritten to prltc git status
 ```
 
-The hook transparently rewrites Bash commands (e.g., `git status` -> `prltc git status`) before execution. Claude never sees the rewrite, it just gets compressed output.
-
-**Important:** the hook only runs on Bash tool calls. Claude Code built-in tools like `Read`, `Grep`, and `Glob` do not pass through the Bash hook, so they are not auto-rewritten. To get PRLTC's compact output for those workflows, use shell commands (`cat`/`head`/`tail`, `rg`/`grep`, `find`) or call `prltc read`, `prltc grep`, or `prltc find` directly.
+The hook transparently rewrites commands (e.g., `git status` -> `prltc git status`) before execution. Claude never sees the rewrite, it just gets compressed output.
 
 ## How It Works
 
@@ -270,8 +268,6 @@ test utils::test_format ... ok              test_overflow: panic at utils.rs:18
 The most effective way to use prltc. The hook transparently intercepts Bash commands and rewrites them to prltc equivalents before execution.
 
 **Result**: 100% prltc adoption across all conversations and subagents, zero token overhead.
-
-**Scope note:** this only applies to Bash tool calls. Claude Code built-in tools such as `Read`, `Grep`, and `Glob` bypass the hook, so use shell commands or explicit `prltc` commands when you want PRLTC filtering there.
 
 ### Setup
 
