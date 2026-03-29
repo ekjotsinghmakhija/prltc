@@ -102,6 +102,7 @@ prltc gain        # Should show token savings stats
 # 1. Install hook for Claude Code (recommended)
 prltc init --global
 # Follow instructions to register in ~/.claude/settings.json
+# Claude Code only by default (use --opencode for OpenCode)
 
 # 2. Restart Claude Code, then test
 git status  # Automatically rewritten to prltc git status
@@ -272,12 +273,35 @@ The most effective way to use prltc. The hook transparently intercepts Bash comm
 
 ```bash
 prltc init -g                 # Install hook + PRLTC.md (recommended)
+prltc init -g --opencode      # OpenCode plugin (instead of Claude Code)
 prltc init -g --auto-patch    # Non-interactive (CI/CD)
 prltc init -g --hook-only     # Hook only, no PRLTC.md
 prltc init --show             # Verify installation
 ```
 
 After install, **restart Claude Code**.
+
+## OpenCode Plugin (Global)
+
+OpenCode supports plugins that can intercept tool execution. PRLTC provides a global plugin that mirrors the Claude auto-rewrite behavior by rewriting Bash tool commands to `prltc ...` before they execute. This plugin is **not** installed by default.
+
+> **Note**: This plugin uses OpenCode's `tool.execute.before` hook. Known limitation: plugin hooks do not intercept subagent tool calls ([upstream issue](https://github.com/sst/opencode/issues/5894)). See [OpenCode plugin docs](https://open-code.ai/en/docs/plugins) for API details.
+
+**Install OpenCode plugin:**
+```bash
+prltc init -g --opencode
+```
+
+**What it creates:**
+- `~/.config/opencode/plugins/prltc.ts`
+
+**Restart Required**: Restart OpenCode, then test with `git status` in a session.
+
+**Manual install (fallback):**
+```bash
+mkdir -p ~/.config/opencode/plugins
+cp hooks/opencode-prltc.ts ~/.config/opencode/plugins/prltc.ts
+```
 
 ### Commands Rewritten
 

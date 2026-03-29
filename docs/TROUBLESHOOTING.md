@@ -167,6 +167,39 @@ Then add to `~/.claude/settings.json` (replace `~` with full path):
 
 ---
 
+## Problem: PRLTC not working in OpenCode
+
+### Symptom
+OpenCode runs commands without prltc, outputs are verbose.
+
+### Checklist
+
+**1. Verify prltc is installed and correct:**
+```bash
+prltc --version
+prltc gain  # Must show stats
+```
+
+**2. Install the OpenCode plugin (global only):**
+```bash
+prltc init -g --opencode
+```
+
+**3. Verify plugin file exists:**
+```bash
+ls -la ~/.config/opencode/plugins/prltc.ts
+```
+
+**4. Restart OpenCode**
+OpenCode must be restarted to load the plugin.
+
+**5. Verify status:**
+```bash
+prltc init --show  # Should show "OpenCode: plugin installed"
+```
+
+---
+
 ## Problem: "command not found: prltc" after installation
 
 ### Symptom
