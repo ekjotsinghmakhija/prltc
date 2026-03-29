@@ -82,6 +82,26 @@ pub fn classify_command(cmd: &str) -> Classification {
         return Classification::Ignored;
     }
 
+    // Exclude cat/head/tail with redirect operators — these are writes, not reads (#315)
+    if cmd_clean.starts_with("cat ")
+        || cmd_clean.starts_with("head ")
+        || cmd_clean.starts_with("tail ")
+    {
+        let has_redirect = cmd_clean
+            .split_whitespace()
+            .skip(1)
+            .any(|t| t.starts_with('>') || t == "<" || t.starts_with(">>"));
+        if has_redirect {
+            return Classification::Unsupported {
+                base_command: cmd_clean
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("cat")
+                    .to_string(),
+            };
+        }
+    }
+
     // Fast check with RegexSet — take the last (most specific) match
     let matches: Vec<usize> = REGEX_SET.matches(cmd_clean).into_iter().collect();
     if let Some(&idx) = matches.last() {
@@ -246,6 +266,25 @@ pub fn split_command_chain(cmd: &str) -> Vec<&str> {
     }
 
     results
+}
+
+/// Check if a command has PRLTC_DISABLED= prefix in its env prefix portion.
+pub fn has_prltc_disabled_prefix(cmd: &str) -> bool {
+    let trimmed = cmd.trim();
+    let stripped = ENV_PREFIX.replace(trimmed, "");
+    let prefix_len = trimmed.len() - stripped.len();
+    let prefix_part = &trimmed[..prefix_len];
+    prefix_part.contains("PRLTC_DISABLED=")
+}
+
+/// Strip PRLTC_DISABLED=X and other env prefixes, return the actual command.
+pub fn strip_disabled_prefix(cmd: &str) -> &str {
+    let trimmed = cmd.trim();
+    let stripped = ENV_PREFIX.replace(trimmed, "");
+    // stripped is a Cow<str> that borrows from trimmed when no replacement happens.
+    // We need to return a &str into the original, so compute the offset.
+    let prefix_len = trimmed.len() - stripped.len();
+    trimmed[prefix_len..].trim_start()
 }
 
 /// Rewrite a raw command to its PRLTC equivalent.
@@ -518,7 +557,7 @@ fn rewrite_segment(seg: &str, excluded: &[String]) -> Option<String> {
     let cmd_clean = stripped_cow.trim();
 
     // #345: PRLTC_DISABLED=1 in env prefix → skip rewrite entirely
-    if env_prefix.contains("PRLTC_DISABLED=") {
+    if has_prltc_disabled_prefix(trimmed) {
         return None;
     }
 
@@ -635,6 +674,27 @@ mod tests {
     }
 
     #[test]
+    fn test_classify_cat_redirect_not_supported() {
+        // cat > file and cat >> file are writes, not reads — should not be classified as supported
+        let write_commands = [
+            "cat > /tmp/output.txt",
+            "cat >> /tmp/output.txt",
+            "cat file.txt > output.txt",
+            "cat -n file.txt >> log.txt",
+            "head -10 README.md > output.txt",
+            "tail -f app.log > /dev/null",
+        ];
+        for cmd in &write_commands {
+            match classify_command(cmd) {
+                Classification::Supported { .. } => {
+                    panic!("{} should NOT be classified as Supported", cmd)
+                }
+                _ => {} // Unsupported or Ignored is fine
+            }
+        }
+    }
+
+    #[test]
     fn test_classify_cd_ignored() {
         assert_eq!(classify_command("cd /tmp"), Classification::Ignored);
     }
@@ -653,10 +713,10 @@ mod tests {
     }
 
     #[test]
-    fn test_classify_terraform_unsupported() {
-        match classify_command("terraform plan -var-file=prod.tfvars") {
+    fn test_classify_htop_unsupported() {
+        match classify_command("htop -d 10") {
             Classification::Unsupported { base_command } => {
-                assert_eq!(base_command, "terraform plan");
+                assert_eq!(base_command, "htop");
             }
             other => panic!("expected Unsupported, got {:?}", other),
         }
@@ -928,8 +988,8 @@ mod tests {
     #[test]
     fn test_rewrite_background_unsupported_right() {
         assert_eq!(
-            rewrite_command("cargo test & terraform plan", &[]),
-            Some("prltc cargo test & terraform plan".into())
+            rewrite_command("cargo test & htop", &[]),
+            Some("prltc cargo test & htop".into())
         );
     }
 
@@ -944,7 +1004,7 @@ mod tests {
 
     #[test]
     fn test_rewrite_unsupported_returns_none() {
-        assert_eq!(rewrite_command("terraform plan", &[]), None);
+        assert_eq!(rewrite_command("htop", &[]), None);
     }
 
     #[test]
@@ -1779,18 +1839,15 @@ mod tests {
     fn test_rewrite_compound_mixed_supported_unsupported() {
         // unsupported segments stay raw
         assert_eq!(
-            rewrite_command("cargo test && terraform plan", &[]),
-            Some("prltc cargo test && terraform plan".into())
+            rewrite_command("cargo test && htop", &[]),
+            Some("prltc cargo test && htop".into())
         );
     }
 
     #[test]
     fn test_rewrite_compound_all_unsupported_returns_none() {
         // No rewrite at all: returns None
-        assert_eq!(
-            rewrite_command("terraform plan && terraform apply", &[]),
-            None
-        );
+        assert_eq!(rewrite_command("htop && top", &[]), None);
     }
 
     // --- sudo / env prefix + rewrite ---
@@ -1940,5 +1997,32 @@ mod tests {
             rewrite_command("gh pr list", &[]),
             Some("prltc gh pr list".into())
         );
+    }
+
+    // --- #508: PRLTC_DISABLED detection helpers ---
+
+    #[test]
+    fn test_has_prltc_disabled_prefix() {
+        assert!(has_prltc_disabled_prefix("PRLTC_DISABLED=1 git status"));
+        assert!(has_prltc_disabled_prefix("FOO=1 PRLTC_DISABLED=1 cargo test"));
+        assert!(has_prltc_disabled_prefix(
+            "PRLTC_DISABLED=true git log --oneline"
+        ));
+        assert!(!has_prltc_disabled_prefix("git status"));
+        assert!(!has_prltc_disabled_prefix("prltc git status"));
+        assert!(!has_prltc_disabled_prefix("SOME_VAR=1 git status"));
+    }
+
+    #[test]
+    fn test_strip_disabled_prefix() {
+        assert_eq!(
+            strip_disabled_prefix("PRLTC_DISABLED=1 git status"),
+            "git status"
+        );
+        assert_eq!(
+            strip_disabled_prefix("FOO=1 PRLTC_DISABLED=1 cargo test"),
+            "cargo test"
+        );
+        assert_eq!(strip_disabled_prefix("git status"), "git status");
     }
 }
