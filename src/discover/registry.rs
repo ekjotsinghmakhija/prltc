@@ -942,6 +942,48 @@ mod tests {
         );
     }
 
+    // --- git -C <path> support (#555) ---
+
+    #[test]
+    fn test_rewrite_git_dash_c_status() {
+        assert_eq!(
+            rewrite_command("git -C /path/to/repo status", &[]),
+            Some("prltc git -C /path/to/repo status".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_git_dash_c_log() {
+        assert_eq!(
+            rewrite_command("git -C /tmp/myrepo log --oneline -5", &[]),
+            Some("prltc git -C /tmp/myrepo log --oneline -5".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_git_dash_c_diff() {
+        assert_eq!(
+            rewrite_command("git -C /home/user/project diff --name-only", &[]),
+            Some("prltc git -C /home/user/project diff --name-only".into())
+        );
+    }
+
+    #[test]
+    fn test_classify_git_dash_c() {
+        let result = classify_command("git -C /tmp status");
+        assert!(
+            matches!(
+                result,
+                Classification::Supported {
+                    prltc_equivalent: "prltc git",
+                    ..
+                }
+            ),
+            "git -C should be classified as supported, got: {:?}",
+            result
+        );
+    }
+
     #[test]
     fn test_rewrite_cargo_test() {
         assert_eq!(
