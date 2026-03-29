@@ -617,10 +617,10 @@ mod tests {
     }
 
     #[test]
-    fn test_classify_terraform_unsupported() {
-        match classify_command("terraform plan -var-file=prod.tfvars") {
+    fn test_classify_htop_unsupported() {
+        match classify_command("htop -d 10") {
             Classification::Unsupported { base_command } => {
-                assert_eq!(base_command, "terraform plan");
+                assert_eq!(base_command, "htop");
             }
             other => panic!("expected Unsupported, got {:?}", other),
         }
@@ -892,8 +892,8 @@ mod tests {
     #[test]
     fn test_rewrite_background_unsupported_right() {
         assert_eq!(
-            rewrite_command("cargo test & terraform plan", &[]),
-            Some("prltc cargo test & terraform plan".into())
+            rewrite_command("cargo test & htop", &[]),
+            Some("prltc cargo test & htop".into())
         );
     }
 
@@ -908,7 +908,7 @@ mod tests {
 
     #[test]
     fn test_rewrite_unsupported_returns_none() {
-        assert_eq!(rewrite_command("terraform plan", &[]), None);
+        assert_eq!(rewrite_command("htop", &[]), None);
     }
 
     #[test]
@@ -1701,18 +1701,15 @@ mod tests {
     fn test_rewrite_compound_mixed_supported_unsupported() {
         // unsupported segments stay raw
         assert_eq!(
-            rewrite_command("cargo test && terraform plan", &[]),
-            Some("prltc cargo test && terraform plan".into())
+            rewrite_command("cargo test && htop", &[]),
+            Some("prltc cargo test && htop".into())
         );
     }
 
     #[test]
     fn test_rewrite_compound_all_unsupported_returns_none() {
         // No rewrite at all: returns None
-        assert_eq!(
-            rewrite_command("terraform plan && terraform apply", &[]),
-            None
-        );
+        assert_eq!(rewrite_command("htop && top", &[]), None);
     }
 
     // --- sudo / env prefix + rewrite ---
