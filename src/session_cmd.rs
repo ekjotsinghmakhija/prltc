@@ -5,6 +5,7 @@
  */
 
 use crate::discover::provider::{ClaudeProvider, ExtractedCommand, SessionProvider};
+use crate::discover::registry::{classify_command, Classification};
 use crate::utils::format_tokens;
 use anyhow::{Context, Result};
 use std::fs;
@@ -28,12 +29,21 @@ impl SessionSummary {
     }
 }
 
-/// Count PRLTC vs raw commands from extracted commands.
+/// Count PRLTC-covered commands from extracted commands.
+/// A command is "covered" if it either:
+/// - starts with "prltc " (explicit prltc invocation), or
+/// - would be rewritten by the hook (classify_command returns Supported)
 fn count_prltc_commands(cmds: &[ExtractedCommand]) -> (usize, usize, usize) {
     let total = cmds.len();
     let prltc = cmds
         .iter()
-        .filter(|c| c.command.starts_with("prltc "))
+        .filter(|c| {
+            c.command.starts_with("prltc ")
+                || matches!(
+                    classify_command(&c.command),
+                    Classification::Supported { .. }
+                )
+        })
         .count();
     let output: usize = cmds.iter().filter_map(|c| c.output_len).sum();
     (total, prltc, output)
@@ -220,30 +230,45 @@ mod tests {
     }
 
     #[test]
-    fn test_count_no_prltc() {
+    fn test_count_hook_rewritten_commands() {
+        // Hook rewrites "git status" → "prltc git status" but JSONL logs the original.
+        // count_prltc_commands should detect these via classify_command.
         let cmds = vec![
             make_cmd("git status", Some(500)),
             make_cmd("cargo test", Some(3000)),
-            make_cmd("ls -la", Some(100)),
+            make_cmd("echo hello", Some(100)),
         ];
         let (total, prltc, output) = count_prltc_commands(&cmds);
         assert_eq!(total, 3);
-        assert_eq!(prltc, 0);
+        // git status + cargo test are supported by PRLTC, echo is not
+        assert_eq!(prltc, 2);
         assert_eq!(output, 3600);
     }
 
     #[test]
-    fn test_count_mixed_prltc_and_raw() {
+    fn test_count_mixed_explicit_and_hook() {
         let cmds = vec![
-            make_cmd("prltc git status", Some(200)),
-            make_cmd("git log -5", Some(1000)),
-            make_cmd("prltc cargo test", Some(5000)),
-            make_cmd("ls -la", None),
+            make_cmd("prltc git status", Some(200)),  // explicit prltc
+            make_cmd("git log -5", Some(1000)),     // hook-rewritten (logged as raw)
+            make_cmd("prltc cargo test", Some(5000)), // explicit prltc
+            make_cmd("echo hello", None),           // not supported
         ];
         let (total, prltc, output) = count_prltc_commands(&cmds);
         assert_eq!(total, 4);
-        assert_eq!(prltc, 2);
-        assert_eq!(output, 6200); // None is skipped in sum
+        assert_eq!(prltc, 3); // prltc git status + git log + prltc cargo test
+        assert_eq!(output, 6200);
+    }
+
+    #[test]
+    fn test_count_unsupported_commands_not_counted() {
+        let cmds = vec![
+            make_cmd("echo hello", Some(100)),
+            make_cmd("mkdir -p /tmp/foo", Some(10)),
+            make_cmd("cd /tmp", Some(5)),
+        ];
+        let (total, prltc, _) = count_prltc_commands(&cmds);
+        assert_eq!(total, 3);
+        assert_eq!(prltc, 0);
     }
 
     #[test]
@@ -305,7 +330,8 @@ mod tests {
 
         let (total, prltc, _output) = count_prltc_commands(&cmds);
         assert_eq!(total, 3, "should find 3 Bash commands");
-        assert_eq!(prltc, 2, "should find 2 prltc commands");
+        // All 3 are PRLTC-covered: 2 explicit "prltc ..." + 1 hook-rewritten "git log"
+        assert_eq!(prltc, 3, "all 3 commands should be PRLTC-covered");
     }
 
     #[test]
