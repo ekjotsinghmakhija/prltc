@@ -358,7 +358,7 @@ pub const RULES: &[RtkRule] = &[
     },
     // TOML-filtered commands
     RtkRule {
-        prltc_cmd: "prltc proxy ansible-playbook",
+        prltc_cmd: "prltc ansible-playbook",
         rewrite_prefixes: &["ansible-playbook"],
         category: "Infra",
         savings_pct: 70.0,
@@ -366,7 +366,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy brew",
+        prltc_cmd: "prltc brew",
         rewrite_prefixes: &["brew"],
         category: "PackageManager",
         savings_pct: 65.0,
@@ -374,7 +374,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy composer",
+        prltc_cmd: "prltc composer",
         rewrite_prefixes: &["composer"],
         category: "PackageManager",
         savings_pct: 65.0,
@@ -382,7 +382,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy df",
+        prltc_cmd: "prltc df",
         rewrite_prefixes: &["df"],
         category: "System",
         savings_pct: 60.0,
@@ -390,7 +390,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy dotnet",
+        prltc_cmd: "prltc dotnet",
         rewrite_prefixes: &["dotnet"],
         category: "Build",
         savings_pct: 70.0,
@@ -398,7 +398,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy du",
+        prltc_cmd: "prltc du",
         rewrite_prefixes: &["du"],
         category: "System",
         savings_pct: 60.0,
@@ -406,7 +406,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy fail2ban-client",
+        prltc_cmd: "prltc fail2ban-client",
         rewrite_prefixes: &["fail2ban-client"],
         category: "Infra",
         savings_pct: 60.0,
@@ -414,7 +414,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy gcloud",
+        prltc_cmd: "prltc gcloud",
         rewrite_prefixes: &["gcloud"],
         category: "Infra",
         savings_pct: 65.0,
@@ -422,7 +422,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy hadolint",
+        prltc_cmd: "prltc hadolint",
         rewrite_prefixes: &["hadolint"],
         category: "Build",
         savings_pct: 65.0,
@@ -430,7 +430,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy helm",
+        prltc_cmd: "prltc helm",
         rewrite_prefixes: &["helm"],
         category: "Infra",
         savings_pct: 65.0,
@@ -438,7 +438,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy iptables",
+        prltc_cmd: "prltc iptables",
         rewrite_prefixes: &["iptables"],
         category: "Infra",
         savings_pct: 60.0,
@@ -446,7 +446,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy make",
+        prltc_cmd: "prltc make",
         rewrite_prefixes: &["make"],
         category: "Build",
         savings_pct: 65.0,
@@ -454,7 +454,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy markdownlint",
+        prltc_cmd: "prltc markdownlint",
         rewrite_prefixes: &["markdownlint"],
         category: "Build",
         savings_pct: 65.0,
@@ -462,7 +462,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy mix",
+        prltc_cmd: "prltc mix",
         rewrite_prefixes: &["mix"],
         category: "Build",
         savings_pct: 65.0,
@@ -470,7 +470,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy mvn",
+        prltc_cmd: "prltc mvn",
         rewrite_prefixes: &["mvn"],
         category: "Build",
         savings_pct: 70.0,
@@ -478,7 +478,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy ping",
+        prltc_cmd: "prltc ping",
         rewrite_prefixes: &["ping"],
         category: "Network",
         savings_pct: 60.0,
@@ -486,7 +486,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy pio",
+        prltc_cmd: "prltc pio",
         rewrite_prefixes: &["pio"],
         category: "Build",
         savings_pct: 65.0,
@@ -494,7 +494,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy poetry",
+        prltc_cmd: "prltc poetry",
         rewrite_prefixes: &["poetry"],
         category: "Python",
         savings_pct: 65.0,
@@ -502,7 +502,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy pre-commit",
+        prltc_cmd: "prltc pre-commit",
         rewrite_prefixes: &["pre-commit"],
         category: "Build",
         savings_pct: 65.0,
@@ -510,7 +510,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy ps",
+        prltc_cmd: "prltc ps",
         rewrite_prefixes: &["ps"],
         category: "System",
         savings_pct: 60.0,
@@ -518,7 +518,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy quarto",
+        prltc_cmd: "prltc quarto",
         rewrite_prefixes: &["quarto"],
         category: "Build",
         savings_pct: 65.0,
@@ -526,7 +526,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy rsync",
+        prltc_cmd: "prltc rsync",
         rewrite_prefixes: &["rsync"],
         category: "Network",
         savings_pct: 65.0,
@@ -534,7 +534,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy shellcheck",
+        prltc_cmd: "prltc shellcheck",
         rewrite_prefixes: &["shellcheck"],
         category: "Build",
         savings_pct: 65.0,
@@ -542,7 +542,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy shopify",
+        prltc_cmd: "prltc shopify",
         rewrite_prefixes: &["shopify"],
         category: "Build",
         savings_pct: 65.0,
@@ -550,7 +550,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy sops",
+        prltc_cmd: "prltc sops",
         rewrite_prefixes: &["sops"],
         category: "Infra",
         savings_pct: 60.0,
@@ -558,7 +558,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy swift",
+        prltc_cmd: "prltc swift",
         rewrite_prefixes: &["swift"],
         category: "Build",
         savings_pct: 65.0,
@@ -566,7 +566,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy systemctl",
+        prltc_cmd: "prltc systemctl",
         rewrite_prefixes: &["systemctl"],
         category: "System",
         savings_pct: 65.0,
@@ -574,7 +574,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy terraform",
+        prltc_cmd: "prltc terraform",
         rewrite_prefixes: &["terraform"],
         category: "Infra",
         savings_pct: 70.0,
@@ -582,7 +582,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy tofu",
+        prltc_cmd: "prltc tofu",
         rewrite_prefixes: &["tofu"],
         category: "Infra",
         savings_pct: 70.0,
@@ -590,7 +590,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy trunk",
+        prltc_cmd: "prltc trunk",
         rewrite_prefixes: &["trunk"],
         category: "Build",
         savings_pct: 65.0,
@@ -598,7 +598,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy uv",
+        prltc_cmd: "prltc uv",
         rewrite_prefixes: &["uv"],
         category: "Python",
         savings_pct: 65.0,
@@ -606,7 +606,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        prltc_cmd: "prltc proxy yamllint",
+        prltc_cmd: "prltc yamllint",
         rewrite_prefixes: &["yamllint"],
         category: "Build",
         savings_pct: 65.0,
