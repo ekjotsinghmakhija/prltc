@@ -227,6 +227,8 @@ prltc gain --all --format json    # JSON export for dashboards
 
 prltc discover                    # Find missed savings opportunities
 prltc discover --all --since 7    # All projects, last 7 days
+
+prltc session                     # Show PRLTC adoption across recent sessions
 ```
 
 ## Global Flags

@@ -635,8 +635,7 @@ pub fn scrub_sensitive_env_vars(input: &str) -> String {
 }
 
 pub fn parse_build_from_text(text: &str) -> BuildSummary {
-    let text = text.replace("\r\n", "\n");
-    let clean = strip_ansi(&text);
+    let clean = strip_ansi(text);
     let scrubbed = scrub_sensitive_env_vars(&clean);
     let mut seen_errors: HashSet<(String, String, u32, u32, String)> = HashSet::new();
     let mut seen_warnings: HashSet<(String, String, u32, u32, String)> = HashSet::new();
@@ -843,8 +842,7 @@ pub fn parse_build_from_text(text: &str) -> BuildSummary {
 }
 
 pub fn parse_test_from_text(text: &str) -> TestSummary {
-    let text = text.replace("\r\n", "\n");
-    let clean = strip_ansi(&text);
+    let clean = strip_ansi(text);
     let scrubbed = scrub_sensitive_env_vars(&clean);
     let mut summary = TestSummary {
         passed: 0,
@@ -964,9 +962,8 @@ pub fn parse_test_from_text(text: &str) -> TestSummary {
 }
 
 pub fn parse_restore_from_text(text: &str) -> RestoreSummary {
-    let text = text.replace("\r\n", "\n");
-    let (errors, warnings) = parse_restore_issues_from_text(&text);
-    let clean = strip_ansi(&text);
+    let (errors, warnings) = parse_restore_issues_from_text(text);
+    let clean = strip_ansi(text);
     let scrubbed = scrub_sensitive_env_vars(&clean);
 
     RestoreSummary {
@@ -978,8 +975,7 @@ pub fn parse_restore_from_text(text: &str) -> RestoreSummary {
 }
 
 pub fn parse_restore_issues_from_text(text: &str) -> (Vec<BinlogIssue>, Vec<BinlogIssue>) {
-    let text = text.replace("\r\n", "\n");
-    let clean = strip_ansi(&text);
+    let clean = strip_ansi(text);
     let scrubbed = scrub_sensitive_env_vars(&clean);
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
