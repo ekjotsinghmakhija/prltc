@@ -434,7 +434,7 @@ if command -v gt &>/dev/null; then
     assert_help   "prltc gt"                          prltc gt --help
     assert_ok     "prltc gt log short"                prltc gt log short
 else
-    skip "gt not installed"
+    skip_test "prltc gt" "gt not installed"
 fi
 
 # ── 30. Global flags ────────────────────────────────
