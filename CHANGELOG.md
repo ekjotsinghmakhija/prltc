@@ -56,11 +56,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+* **toml-dsl:** declarative TOML filter engine — add command filters without writing Rust ([#299](https://github.com/ekjotsinghmakhija/prltc/issues/299))
+  * 8 primitives: `strip_ansi`, `replace`, `match_output`, `strip/keep_lines_matching`, `truncate_lines_at`, `head/tail_lines`, `max_lines`, `on_empty`
+  * lookup chain: `.prltc/filters.toml` (project-local) → built-in filters
+  * `PRLTC_NO_TOML=1` bypass, `PRLTC_TOML_DEBUG=1` debug mode
+  * `prltc verify` command with `--require-all` for inline test validation
+  * 14 new built-in filters: `tofu-plan/init/validate/fmt` ([#240](https://github.com/ekjotsinghmakhija/prltc/issues/240)), `du` ([#284](https://github.com/ekjotsinghmakhija/prltc/issues/284)), `fail2ban-client` ([#281](https://github.com/ekjotsinghmakhija/prltc/issues/281)), `iptables` ([#282](https://github.com/ekjotsinghmakhija/prltc/issues/282)), `mix-format/compile` ([#310](https://github.com/ekjotsinghmakhija/prltc/issues/310)), `shopify-theme` ([#280](https://github.com/ekjotsinghmakhija/prltc/issues/280)), `pio-run` ([#231](https://github.com/ekjotsinghmakhija/prltc/issues/231)), `mvn-build` ([#338](https://github.com/ekjotsinghmakhija/prltc/issues/338))
 * **hooks:** `exclude_commands` config — exclude specific commands from auto-rewrite ([#243](https://github.com/ekjotsinghmakhija/prltc/issues/243))
 
 ### Bug Fixes
 
 * **curl:** skip JSON schema replacement when schema is larger than original payload ([#297](https://github.com/ekjotsinghmakhija/prltc/issues/297))
+* **toml-dsl:** fix regex overmatch on `tofu-plan/init/validate/fmt` and `mix-format/compile` — add `(\s|$)` word boundary to prevent matching subcommands (e.g. `tofu planet`, `mix formats`) ([#349](https://github.com/ekjotsinghmakhija/prltc/issues/349))
 
 ## [0.25.0](https://github.com/ekjotsinghmakhija/prltc/compare/v0.24.0...v0.25.0) (2026-03-05)
 
