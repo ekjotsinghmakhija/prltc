@@ -129,6 +129,12 @@ pub fn run(
             hook_check::HookStatus::Ok => {}
         }
 
+        // Lightweight PRLTC_DISABLED bypass check (best-effort, silent on failure)
+        if let Some(warning) = check_prltc_disabled_bypass() {
+            eprintln!("{}", warning.yellow());
+            eprintln!();
+        }
+
         if !summary.by_command.is_empty() {
             // added: styled section header
             println!("{}", styled("By Command", true));
@@ -615,6 +621,55 @@ fn export_csv(
     }
 
     Ok(())
+}
+
+/// Lightweight scan of recent Claude Code sessions for PRLTC_DISABLED= overuse.
+/// Returns a warning string if bypass rate exceeds 10%, None otherwise.
+/// Silently returns None on any error (missing dirs, permission issues, etc.).
+fn check_prltc_disabled_bypass() -> Option<String> {
+    use crate::discover::provider::{ClaudeProvider, SessionProvider};
+    use crate::discover::registry::has_prltc_disabled_prefix;
+
+    let provider = ClaudeProvider;
+
+    // Quick scan: last 7 days only
+    let sessions = provider.discover_sessions(None, Some(7)).ok()?;
+
+    // Early bail if no sessions or too many (avoid slow scan)
+    if sessions.is_empty() || sessions.len() > 200 {
+        return None;
+    }
+
+    let mut total_bash: usize = 0;
+    let mut bypassed: usize = 0;
+
+    for session_path in &sessions {
+        let extracted = match provider.extract_commands(session_path) {
+            Ok(cmds) => cmds,
+            Err(_) => continue,
+        };
+
+        for ext_cmd in &extracted {
+            total_bash += 1;
+            if has_prltc_disabled_prefix(&ext_cmd.command) {
+                bypassed += 1;
+            }
+        }
+    }
+
+    if total_bash == 0 {
+        return None;
+    }
+
+    let pct = (bypassed as f64 / total_bash as f64) * 100.0;
+    if pct > 10.0 {
+        Some(format!(
+            "⚠️  {} commands ({:.0}%) used PRLTC_DISABLED=1 unnecessarily — run `prltc discover` for details",
+            bypassed, pct
+        ))
+    } else {
+        None
+    }
 }
 
 fn show_failures(tracker: &Tracker) -> Result<()> {
