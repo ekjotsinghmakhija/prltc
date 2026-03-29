@@ -38,6 +38,6 @@ Finished in 5ms on 100 files.
 expected = "oxlint: ok"
 
 [[tests.oxlint]]
-name = "empty input returns on_empty message"
+name = "empty input passes through"
 input = ""
-expected = "oxlint: ok"
+expected = ""
