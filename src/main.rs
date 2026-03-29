@@ -1050,7 +1050,7 @@ fn run_fallback(parse_error: clap::Error) -> Result<()> {
 
     if let Some(filter) = toml_match {
         // TOML match: capture stdout for filtering
-        let result = utils::resolved_command(&args[0])
+        let result = std::process::Command::new(&args[0])
             .args(&args[1..])
             .stdin(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::piped()) // capture
@@ -1095,7 +1095,7 @@ fn run_fallback(parse_error: clap::Error) -> Result<()> {
         }
     } else {
         // No TOML match: original passthrough behaviour (Stdio::inherit, streaming)
-        let status = utils::resolved_command(&args[0])
+        let status = std::process::Command::new(&args[0])
             .args(&args[1..])
             .stdin(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::inherit())
@@ -1854,7 +1854,7 @@ fn main() -> Result<()> {
                             _ => {
                                 // Passthrough other prisma subcommands
                                 let timer = tracking::TimedExecution::start();
-                                let mut cmd = utils::resolved_command("npx");
+                                let mut cmd = std::process::Command::new("npx");
                                 for arg in &args {
                                     cmd.arg(arg);
                                 }
@@ -1871,7 +1871,7 @@ fn main() -> Result<()> {
                         }
                     } else {
                         let timer = tracking::TimedExecution::start();
-                        let status = utils::resolved_command("npx")
+                        let status = std::process::Command::new("npx")
                             .arg("prisma")
                             .status()
                             .context("Failed to run npx prisma")?;
@@ -1967,7 +1967,7 @@ fn main() -> Result<()> {
 
         Commands::Proxy { args } => {
             use std::io::{Read, Write};
-            use std::process::Stdio;
+            use std::process::{Command, Stdio};
             use std::thread;
 
             if args.is_empty() {
@@ -2003,7 +2003,7 @@ fn main() -> Result<()> {
                 eprintln!("Proxy mode: {} {}", cmd_name, cmd_args.join(" "));
             }
 
-            let mut child = utils::resolved_command(cmd_name.as_ref())
+            let mut child = Command::new(&cmd_name)
                 .args(&cmd_args)
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())

@@ -5,20 +5,25 @@
  */
 
 use crate::tracking;
-use crate::utils::{resolved_command, strip_ansi, tool_exists, truncate};
+use crate::utils::{strip_ansi, truncate};
 use anyhow::{Context, Result};
 use regex::Regex;
+use std::process::Command;
 
 pub fn run(args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     // Try next directly first, fallback to npx if not found
-    let next_exists = tool_exists("next");
+    let next_exists = Command::new("which")
+        .arg("next")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
 
     let mut cmd = if next_exists {
-        resolved_command("next")
+        Command::new("next")
     } else {
-        let mut c = resolved_command("npx");
+        let mut c = Command::new("npx");
         c.arg("next");
         c
     };

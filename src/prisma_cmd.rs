@@ -5,7 +5,6 @@
  */
 
 use crate::tracking;
-use crate::utils::{resolved_command, tool_exists};
 use anyhow::{Context, Result};
 use std::process::Command;
 
@@ -33,10 +32,16 @@ pub fn run(cmd: PrismaCommand, args: &[String], verbose: u8) -> Result<()> {
 
 /// Create a Command that will run prisma (tries global first, then npx)
 fn create_prisma_command() -> Command {
-    if tool_exists("prisma") {
-        resolved_command("prisma")
+    let prisma_exists = Command::new("which")
+        .arg("prisma")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    if prisma_exists {
+        Command::new("prisma")
     } else {
-        let mut c = resolved_command("npx");
+        let mut c = Command::new("npx");
         c.arg("prisma");
         c
     }

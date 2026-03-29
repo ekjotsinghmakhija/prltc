@@ -10,7 +10,6 @@
 //! and produces compact tab-separated or key=value output.
 
 use crate::tracking;
-use crate::utils::resolved_command;
 use anyhow::{Context, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -28,7 +27,7 @@ lazy_static! {
 pub fn run(args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
-    let mut cmd = resolved_command("psql");
+    let mut cmd = std::process::Command::new("psql");
     for arg in args {
         cmd.arg(arg);
     }

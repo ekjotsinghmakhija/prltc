@@ -38,7 +38,6 @@ benchmark-report.md
 *.sqlite3
 prltc_tracking.db
 claudedocs
-.omc
 
 # Vitals provenance data
 .vitals/

@@ -5,21 +5,26 @@
  */
 
 use crate::tracking;
-use crate::utils::{resolved_command, tool_exists, truncate};
+use crate::utils::truncate;
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::collections::HashMap;
+use std::process::Command;
 
 pub fn run(args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     // Try tsc directly first, fallback to npx if not found
-    let tsc_exists = tool_exists("tsc");
+    let tsc_exists = Command::new("which")
+        .arg("tsc")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
 
     let mut cmd = if tsc_exists {
-        resolved_command("tsc")
+        Command::new("tsc")
     } else {
-        let mut c = resolved_command("npx");
+        let mut c = Command::new("npx");
         c.arg("tsc");
         c
     };

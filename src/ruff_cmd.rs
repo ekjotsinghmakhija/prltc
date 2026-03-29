@@ -5,10 +5,11 @@
  */
 
 use crate::tracking;
-use crate::utils::{resolved_command, truncate};
+use crate::utils::truncate;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::process::Command;
 
 #[derive(Debug, Deserialize)]
 struct RuffLocation {
@@ -43,7 +44,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
 
     let is_format = args.iter().any(|a| a == "format");
 
-    let mut cmd = resolved_command("ruff");
+    let mut cmd = Command::new("ruff");
 
     if is_check {
         // Force JSON output for check command

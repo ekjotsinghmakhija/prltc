@@ -11,9 +11,10 @@
 
 use crate::json_cmd;
 use crate::tracking;
-use crate::utils::{join_with_overflow, resolved_command, truncate_iso_date};
+use crate::utils::{join_with_overflow, truncate_iso_date};
 use anyhow::{Context, Result};
 use serde_json::Value;
+use std::process::Command;
 
 const MAX_ITEMS: usize = 20;
 const JSON_COMPRESS_DEPTH: usize = 4;
@@ -67,7 +68,7 @@ fn is_structured_operation(args: &[String]) -> bool {
 fn run_generic(subcommand: &str, args: &[String], verbose: u8, full_sub: &str) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
-    let mut cmd = resolved_command("aws");
+    let mut cmd = Command::new("aws");
     cmd.arg(subcommand);
 
     let mut has_output_flag = false;
@@ -131,7 +132,7 @@ fn run_aws_json(
     extra_args: &[String],
     verbose: u8,
 ) -> Result<(String, String, std::process::ExitStatus)> {
-    let mut cmd = resolved_command("aws");
+    let mut cmd = Command::new("aws");
     for arg in sub_args {
         cmd.arg(arg);
     }
@@ -202,7 +203,7 @@ fn run_s3_ls(extra_args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     // s3 ls doesn't support --output json, run as-is and filter text
-    let mut cmd = resolved_command("aws");
+    let mut cmd = Command::new("aws");
     cmd.args(["s3", "ls"]);
     for arg in extra_args {
         cmd.arg(arg);

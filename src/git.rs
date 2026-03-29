@@ -5,7 +5,6 @@
  */
 
 use crate::tracking;
-use crate::utils::{resolved_command, truncate};
 use anyhow::{Context, Result};
 use std::ffi::OsString;
 use std::process::Command;
@@ -29,7 +28,7 @@ pub enum GitCommand {
 /// Create a git Command with global options (e.g. -C, -c, --git-dir, --work-tree)
 /// prepended before any subcommand arguments.
 fn git_cmd(global_args: &[String]) -> Command {
-    let mut cmd = resolved_command("git");
+    let mut cmd = Command::new("git");
     for arg in global_args {
         cmd.arg(arg);
     }

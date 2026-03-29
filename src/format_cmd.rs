@@ -7,9 +7,10 @@
 use crate::prettier_cmd;
 use crate::ruff_cmd;
 use crate::tracking;
-use crate::utils::{package_manager_exec, resolved_command};
+use crate::utils::package_manager_exec;
 use anyhow::{Context, Result};
 use std::path::Path;
+use std::process::Command;
 
 /// Detect formatter from project files or explicit argument
 fn detect_formatter(args: &[String]) -> String {
@@ -77,9 +78,9 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
     // Build command based on formatter
     let mut cmd = match formatter.as_str() {
         "prettier" => package_manager_exec("prettier"),
-        "black" | "ruff" => resolved_command(formatter.as_str()),
+        "black" | "ruff" => Command::new(formatter.as_str()),
         "biome" => package_manager_exec("biome"),
-        _ => resolved_command(formatter.as_str()),
+        _ => Command::new(formatter.as_str()),
     };
 
     // Add formatter-specific flags

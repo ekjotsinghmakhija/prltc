@@ -5,8 +5,8 @@
  */
 
 use crate::tracking;
-use crate::utils::resolved_command;
 use anyhow::{Context, Result};
+use std::process::Command;
 
 /// Known npm subcommands that should NOT get "run" injected.
 /// Shared between production code and tests to avoid drift.
@@ -80,7 +80,7 @@ const NPM_SUBCOMMANDS: &[&str] = &[
 pub fn run(args: &[String], verbose: u8, skip_env: bool) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
-    let mut cmd = resolved_command("npm");
+    let mut cmd = Command::new("npm");
 
     // Determine if this is "npm run <script>" or another npm subcommand (install, list, etc.)
     // Only inject "run" when args look like a script name, not a known npm subcommand.
