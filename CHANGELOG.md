@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Bug Fixes
-
-* **ruby:** use `rails test` instead of `rake test` when positional file args are passed — `rake test` ignores positional files and only supports `TEST=path`
-
 ### Features
 
 * **ruby:** add RSpec test runner filter with JSON parsing and text fallback (60%+ reduction)
@@ -19,10 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **ruby:** add TOML filter for `bundle install/update` — strip `Using` lines (90%+ reduction)
 * **ruby:** add `ruby_exec()` shared utility for auto-detecting `bundle exec` when Gemfile exists
 * **ruby:** add discover/rewrite rules for rake, rails, rspec, rubocop, and bundle commands
-
-### Bug Fixes
-
-* **cargo:** preserve compile diagnostics when `cargo test` fails before any test suites run
 
 ## [0.30.1](https://github.com/ekjotsinghmakhija/prltc/compare/v0.30.0...v0.30.1) (2026-03-18)
 
