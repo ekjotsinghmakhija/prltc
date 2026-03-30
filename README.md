@@ -171,6 +171,8 @@ prltc playwright test             # E2E results (failures only)
 prltc pytest                      # Python tests (-90%)
 prltc go test                     # Go tests (NDJSON, -90%)
 prltc cargo test                  # Cargo tests (-90%)
+prltc rake test                   # Ruby minitest (-90%)
+prltc rspec                       # RSpec tests (JSON, -60%+)
 ```
 
 ### Build & Lint
@@ -184,6 +186,7 @@ prltc cargo build                 # Cargo build (-80%)
 prltc cargo clippy                # Cargo clippy (-80%)
 prltc ruff check                  # Python linting (JSON, -80%)
 prltc golangci-lint run           # Go linting (JSON, -85%)
+prltc rubocop                     # Ruby linting (JSON, -60%+)
 ```
 
 ### Package Managers
@@ -191,6 +194,7 @@ prltc golangci-lint run           # Go linting (JSON, -85%)
 prltc pnpm list                   # Compact dependency tree
 prltc pip list                    # Python packages (auto-detect uv)
 prltc pip outdated                # Outdated packages
+prltc bundle install              # Ruby gems (strip Using lines)
 prltc prisma generate             # Schema generation (no ASCII art)
 ```
 
@@ -351,6 +355,10 @@ cp hooks/opencode-prltc.ts ~/.config/opencode/plugins/prltc.ts
 | `pip list/install` | `prltc pip ...` |
 | `go test/build/vet` | `prltc go ...` |
 | `golangci-lint` | `prltc golangci-lint` |
+| `rake test` / `rails test` | `prltc rake test` |
+| `rspec` / `bundle exec rspec` | `prltc rspec` |
+| `rubocop` / `bundle exec rubocop` | `prltc rubocop` |
+| `bundle install/update` | `prltc bundle ...` |
 | `docker ps/images/logs` | `prltc docker ...` |
 | `kubectl get/logs` | `prltc kubectl ...` |
 | `curl` | `prltc curl` |

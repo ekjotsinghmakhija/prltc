@@ -437,20 +437,42 @@ else
     skip_test "prltc gt" "gt not installed"
 fi
 
-# ── 30. Global flags ────────────────────────────────
+# ── 30. Ruby (conditional) ──────────────────────────
+
+section "Ruby (conditional)"
+
+if command -v rspec &>/dev/null; then
+    assert_help    "prltc rspec"                     prltc rspec --help
+else
+    skip_test "prltc rspec" "rspec not installed"
+fi
+
+if command -v rubocop &>/dev/null; then
+    assert_help    "prltc rubocop"                   prltc rubocop --help
+else
+    skip_test "prltc rubocop" "rubocop not installed"
+fi
+
+if command -v rake &>/dev/null; then
+    assert_help    "prltc rake"                      prltc rake --help
+else
+    skip_test "prltc rake" "rake not installed"
+fi
+
+# ── 31. Global flags ────────────────────────────────
 
 section "Global flags"
 
 assert_ok      "prltc -u ls ."                  prltc -u ls .
 assert_ok      "prltc --skip-env npm --help"    prltc --skip-env npm --help
 
-# ── 31. CcEconomics ─────────────────────────────────
+# ── 32. CcEconomics ─────────────────────────────────
 
 section "CcEconomics"
 
 assert_ok      "prltc cc-economics"             prltc cc-economics
 
-# ── 32. Learn ───────────────────────────────────────
+# ── 33. Learn ───────────────────────────────────────
 
 section "Learn"
 
