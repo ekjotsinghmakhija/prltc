@@ -48,6 +48,13 @@ fn docker_ps(_verbose: u8) -> Result<()> {
         .output()
         .context("Failed to run docker ps")?;
 
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        eprint!("{}", stderr);
+        timer.track("docker ps", "prltc docker ps", &raw, &raw);
+        std::process::exit(output.status.code().unwrap_or(1));
+    }
+
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut prltc = String::new();
 
@@ -100,6 +107,13 @@ fn docker_images(_verbose: u8) -> Result<()> {
         .args(["images", "--format", "{{.Repository}}:{{.Tag}}\t{{.Size}}"])
         .output()
         .context("Failed to run docker images")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        eprint!("{}", stderr);
+        timer.track("docker images", "prltc docker images", &raw, &raw);
+        std::process::exit(output.status.code().unwrap_or(1));
+    }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let lines: Vec<&str> = stdout.lines().collect();
@@ -210,15 +224,12 @@ fn kubectl_pods(args: &[String], _verbose: u8) -> Result<()> {
         }
     };
 
-    let items = json["items"].as_array();
-    if items.is_none() || items.unwrap().is_empty() {
+    let Some(pods) = json["items"].as_array().filter(|a| !a.is_empty()) else {
         prltc.push_str("☸️  No pods found");
         println!("{}", prltc);
         timer.track("kubectl get pods", "prltc kubectl pods", &raw, &prltc);
         return Ok(());
-    }
-
-    let pods = items.unwrap();
+    };
     let (mut running, mut pending, mut failed, mut restarts_total) = (0, 0, 0, 0i64);
     let mut issues: Vec<String> = Vec::new();
 
@@ -311,15 +322,12 @@ fn kubectl_services(args: &[String], _verbose: u8) -> Result<()> {
         }
     };
 
-    let items = json["items"].as_array();
-    if items.is_none() || items.unwrap().is_empty() {
+    let Some(services) = json["items"].as_array().filter(|a| !a.is_empty()) else {
         prltc.push_str("☸️  No services found");
         println!("{}", prltc);
         timer.track("kubectl get svc", "prltc kubectl svc", &raw, &prltc);
         return Ok(());
-    }
-
-    let services = items.unwrap();
+    };
     prltc.push_str(&format!("☸️  {} services:\n", services.len()));
 
     for svc in services.iter().take(15) {
