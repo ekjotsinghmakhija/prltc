@@ -4,6 +4,8 @@
  * Proprietary Clean Room Implementation
  */
 
+//! Reads Claude Code session logs from disk and streams their command history.
+
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs;

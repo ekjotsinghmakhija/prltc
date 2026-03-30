@@ -4,6 +4,8 @@
  * Proprietary Clean Room Implementation
  */
 
+//! Formats and persists correction suggestions for the user.
+
 use crate::learn::detector::CorrectionRule;
 use anyhow::Result;
 use std::collections::HashMap;
