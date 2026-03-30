@@ -43,7 +43,7 @@ fn test_git_log_output() {
 git log -20 > tests/fixtures/git_log_raw.txt
 
 # 2. Write test with assert_snapshot!
-cat > src/cmds/git/git.rs <<'EOF'
+cat > src/git.rs <<'EOF'
 #[cfg(test)]
 mod tests {
     use insta::assert_snapshot;
@@ -64,7 +64,7 @@ cargo test test_git_log_format
 cargo insta review
 # Press 'a' to accept, 'r' to reject
 
-# 5. Snapshot saved in src/cmds/git/snapshots/git__tests__*.snap
+# 5. Snapshot saved in src/snapshots/git.rs.snap
 ```
 
 ## Token Accuracy Testing (🔴 Critical)
@@ -299,32 +299,24 @@ diff /tmp/before.txt /tmp/after.txt
 ```
 prltc/
 ├── src/
-│   ├── cmds/
-│   │   ├── git/
-│   │   │   ├── git.rs              # Filter implementation
-│   │   │   │   └── #[cfg(test)] mod tests { ... }
-│   │   │   └── snapshots/          # Insta snapshots for git module
-│   │   ├── js/                     # JS/TS ecosystem filters
-│   │   ├── python/                 # Python ecosystem filters
-│   │   └── ...
-│   ├── core/                       # Shared infrastructure
-│   ├── hooks/                      # Hook system
-│   └── analytics/                  # Token savings analytics
+│   ├── git.rs                  # Filter implementation
+│   │   └── #[cfg(test)] mod tests { ... }  # Unit tests
+│   ├── snapshots/              # Insta snapshots
+│   │   └── git.rs.snap         # Snapshot for git tests
 ├── tests/
 │   ├── common/
-│   │   └── mod.rs                  # Shared test utilities (count_tokens)
-│   ├── fixtures/                   # Real command output
+│   │   └── mod.rs              # Shared test utilities (count_tokens)
+│   ├── fixtures/               # Real command output
 │   │   ├── git_log_raw.txt
 │   │   ├── cargo_test_raw.txt
-│   │   ├── gh_pr_view_raw.txt
-│   │   └── dotnet/                 # Dotnet-specific fixtures
-│   └── integration_test.rs         # Integration tests (#[ignore])
+│   │   └── gh_pr_view_raw.txt
+│   └── integration_test.rs     # Integration tests (#[ignore])
 ```
 
 **Best practices**:
 - **Unit tests**: Embedded in module (`#[cfg(test)] mod tests`)
 - **Fixtures**: Real command output in `tests/fixtures/`
-- **Snapshots**: Auto-generated in `src/cmds/<ecosystem>/snapshots/` (by insta)
+- **Snapshots**: Auto-generated in `src/snapshots/` (by insta)
 - **Shared utils**: `tests/common/mod.rs` (count_tokens, helpers)
 - **Integration**: `tests/` with `#[ignore]` attribute
 

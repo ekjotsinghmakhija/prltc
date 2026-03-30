@@ -4,8 +4,6 @@
  * Proprietary Clean Room Implementation
  */
 
-//! Matches shell commands against known PRLTC rewrite rules to decide how to handle them.
-
 use lazy_static::lazy_static;
 use regex::{Regex, RegexSet};
 
@@ -335,9 +333,34 @@ pub fn strip_disabled_prefix(cmd: &str) -> &str {
     trimmed[prefix_len..].trim_start()
 }
 
-/// Rewrite a raw command to its PRLTC equivalent.
-///
-/// Returns `Some(rewritten)` if the command has an PRLTC equivalent or is already PRLTC.
+lazy_static! {
+    // Match trailing shell redirections:
+    // Alt 1: N>&M or N>&- (fd redirect/close): 2>&1, 1>&2, 2>&-
+    // Alt 2: &>file or &>>file (bash redirect both): &>/dev/null
+    // Alt 3: N>file or N>>file (fd to file): 2>/dev/null, >/tmp/out, 1>>log
+    // Note: [^(\\s] excludes process substitutions like >(tee) from false-positive matching
+    static ref TRAILING_REDIRECT: Regex =
+        Regex::new(r"\s+(?:[0-9]?>&[0-9-]|&>>?\S+|[0-9]?>>?\s*[^(\s]\S*)\s*$").unwrap();
+}
+
+/// Strip trailing stderr/stdout redirects from a command segment (#530).
+/// Returns (command_without_redirects, redirect_suffix).
+fn strip_trailing_redirects(cmd: &str) -> (&str, &str) {
+    if let Some(m) = TRAILING_REDIRECT.find(cmd) {
+        // Verify redirect is not inside quotes (single-pass count)
+        let before = &cmd[..m.start()];
+        let (sq, dq) = before.chars().fold((0u32, 0u32), |(s, d), c| match c {
+            '\'' => (s + 1, d),
+            '"' => (s, d + 1),
+            _ => (s, d),
+        });
+        if sq % 2 == 0 && dq % 2 == 0 {
+            return (&cmd[..m.start()], &cmd[m.start()..]);
+        }
+    }
+    (cmd, "")
+}
+
 /// Returns `None` if the command is unsupported or ignored (hook should pass through).
 ///
 /// Handles compound commands (`&&`, `||`, `;`) by rewriting each segment independently.
@@ -573,8 +596,12 @@ fn rewrite_segment(seg: &str, excluded: &[String]) -> Option<String> {
         return None;
     }
 
+    // Strip trailing stderr/stdout redirects before matching (#530)
+    // e.g. "git status 2>&1" → match "git status", re-append " 2>&1"
+    let (cmd_part, redirect_suffix) = strip_trailing_redirects(trimmed);
+
     // Already PRLTC — pass through unchanged
-    if trimmed.starts_with("prltc ") || trimmed == "prltc" {
+    if cmd_part.starts_with("prltc ") || cmd_part == "prltc" {
         return Some(trimmed.to_string());
     }
 
@@ -582,21 +609,21 @@ fn rewrite_segment(seg: &str, excluded: &[String]) -> Option<String> {
     // Must intercept before generic prefix replacement, which would produce `prltc read -20 file`.
     // Only intercept when head has a flag (-N, --lines=N, -c, etc.); plain `head file` falls
     // through to the generic rewrite below and produces `prltc read file` as expected.
-    if trimmed.starts_with("head -") {
-        return rewrite_head_numeric(trimmed);
+    if cmd_part.starts_with("head -") {
+        return rewrite_head_numeric(cmd_part).map(|r| format!("{}{}", r, redirect_suffix));
     }
 
     // tail has several forms that are not compatible with generic prefix replacement.
     // Only rewrite recognized numeric line forms; otherwise skip rewrite.
-    if trimmed.starts_with("tail ") {
-        return rewrite_tail_lines(trimmed);
+    if cmd_part.starts_with("tail ") {
+        return rewrite_tail_lines(cmd_part).map(|r| format!("{}{}", r, redirect_suffix));
     }
 
     // Use classify_command for correct ignore/prefix handling
-    let prltc_equivalent = match classify_command(trimmed) {
+    let prltc_equivalent = match classify_command(cmd_part) {
         Classification::Supported { prltc_equivalent, .. } => {
             // Check if the base command is excluded from rewriting (#243)
-            let base = trimmed.split_whitespace().next().unwrap_or("");
+            let base = cmd_part.split_whitespace().next().unwrap_or("");
             if excluded.iter().any(|e| e == base) {
                 return None;
             }
@@ -609,13 +636,13 @@ fn rewrite_segment(seg: &str, excluded: &[String]) -> Option<String> {
     let rule = RULES.iter().find(|r| r.prltc_cmd == prltc_equivalent)?;
 
     // Extract env prefix (sudo, env VAR=val, etc.)
-    let stripped_cow = ENV_PREFIX.replace(trimmed, "");
-    let env_prefix_len = trimmed.len() - stripped_cow.len();
-    let env_prefix = &trimmed[..env_prefix_len];
+    let stripped_cow = ENV_PREFIX.replace(cmd_part, "");
+    let env_prefix_len = cmd_part.len() - stripped_cow.len();
+    let env_prefix = &cmd_part[..env_prefix_len];
     let cmd_clean = stripped_cow.trim();
 
     // #345: PRLTC_DISABLED=1 in env prefix → skip rewrite entirely
-    if has_prltc_disabled_prefix(trimmed) {
+    if has_prltc_disabled_prefix(cmd_part) {
         return None;
     }
 
@@ -635,9 +662,9 @@ fn rewrite_segment(seg: &str, excluded: &[String]) -> Option<String> {
     for &prefix in rule.rewrite_prefixes {
         if let Some(rest) = strip_word_prefix(cmd_clean, prefix) {
             let rewritten = if rest.is_empty() {
-                format!("{}{}", env_prefix, rule.prltc_cmd)
+                format!("{}{}{}", env_prefix, rule.prltc_cmd, redirect_suffix)
             } else {
-                format!("{}{} {}", env_prefix, rule.prltc_cmd, rest)
+                format!("{}{} {}{}", env_prefix, rule.prltc_cmd, rest, redirect_suffix)
             };
             return Some(rewritten);
         }
@@ -1290,6 +1317,35 @@ mod tests {
         assert_eq!(
             rewrite_command("cargo test &>/dev/null", &[]),
             Some("prltc cargo test &>/dev/null".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_redirect_double() {
+        // Double redirect: only last one stripped, but full command rewrites correctly
+        assert_eq!(
+            rewrite_command("git status 2>&1 >/dev/null", &[]),
+            Some("prltc git status 2>&1 >/dev/null".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_redirect_fd_close() {
+        // 2>&- (close stderr fd)
+        assert_eq!(
+            rewrite_command("git status 2>&-", &[]),
+            Some("prltc git status 2>&-".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_redirect_quotes_not_stripped() {
+        // Redirect-like chars inside quotes should NOT be stripped
+        // Known limitation: apostrophes cause conservative no-strip (safe fallback)
+        let result = rewrite_command("git commit -m \"it's fixed\" 2>&1", &[]);
+        assert!(
+            result.is_some(),
+            "Should still rewrite even with apostrophe"
         );
     }
 

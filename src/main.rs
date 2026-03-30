@@ -4,30 +4,76 @@
  * Proprietary Clean Room Implementation
  */
 
-mod analytics;
-mod cmds;
-mod core;
+mod aws_cmd;
+mod binlog;
+mod cargo_cmd;
+mod cc_economics;
+mod ccusage;
+mod config;
+mod container;
+mod curl_cmd;
+mod deps;
+mod diff_cmd;
 mod discover;
-mod hooks;
+mod display_helpers;
+mod dotnet_cmd;
+mod dotnet_format_report;
+mod dotnet_trx;
+mod env_cmd;
+mod filter;
+mod find_cmd;
+mod format_cmd;
+mod gain;
+mod gh_cmd;
+mod git;
+mod go_cmd;
+mod golangci_cmd;
+mod grep_cmd;
+mod gt_cmd;
+mod hook_audit_cmd;
+mod hook_check;
+mod hook_cmd;
+mod init;
+mod integrity;
+mod json_cmd;
 mod learn;
+mod lint_cmd;
+mod local_llm;
+mod log_cmd;
+mod ls;
+mod mypy_cmd;
+mod next_cmd;
+mod npm_cmd;
 mod parser;
-
-// Re-export command modules for routing
-use cmds::cloud::{aws_cmd, container, curl_cmd, psql_cmd, wget_cmd};
-use cmds::dotnet::{binlog, dotnet_cmd, dotnet_format_report, dotnet_trx};
-use cmds::git::{diff_cmd, gh_cmd, git, gt_cmd};
-use cmds::go::{go_cmd, golangci_cmd};
-use cmds::js::{
-    lint_cmd, next_cmd, npm_cmd, playwright_cmd, pnpm_cmd, prettier_cmd, prisma_cmd, tsc_cmd,
-    vitest_cmd,
-};
-use cmds::python::{mypy_cmd, pip_cmd, pytest_cmd, ruff_cmd};
-use cmds::ruby::{rake_cmd, rspec_cmd, rubocop_cmd};
-use cmds::rust::{cargo_cmd, runner};
-use cmds::system::{
-    deps, env_cmd, find_cmd, format_cmd, grep_cmd, json_cmd, local_llm, log_cmd, ls, read,
-    summary, tree, wc_cmd,
-};
+mod permissions;
+mod pip_cmd;
+mod playwright_cmd;
+mod pnpm_cmd;
+mod prettier_cmd;
+mod prisma_cmd;
+mod psql_cmd;
+mod pytest_cmd;
+mod rake_cmd;
+mod read;
+mod rewrite_cmd;
+mod rspec_cmd;
+mod rubocop_cmd;
+mod ruff_cmd;
+mod runner;
+mod session_cmd;
+mod summary;
+mod tee;
+mod telemetry;
+mod toml_filter;
+mod tracking;
+mod tree;
+mod trust;
+mod tsc_cmd;
+mod utils;
+mod verify_cmd;
+mod vitest_cmd;
+mod wc_cmd;
+mod wget_cmd;
 
 use anyhow::{Context, Result};
 use clap::error::ErrorKind;
@@ -94,7 +140,7 @@ enum Commands {
         file: PathBuf,
         /// Filter: none, minimal, aggressive
         #[arg(short, long, default_value = "minimal")]
-        level: core::filter::FilterLevel,
+        level: filter::FilterLevel,
         /// Max lines
         #[arg(short, long, conflicts_with = "tail_lines")]
         max_lines: Option<usize>,
@@ -1066,10 +1112,10 @@ fn run_fallback(parse_error: clap::Error) -> Result<()> {
     }
 
     let raw_command = args.join(" ");
-    let error_message = core::utils::strip_ansi(&parse_error.to_string());
+    let error_message = utils::strip_ansi(&parse_error.to_string());
 
     // Start timer before execution to capture actual command runtime
-    let timer = core::tracking::TimedExecution::start();
+    let timer = tracking::TimedExecution::start();
 
     // TOML filter lookup — bypass with PRLTC_NO_TOML=1
     // Use basename of args[0] so absolute paths (/usr/bin/make) still match "^make\b".
@@ -1086,12 +1132,12 @@ fn run_fallback(parse_error: clap::Error) -> Result<()> {
     let toml_match = if std::env::var("PRLTC_NO_TOML").ok().as_deref() == Some("1") {
         None
     } else {
-        core::toml_filter::find_matching_filter(&lookup_cmd)
+        toml_filter::find_matching_filter(&lookup_cmd)
     };
 
     if let Some(filter) = toml_match {
         // TOML match: capture stdout for filtering
-        let result = core::utils::resolved_command(&args[0])
+        let result = utils::resolved_command(&args[0])
             .args(&args[1..])
             .stdin(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::piped()) // capture
@@ -1104,12 +1150,12 @@ fn run_fallback(parse_error: clap::Error) -> Result<()> {
 
                 // Tee raw output BEFORE filtering on failure — lets LLM re-read if needed
                 let tee_hint = if !output.status.success() {
-                    core::tee::tee_and_hint(&stdout_raw, &raw_command, output.status.code().unwrap_or(1))
+                    tee::tee_and_hint(&stdout_raw, &raw_command, output.status.code().unwrap_or(1))
                 } else {
                     None
                 };
 
-                let filtered = core::toml_filter::apply_filter(filter, &stdout_raw);
+                let filtered = toml_filter::apply_filter(filter, &stdout_raw);
                 println!("{}", filtered);
                 if let Some(hint) = tee_hint {
                     println!("{}", hint);
@@ -1121,7 +1167,7 @@ fn run_fallback(parse_error: clap::Error) -> Result<()> {
                     &stdout_raw,
                     &filtered,
                 );
-                core::tracking::record_parse_failure_silent(&raw_command, &error_message, true);
+                tracking::record_parse_failure_silent(&raw_command, &error_message, true);
 
                 if !output.status.success() {
                     std::process::exit(output.status.code().unwrap_or(1));
@@ -1129,14 +1175,14 @@ fn run_fallback(parse_error: clap::Error) -> Result<()> {
             }
             Err(e) => {
                 // Command not found — same behaviour as no-TOML path
-                core::tracking::record_parse_failure_silent(&raw_command, &error_message, false);
+                tracking::record_parse_failure_silent(&raw_command, &error_message, false);
                 eprintln!("[prltc: {}]", e);
                 std::process::exit(127);
             }
         }
     } else {
         // No TOML match: original passthrough behaviour (Stdio::inherit, streaming)
-        let status = core::utils::resolved_command(&args[0])
+        let status = utils::resolved_command(&args[0])
             .args(&args[1..])
             .stdin(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::inherit())
@@ -1147,14 +1193,14 @@ fn run_fallback(parse_error: clap::Error) -> Result<()> {
             Ok(s) => {
                 timer.track_passthrough(&raw_command, &format!("prltc fallback: {}", raw_command));
 
-                core::tracking::record_parse_failure_silent(&raw_command, &error_message, true);
+                tracking::record_parse_failure_silent(&raw_command, &error_message, true);
 
                 if !s.success() {
                     std::process::exit(s.code().unwrap_or(1));
                 }
             }
             Err(e) => {
-                core::tracking::record_parse_failure_silent(&raw_command, &error_message, false);
+                tracking::record_parse_failure_silent(&raw_command, &error_message, false);
                 // Command not found or other OS error — single message, no duplicate Clap error
                 eprintln!("[prltc: {}]", e);
                 std::process::exit(127);
@@ -1231,7 +1277,7 @@ fn shell_split(input: &str) -> Vec<String> {
 
 fn main() -> Result<()> {
     // Fire-and-forget telemetry ping (1/day, non-blocking)
-    core::telemetry::maybe_ping();
+    telemetry::maybe_ping();
 
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
@@ -1246,14 +1292,14 @@ fn main() -> Result<()> {
     // Warn if installed hook is outdated/missing (1/day, non-blocking).
     // Skip for Gain — it shows its own inline hook warning.
     if !matches!(cli.command, Commands::Gain { .. }) {
-        hooks::hook_check::maybe_warn();
+        hook_check::maybe_warn();
     }
 
     // Runtime integrity check for operational commands.
     // Meta commands (init, gain, verify, config, etc.) skip the check
     // because they don't go through the hook pipeline.
     if is_operational_command(&cli.command) {
-        hooks::integrity::runtime_check()?;
+        integrity::runtime_check()?;
     }
 
     match cli.command {
@@ -1651,19 +1697,19 @@ fn main() -> Result<()> {
             codex,
         } => {
             if show {
-                hooks::init::show_config(codex)?;
+                init::show_config(codex)?;
             } else if uninstall {
                 let cursor = agent == Some(AgentTarget::Cursor);
-                hooks::init::uninstall(global, gemini, codex, cursor, cli.verbose)?;
+                init::uninstall(global, gemini, codex, cursor, cli.verbose)?;
             } else if gemini {
                 let patch_mode = if auto_patch {
-                    hooks::init::PatchMode::Auto
+                    init::PatchMode::Auto
                 } else if no_patch {
-                    hooks::init::PatchMode::Skip
+                    init::PatchMode::Skip
                 } else {
-                    hooks::init::PatchMode::Ask
+                    init::PatchMode::Ask
                 };
-                hooks::init::run_gemini(global, hook_only, patch_mode, cli.verbose)?;
+                init::run_gemini(global, hook_only, patch_mode, cli.verbose)?;
             } else {
                 let install_opencode = opencode;
                 let install_claude = !opencode;
@@ -1672,13 +1718,13 @@ fn main() -> Result<()> {
                 let install_cline = agent == Some(AgentTarget::Cline);
 
                 let patch_mode = if auto_patch {
-                    hooks::init::PatchMode::Auto
+                    init::PatchMode::Auto
                 } else if no_patch {
-                    hooks::init::PatchMode::Skip
+                    init::PatchMode::Skip
                 } else {
-                    hooks::init::PatchMode::Ask
+                    init::PatchMode::Ask
                 };
-                hooks::init::run(
+                init::run(
                     global,
                     install_claude,
                     install_opencode,
@@ -1726,7 +1772,7 @@ fn main() -> Result<()> {
             format,
             failures,
         } => {
-            analytics::gain::run(
+            gain::run(
                 project, // added: pass project flag
                 graph,
                 history,
@@ -1749,15 +1795,15 @@ fn main() -> Result<()> {
             all,
             format,
         } => {
-            analytics::cc_economics::run(daily, weekly, monthly, all, &format, cli.verbose)?;
+            cc_economics::run(daily, weekly, monthly, all, &format, cli.verbose)?;
         }
 
         Commands::Config { create } => {
             if create {
-                let path = core::config::Config::create_default()?;
+                let path = config::Config::create_default()?;
                 println!("Created: {}", path.display());
             } else {
-                core::config::show_config()?;
+                config::show_config()?;
             }
         }
 
@@ -1872,7 +1918,7 @@ fn main() -> Result<()> {
         }
 
         Commands::Session {} => {
-            analytics::session_cmd::run(cli.verbose)?;
+            session_cmd::run(cli.verbose)?;
         }
 
         Commands::Learn {
@@ -1929,8 +1975,8 @@ fn main() -> Result<()> {
                             }
                             _ => {
                                 // Passthrough other prisma subcommands
-                                let timer = core::tracking::TimedExecution::start();
-                                let mut cmd = core::utils::resolved_command("npx");
+                                let timer = tracking::TimedExecution::start();
+                                let mut cmd = utils::resolved_command("npx");
                                 for arg in &args {
                                     cmd.arg(arg);
                                 }
@@ -1946,8 +1992,8 @@ fn main() -> Result<()> {
                             }
                         }
                     } else {
-                        let timer = core::tracking::TimedExecution::start();
-                        let status = core::utils::resolved_command("npx")
+                        let timer = tracking::TimedExecution::start();
+                        let status = utils::resolved_command("npx")
                             .arg("prisma")
                             .status()
                             .context("Failed to run npx prisma")?;
@@ -2045,21 +2091,21 @@ fn main() -> Result<()> {
         }
 
         Commands::HookAudit { since } => {
-            hooks::hook_audit_cmd::run(since, cli.verbose)?;
+            hook_audit_cmd::run(since, cli.verbose)?;
         }
 
         Commands::Hook { command } => match command {
             HookCommands::Gemini => {
-                hooks::hook_cmd::run_gemini()?;
+                hook_cmd::run_gemini()?;
             }
             HookCommands::Copilot => {
-                hooks::hook_cmd::run_copilot()?;
+                hook_cmd::run_copilot()?;
             }
         },
 
         Commands::Rewrite { args } => {
             let cmd = args.join(" ");
-            hooks::rewrite_cmd::run(&cmd)?;
+            rewrite_cmd::run(&cmd)?;
         }
 
         Commands::Proxy { args } => {
@@ -2073,7 +2119,7 @@ fn main() -> Result<()> {
                 );
             }
 
-            let timer = core::tracking::TimedExecution::start();
+            let timer = tracking::TimedExecution::start();
 
             // If a single quoted arg contains spaces, split it respecting quotes (#388).
             // e.g. prltc proxy 'head -50 file.php' → cmd=head, args=["-50", "file.php"]
@@ -2100,7 +2146,7 @@ fn main() -> Result<()> {
                 eprintln!("Proxy mode: {} {}", cmd_name, cmd_args.join(" "));
             }
 
-            let mut child = core::utils::resolved_command(cmd_name.as_ref())
+            let mut child = utils::resolved_command(cmd_name.as_ref())
                 .args(&cmd_args)
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
@@ -2184,11 +2230,11 @@ fn main() -> Result<()> {
         }
 
         Commands::Trust { list } => {
-            hooks::trust::run_trust(list)?;
+            trust::run_trust(list)?;
         }
 
         Commands::Untrust => {
-            hooks::trust::run_untrust()?;
+            trust::run_untrust()?;
         }
 
         Commands::Verify {
@@ -2197,11 +2243,11 @@ fn main() -> Result<()> {
         } => {
             if filter.is_some() {
                 // Filter-specific mode: run only that filter's tests
-                hooks::verify_cmd::run(filter, require_all)?;
+                verify_cmd::run(filter, require_all)?;
             } else {
                 // Default or --require-all: always run integrity check first
-                hooks::integrity::run_verify(cli.verbose)?;
-                hooks::verify_cmd::run(None, require_all)?;
+                integrity::run_verify(cli.verbose)?;
+                verify_cmd::run(None, require_all)?;
             }
         }
     }
