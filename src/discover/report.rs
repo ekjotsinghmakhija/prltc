@@ -57,8 +57,6 @@ pub struct DiscoverReport {
     pub supported: Vec<SupportedEntry>,
     pub unsupported: Vec<UnsupportedEntry>,
     pub parse_errors: usize,
-    pub prltc_disabled_count: usize,
-    pub prltc_disabled_examples: Vec<String>,
 }
 
 impl DiscoverReport {
@@ -154,30 +152,7 @@ pub fn format_text(report: &DiscoverReport, limit: usize, verbose: bool) -> Stri
         out.push_str("-> github.com/ekjotsinghmakhija/prltc/issues\n");
     }
 
-    // PRLTC_DISABLED bypass warning
-    if report.prltc_disabled_count > 0 {
-        out.push_str(&format!(
-            "\nPRLTC_DISABLED BYPASS -- {} commands ran without filtering\n",
-            report.prltc_disabled_count
-        ));
-        out.push_str(&"-".repeat(72));
-        out.push('\n');
-        out.push_str("These commands used PRLTC_DISABLED=1 unnecessarily:\n");
-        if !report.prltc_disabled_examples.is_empty() {
-            out.push_str(&format!("  {}\n", report.prltc_disabled_examples.join(", ")));
-        }
-        out.push_str("-> Remove PRLTC_DISABLED=1 to recover token savings\n");
-    }
-
     out.push_str("\n~estimated from tool_result output sizes\n");
-
-    // Cursor note: check if Cursor hooks are installed
-    if let Some(home) = dirs::home_dir() {
-        let cursor_hook = home.join(".cursor").join("hooks").join("prltc-rewrite.sh");
-        if cursor_hook.exists() {
-            out.push_str("\nNote: Cursor sessions are tracked via `prltc gain` (discover scans Claude Code only)\n");
-        }
-    }
 
     if verbose && report.parse_errors > 0 {
         out.push_str(&format!("Parse errors skipped: {}\n", report.parse_errors));

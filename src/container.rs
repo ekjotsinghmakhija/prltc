@@ -5,9 +5,9 @@
  */
 
 use crate::tracking;
-use crate::utils::resolved_command;
 use anyhow::{Context, Result};
 use std::ffi::OsString;
+use std::process::Command;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ContainerCmd {
@@ -33,13 +33,13 @@ pub fn run(cmd: ContainerCmd, args: &[String], verbose: u8) -> Result<()> {
 fn docker_ps(_verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
-    let raw = resolved_command("docker")
+    let raw = Command::new("docker")
         .args(["ps"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
         .unwrap_or_default();
 
-    let output = resolved_command("docker")
+    let output = Command::new("docker")
         .args([
             "ps",
             "--format",
@@ -48,37 +48,25 @@ fn docker_ps(_verbose: u8) -> Result<()> {
         .output()
         .context("Failed to run docker ps")?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        eprint!("{}", stderr);
-        timer.track("docker ps", "prltc docker ps", &raw, &raw);
-        std::process::exit(output.status.code().unwrap_or(1));
-    }
-
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut prltc = String::new();
 
     if stdout.trim().is_empty() {
-        prltc.push_str("[docker] 0 containers");
+        prltc.push_str("🐳 0 containers");
         println!("{}", prltc);
         timer.track("docker ps", "prltc docker ps", &raw, &prltc);
         return Ok(());
     }
 
     let count = stdout.lines().count();
-    prltc.push_str(&format!("[docker] {} containers:\n", count));
+    prltc.push_str(&format!("🐳 {} containers:\n", count));
 
     for line in stdout.lines().take(15) {
         let parts: Vec<&str> = line.split('\t').collect();
         if parts.len() >= 4 {
             let id = &parts[0][..12.min(parts[0].len())];
             let name = parts[1];
-            let short_image = parts
-                .get(3)
-                .unwrap_or(&"")
-                .split('/')
-                .next_back()
-                .unwrap_or("");
+            let short_image = parts.get(3).unwrap_or(&"").split('/').last().unwrap_or("");
             let ports = compact_ports(parts.get(4).unwrap_or(&""));
             if ports == "-" {
                 prltc.push_str(&format!("  {} {} ({})\n", id, name, short_image));
@@ -102,30 +90,23 @@ fn docker_ps(_verbose: u8) -> Result<()> {
 fn docker_images(_verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
-    let raw = resolved_command("docker")
+    let raw = Command::new("docker")
         .args(["images"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
         .unwrap_or_default();
 
-    let output = resolved_command("docker")
+    let output = Command::new("docker")
         .args(["images", "--format", "{{.Repository}}:{{.Tag}}\t{{.Size}}"])
         .output()
         .context("Failed to run docker images")?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        eprint!("{}", stderr);
-        timer.track("docker images", "prltc docker images", &raw, &raw);
-        std::process::exit(output.status.code().unwrap_or(1));
-    }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let lines: Vec<&str> = stdout.lines().collect();
     let mut prltc = String::new();
 
     if lines.is_empty() {
-        prltc.push_str("[docker] 0 images");
+        prltc.push_str("🐳 0 images");
         println!("{}", prltc);
         timer.track("docker images", "prltc docker images", &raw, &prltc);
         return Ok(());
@@ -152,11 +133,7 @@ fn docker_images(_verbose: u8) -> Result<()> {
     } else {
         format!("{:.0}MB", total_size_mb)
     };
-    prltc.push_str(&format!(
-        "[docker] {} images ({})\n",
-        lines.len(),
-        total_display
-    ));
+    prltc.push_str(&format!("🐳 {} images ({})\n", lines.len(), total_display));
 
     for line in lines.iter().take(15) {
         let parts: Vec<&str> = line.split('\t').collect();
@@ -189,7 +166,7 @@ fn docker_logs(args: &[String], _verbose: u8) -> Result<()> {
         return Ok(());
     }
 
-    let output = resolved_command("docker")
+    let output = Command::new("docker")
         .args(["logs", "--tail", "100", container])
         .output()
         .context("Failed to run docker logs")?;
@@ -198,21 +175,8 @@ fn docker_logs(args: &[String], _verbose: u8) -> Result<()> {
     let stderr = String::from_utf8_lossy(&output.stderr);
     let raw = format!("{}\n{}", stdout, stderr);
 
-    if !output.status.success() {
-        if !stderr.trim().is_empty() {
-            eprint!("{}", stderr);
-        }
-        timer.track(
-            &format!("docker logs {}", container),
-            "prltc docker logs",
-            &raw,
-            &raw,
-        );
-        std::process::exit(output.status.code().unwrap_or(1));
-    }
-
     let analyzed = crate::log_cmd::run_stdin_str(&raw);
-    let prltc = format!("[docker] Logs for {}:\n{}", container, analyzed);
+    let prltc = format!("🐳 Logs for {}:\n{}", container, analyzed);
     println!("{}", prltc);
     timer.track(
         &format!("docker logs {}", container),
@@ -226,7 +190,7 @@ fn docker_logs(args: &[String], _verbose: u8) -> Result<()> {
 fn kubectl_pods(args: &[String], _verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
-    let mut cmd = resolved_command("kubectl");
+    let mut cmd = Command::new("kubectl");
     cmd.args(["get", "pods", "-o", "json"]);
     for arg in args {
         cmd.arg(arg);
@@ -236,31 +200,25 @@ fn kubectl_pods(args: &[String], _verbose: u8) -> Result<()> {
     let raw = String::from_utf8_lossy(&output.stdout).to_string();
     let mut prltc = String::new();
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        if !stderr.trim().is_empty() {
-            eprint!("{}", stderr);
-        }
-        timer.track("kubectl get pods", "prltc kubectl pods", &raw, &raw);
-        std::process::exit(output.status.code().unwrap_or(1));
-    }
-
     let json: serde_json::Value = match serde_json::from_str(&raw) {
         Ok(v) => v,
         Err(_) => {
-            prltc.push_str("No pods found");
+            prltc.push_str("☸️  No pods found");
             println!("{}", prltc);
             timer.track("kubectl get pods", "prltc kubectl pods", &raw, &prltc);
             return Ok(());
         }
     };
 
-    let Some(pods) = json["items"].as_array().filter(|a| !a.is_empty()) else {
-        prltc.push_str("No pods found");
+    let items = json["items"].as_array();
+    if items.is_none() || items.unwrap().is_empty() {
+        prltc.push_str("☸️  No pods found");
         println!("{}", prltc);
         timer.track("kubectl get pods", "prltc kubectl pods", &raw, &prltc);
         return Ok(());
-    };
+    }
+
+    let pods = items.unwrap();
     let (mut running, mut pending, mut failed, mut restarts_total) = (0, 0, 0, 0i64);
     let mut issues: Vec<String> = Vec::new();
 
@@ -302,21 +260,21 @@ fn kubectl_pods(args: &[String], _verbose: u8) -> Result<()> {
 
     let mut parts = Vec::new();
     if running > 0 {
-        parts.push(format!("{}", running));
+        parts.push(format!("{} ✓", running));
     }
     if pending > 0 {
         parts.push(format!("{} pending", pending));
     }
     if failed > 0 {
-        parts.push(format!("{} [x]", failed));
+        parts.push(format!("{} ✗", failed));
     }
     if restarts_total > 0 {
         parts.push(format!("{} restarts", restarts_total));
     }
 
-    prltc.push_str(&format!("{} pods: {}\n", pods.len(), parts.join(", ")));
+    prltc.push_str(&format!("☸️  {} pods: {}\n", pods.len(), parts.join(", ")));
     if !issues.is_empty() {
-        prltc.push_str("[warn] Issues:\n");
+        prltc.push_str("⚠️  Issues:\n");
         for issue in issues.iter().take(10) {
             prltc.push_str(&format!("  {}\n", issue));
         }
@@ -333,7 +291,7 @@ fn kubectl_pods(args: &[String], _verbose: u8) -> Result<()> {
 fn kubectl_services(args: &[String], _verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
-    let mut cmd = resolved_command("kubectl");
+    let mut cmd = Command::new("kubectl");
     cmd.args(["get", "services", "-o", "json"]);
     for arg in args {
         cmd.arg(arg);
@@ -343,32 +301,26 @@ fn kubectl_services(args: &[String], _verbose: u8) -> Result<()> {
     let raw = String::from_utf8_lossy(&output.stdout).to_string();
     let mut prltc = String::new();
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        if !stderr.trim().is_empty() {
-            eprint!("{}", stderr);
-        }
-        timer.track("kubectl get svc", "prltc kubectl svc", &raw, &raw);
-        std::process::exit(output.status.code().unwrap_or(1));
-    }
-
     let json: serde_json::Value = match serde_json::from_str(&raw) {
         Ok(v) => v,
         Err(_) => {
-            prltc.push_str("No services found");
+            prltc.push_str("☸️  No services found");
             println!("{}", prltc);
             timer.track("kubectl get svc", "prltc kubectl svc", &raw, &prltc);
             return Ok(());
         }
     };
 
-    let Some(services) = json["items"].as_array().filter(|a| !a.is_empty()) else {
-        prltc.push_str("No services found");
+    let items = json["items"].as_array();
+    if items.is_none() || items.unwrap().is_empty() {
+        prltc.push_str("☸️  No services found");
         println!("{}", prltc);
         timer.track("kubectl get svc", "prltc kubectl svc", &raw, &prltc);
         return Ok(());
-    };
-    prltc.push_str(&format!("{} services:\n", services.len()));
+    }
+
+    let services = items.unwrap();
+    prltc.push_str(&format!("☸️  {} services:\n", services.len()));
 
     for svc in services.iter().take(15) {
         let ns = svc["metadata"]["namespace"].as_str().unwrap_or("-");
@@ -419,7 +371,7 @@ fn kubectl_logs(args: &[String], _verbose: u8) -> Result<()> {
         return Ok(());
     }
 
-    let mut cmd = resolved_command("kubectl");
+    let mut cmd = Command::new("kubectl");
     cmd.args(["logs", "--tail", "100", pod]);
     for arg in args.iter().skip(1) {
         cmd.arg(arg);
@@ -427,23 +379,8 @@ fn kubectl_logs(args: &[String], _verbose: u8) -> Result<()> {
 
     let output = cmd.output().context("Failed to run kubectl logs")?;
     let raw = String::from_utf8_lossy(&output.stdout).to_string();
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        if !stderr.trim().is_empty() {
-            eprint!("{}", stderr);
-        }
-        timer.track(
-            &format!("kubectl logs {}", pod),
-            "prltc kubectl logs",
-            &raw,
-            &raw,
-        );
-        std::process::exit(output.status.code().unwrap_or(1));
-    }
-
     let analyzed = crate::log_cmd::run_stdin_str(&raw);
-    let prltc = format!("Logs for {}:\n{}", pod, analyzed);
+    let prltc = format!("☸️  Logs for {}:\n{}", pod, analyzed);
     println!("{}", prltc);
     timer.track(
         &format!("kubectl logs {}", pod),
@@ -461,10 +398,10 @@ pub fn format_compose_ps(raw: &str) -> String {
     let lines: Vec<&str> = raw.lines().filter(|l| !l.trim().is_empty()).collect();
 
     if lines.is_empty() {
-        return "[compose] 0 services".to_string();
+        return "🐳 0 compose services".to_string();
     }
 
-    let mut result = format!("[compose] {} services:\n", lines.len());
+    let mut result = format!("🐳 {} compose services:\n", lines.len());
 
     for line in lines.iter().take(20) {
         let parts: Vec<&str> = line.split('\t').collect();
@@ -503,19 +440,19 @@ pub fn format_compose_ps(raw: &str) -> String {
 /// Format `docker compose logs` output into compact form
 pub fn format_compose_logs(raw: &str) -> String {
     if raw.trim().is_empty() {
-        return "[compose] No logs".to_string();
+        return "🐳 No logs".to_string();
     }
 
     // docker compose logs prefixes each line with "service-N  | "
     // Use the existing log deduplication engine
     let analyzed = crate::log_cmd::run_stdin_str(raw);
-    format!("[compose] Logs:\n{}", analyzed)
+    format!("🐳 Compose logs:\n{}", analyzed)
 }
 
 /// Format `docker compose build` output into compact summary
 pub fn format_compose_build(raw: &str) -> String {
     if raw.trim().is_empty() {
-        return "[compose] Build: no output".to_string();
+        return "🐳 Build: no output".to_string();
     }
 
     let mut result = String::new();
@@ -523,7 +460,7 @@ pub fn format_compose_build(raw: &str) -> String {
     // Extract the summary line: "[+] Building 12.3s (8/8) FINISHED"
     for line in raw.lines() {
         if line.contains("Building") && line.contains("FINISHED") {
-            result.push_str(&format!("[compose] {}\n", line.trim()));
+            result.push_str(&format!("🐳 {}\n", line.trim()));
             break;
         }
     }
@@ -531,9 +468,9 @@ pub fn format_compose_build(raw: &str) -> String {
     if result.is_empty() {
         // No FINISHED line found — might still be building or errored
         if let Some(line) = raw.lines().find(|l| l.contains("Building")) {
-            result.push_str(&format!("[compose] {}\n", line.trim()));
+            result.push_str(&format!("🐳 {}\n", line.trim()));
         } else {
-            result.push_str("[compose] Build:\n");
+            result.push_str("🐳 Build:\n");
         }
     }
 
@@ -577,7 +514,7 @@ fn compact_ports(ports: &str) -> String {
     // Extract just the port numbers
     let port_nums: Vec<&str> = ports
         .split(',')
-        .filter_map(|p| p.split("->").next().and_then(|s| s.split(':').next_back()))
+        .filter_map(|p| p.split("->").next().and_then(|s| s.split(':').last()))
         .collect();
 
     if port_nums.len() <= 3 {
@@ -598,7 +535,7 @@ pub fn run_docker_passthrough(args: &[OsString], verbose: u8) -> Result<()> {
     if verbose > 0 {
         eprintln!("docker passthrough: {:?}", args);
     }
-    let status = resolved_command("docker")
+    let status = Command::new("docker")
         .args(args)
         .status()
         .context("Failed to run docker")?;
@@ -620,7 +557,7 @@ pub fn run_compose_ps(verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     // Raw output for token tracking
-    let raw_output = resolved_command("docker")
+    let raw_output = Command::new("docker")
         .args(["compose", "ps"])
         .output()
         .context("Failed to run docker compose ps")?;
@@ -633,7 +570,7 @@ pub fn run_compose_ps(verbose: u8) -> Result<()> {
     let raw = String::from_utf8_lossy(&raw_output.stdout).to_string();
 
     // Structured output for parsing (same pattern as docker_ps)
-    let output = resolved_command("docker")
+    let output = Command::new("docker")
         .args([
             "compose",
             "ps",
@@ -664,7 +601,7 @@ pub fn run_compose_ps(verbose: u8) -> Result<()> {
 pub fn run_compose_logs(service: Option<&str>, verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
-    let mut cmd = resolved_command("docker");
+    let mut cmd = Command::new("docker");
     cmd.args(["compose", "logs", "--tail", "100"]);
     if let Some(svc) = service {
         cmd.arg(svc);
@@ -702,7 +639,7 @@ pub fn run_compose_logs(service: Option<&str>, verbose: u8) -> Result<()> {
 pub fn run_compose_build(service: Option<&str>, verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
-    let mut cmd = resolved_command("docker");
+    let mut cmd = Command::new("docker");
     cmd.args(["compose", "build"]);
     if let Some(svc) = service {
         cmd.arg(svc);
@@ -743,7 +680,7 @@ pub fn run_compose_passthrough(args: &[OsString], verbose: u8) -> Result<()> {
     if verbose > 0 {
         eprintln!("docker compose passthrough: {:?}", args);
     }
-    let status = resolved_command("docker")
+    let status = Command::new("docker")
         .arg("compose")
         .args(args)
         .status()
@@ -768,7 +705,7 @@ pub fn run_kubectl_passthrough(args: &[OsString], verbose: u8) -> Result<()> {
     if verbose > 0 {
         eprintln!("kubectl passthrough: {:?}", args);
     }
-    let status = resolved_command("kubectl")
+    let status = Command::new("kubectl")
         .args(args)
         .status()
         .context("Failed to run kubectl")?;
@@ -832,11 +769,8 @@ mod tests {
         let raw = "redis-1\tredis:7\tUp 5 hours\t";
         let out = format_compose_ps(raw);
         assert!(out.contains("redis"), "should show service name");
-        // Should not show port info when no ports (but [compose] prefix is OK)
-        let lines: Vec<&str> = out.lines().collect();
-        let redis_line = lines.iter().find(|l| l.contains("redis")).unwrap();
         assert!(
-            !redis_line.contains("] ["),
+            !out.contains("["),
             "should not show port brackets when empty"
         );
     }
@@ -865,7 +799,10 @@ web-1  | 192.168.1.1 - GET /favicon.ico 404
 api-1  | Server listening on port 3000
 api-1  | Connected to database";
         let out = format_compose_logs(raw);
-        assert!(out.contains("Logs"), "should have compose logs header");
+        assert!(
+            out.contains("Compose logs"),
+            "should have compose logs header"
+        );
     }
 
     #[test]

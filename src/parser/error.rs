@@ -8,7 +8,6 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-#[allow(dead_code)]
 pub enum ParseError {
     #[error("JSON parse failed at line {line}, column {col}: {msg}")]
     JsonError {

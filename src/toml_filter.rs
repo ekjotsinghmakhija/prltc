@@ -187,29 +187,11 @@ impl TomlFilterRegistry {
     fn load() -> Self {
         let mut filters = Vec::new();
 
-        // Priority 1: project-local .prltc/filters.toml (trust-gated)
-        let project_filter_path = std::path::Path::new(".prltc/filters.toml");
-        if project_filter_path.exists() {
-            let trust_status = crate::trust::check_trust(project_filter_path)
-                .unwrap_or(crate::trust::TrustStatus::Untrusted);
-
-            match trust_status {
-                crate::trust::TrustStatus::Trusted | crate::trust::TrustStatus::EnvOverride => {
-                    if let Ok(content) = std::fs::read_to_string(project_filter_path) {
-                        match Self::parse_and_compile(&content, "project") {
-                            Ok(f) => filters.extend(f),
-                            Err(e) => eprintln!("[prltc] warning: .prltc/filters.toml: {}", e),
-                        }
-                    }
-                }
-                crate::trust::TrustStatus::Untrusted => {
-                    eprintln!("[prltc] WARNING: untrusted project filters (.prltc/filters.toml)");
-                    eprintln!("[prltc] Filters NOT applied. Run `prltc trust` to review and enable.");
-                }
-                crate::trust::TrustStatus::ContentChanged { .. } => {
-                    eprintln!("[prltc] WARNING: .prltc/filters.toml changed since trusted.");
-                    eprintln!("[prltc] Filters NOT applied. Run `prltc trust` to re-review.");
-                }
+        // Priority 1: project-local .prltc/filters.toml
+        if let Ok(content) = std::fs::read_to_string(".prltc/filters.toml") {
+            match Self::parse_and_compile(&content, "project") {
+                Ok(f) => filters.extend(f),
+                Err(e) => eprintln!("[prltc] warning: .prltc/filters.toml: {}", e),
             }
         }
 
@@ -553,34 +535,21 @@ pub fn run_filter_tests(filter_name_opt: Option<&str>) -> VerifyResults {
         &mut tested_filter_names,
     );
 
-    // Trust-gated: only verify project-local filters if trusted (SA-2025-PRLTC-002)
-    let project_path = std::path::Path::new(".prltc/filters.toml");
-    if project_path.exists() {
-        let trust_status =
-            crate::trust::check_trust(project_path).unwrap_or(crate::trust::TrustStatus::Untrusted);
-        match trust_status {
-            crate::trust::TrustStatus::Trusted | crate::trust::TrustStatus::EnvOverride => {
-                if let Ok(content) = std::fs::read_to_string(project_path) {
-                    collect_test_outcomes(
-                        &content,
-                        filter_name_opt,
-                        &mut outcomes,
-                        &mut all_filter_names,
-                        &mut tested_filter_names,
-                    );
-                }
-            }
-            _ => {
-                eprintln!("[prltc] WARNING: untrusted project filters skipped in verify");
-            }
-        }
+    if let Ok(content) = std::fs::read_to_string(".prltc/filters.toml") {
+        collect_test_outcomes(
+            &content,
+            filter_name_opt,
+            &mut outcomes,
+            &mut all_filter_names,
+            &mut tested_filter_names,
+        );
     }
 
     let filters_without_tests = all_filter_names
         .into_iter()
         .filter(|name| {
             // When a specific filter is requested, only report that one as missing tests
-            filter_name_opt.is_none_or(|f| name == f)
+            filter_name_opt.map_or(true, |f| name == f)
         })
         .filter(|name| !tested_filter_names.contains(name))
         .collect();
@@ -1616,8 +1585,8 @@ match_command = "^make\\b"
         let filters = make_filters(BUILTIN_TOML);
         assert_eq!(
             filters.len(),
-            58,
-            "Expected exactly 58 built-in filters, got {}. \
+            36,
+            "Expected exactly 36 built-in filters, got {}. \
              Update this count when adding/removing filters in src/filters/.",
             filters.len()
         );
@@ -1674,11 +1643,11 @@ expected = "output line 1\noutput line 2"
         let combined = format!("{}\n\n{}", BUILTIN_TOML, new_filter);
         let filters = make_filters(&combined);
 
-        // All 58 existing filters still present + 1 new = 59
+        // All 36 existing filters still present + 1 new = 37
         assert_eq!(
             filters.len(),
-            59,
-            "Expected 59 filters after concat (58 built-in + 1 new)"
+            37,
+            "Expected 37 filters after concat (36 built-in + 1 new)"
         );
 
         // New filter is discoverable

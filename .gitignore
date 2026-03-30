@@ -19,8 +19,6 @@ secrets.json
 *.swo
 *~
 
-.next
-
 # OS
 .DS_Store
 Thumbs.db
@@ -38,11 +36,7 @@ benchmark-report.md
 *.sqlite3
 prltc_tracking.db
 claudedocs
-.omc
 
 # Vitals provenance data
 .vitals/
 .worktrees/
-
-# icm 
-.fastembed_cache/

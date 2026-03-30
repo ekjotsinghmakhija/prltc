@@ -5,8 +5,9 @@
  */
 
 use crate::tracking;
-use crate::utils::{resolved_command, tool_exists, truncate};
+use crate::utils::truncate;
 use anyhow::{Context, Result};
+use std::process::Command;
 
 #[derive(Debug, PartialEq)]
 enum ParseState {
@@ -20,11 +21,11 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     // Try to detect pytest command (could be "pytest", "python -m pytest", etc.)
-    let mut cmd = if tool_exists("pytest") {
-        resolved_command("pytest")
+    let mut cmd = if which_command("pytest").is_some() {
+        Command::new("pytest")
     } else {
         // Fallback to python -m pytest
-        let mut c = resolved_command("python");
+        let mut c = Command::new("python");
         c.arg("-m").arg("pytest");
         c
     };
@@ -86,6 +87,18 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Check if a command exists in PATH
+fn which_command(cmd: &str) -> Option<String> {
+    Command::new("which")
+        .arg(cmd)
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
 /// Parse pytest output using state machine
@@ -173,7 +186,7 @@ fn build_pytest_summary(summary: &str, _test_files: &[String], failures: &[Strin
     let (passed, failed, skipped) = parse_summary_line(summary);
 
     if failed == 0 && passed > 0 {
-        return format!("Pytest: {} passed", passed);
+        return format!("✓ Pytest: {} passed", passed);
     }
 
     if passed == 0 && failed == 0 {
@@ -204,13 +217,13 @@ fn build_pytest_summary(summary: &str, _test_files: &[String], failures: &[Strin
             if first_line.starts_with("___") {
                 // Extract test name between ___
                 let test_name = first_line.trim_matches('_').trim();
-                result.push_str(&format!("{}. [FAIL] {}\n", i + 1, test_name));
+                result.push_str(&format!("{}. ❌ {}\n", i + 1, test_name));
             } else if first_line.starts_with("FAILED") {
                 // Summary format: "FAILED tests/test_foo.py::test_bar - AssertionError"
                 let parts: Vec<&str> = first_line.split(" - ").collect();
                 if let Some(test_path) = parts.first() {
                     let test_name = test_path.trim_start_matches("FAILED ");
-                    result.push_str(&format!("{}. [FAIL] {}\n", i + 1, test_name));
+                    result.push_str(&format!("{}. ❌ {}\n", i + 1, test_name));
                 }
                 if parts.len() > 1 {
                     result.push_str(&format!("     {}\n", truncate(parts[1], 100)));
@@ -294,7 +307,7 @@ tests/test_foo.py .....                                            [100%]
 === 5 passed in 0.50s ==="#;
 
         let result = filter_pytest_output(output);
-        assert!(result.contains("Pytest"));
+        assert!(result.contains("✓ Pytest"));
         assert!(result.contains("5 passed"));
     }
 

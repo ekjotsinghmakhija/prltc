@@ -5,18 +5,19 @@
  */
 
 use crate::tracking;
-use crate::utils::{resolved_command, strip_ansi, tool_exists, truncate};
+use crate::utils::{strip_ansi, truncate};
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::collections::HashMap;
+use std::process::Command;
 
 pub fn run(args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
-    let mut cmd = if tool_exists("mypy") {
-        resolved_command("mypy")
+    let mut cmd = if which_command("mypy").is_some() {
+        Command::new("mypy")
     } else {
-        let mut c = resolved_command("python3");
+        let mut c = Command::new("python3");
         c.arg("-m").arg("mypy");
         c
     };
@@ -49,10 +50,18 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
         &filtered,
     );
 
-    if !output.status.success() {
-        std::process::exit(output.status.code().unwrap_or(1));
-    }
-    Ok(())
+    std::process::exit(output.status.code().unwrap_or(1));
+}
+
+fn which_command(cmd: &str) -> Option<String> {
+    Command::new("which")
+        .arg(cmd)
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
 struct MypyError {

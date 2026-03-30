@@ -5,14 +5,14 @@
  */
 
 use crate::tracking;
-use crate::utils::{detect_package_manager, resolved_command, strip_ansi};
+use crate::utils::{detect_package_manager, strip_ansi};
 use anyhow::{Context, Result};
 use regex::Regex;
 use serde::Deserialize;
 
 use crate::parser::{
-    emit_degradation_warning, emit_passthrough_warning, truncate_passthrough, FormatMode,
-    OutputParser, ParseResult, TestFailure, TestResult, TokenFormatter,
+    emit_degradation_warning, emit_passthrough_warning, truncate_output, FormatMode, OutputParser,
+    ParseResult, TestFailure, TestResult, TokenFormatter,
 };
 
 /// Matches real Playwright JSON reporter output (suites → specs → tests → results)
@@ -116,7 +116,7 @@ impl OutputParser for PlaywrightParser {
                     }
                     None => {
                         // Tier 3: Passthrough
-                        ParseResult::Passthrough(truncate_passthrough(input))
+                        ParseResult::Passthrough(truncate_output(input, 500))
                     }
                 }
             }
@@ -252,17 +252,17 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
     let pm = detect_package_manager();
     let mut cmd = match pm {
         "pnpm" => {
-            let mut c = resolved_command("pnpm");
+            let mut c = std::process::Command::new("pnpm");
             c.arg("exec").arg("--").arg("playwright");
             c
         }
         "yarn" => {
-            let mut c = resolved_command("yarn");
+            let mut c = std::process::Command::new("yarn");
             c.arg("exec").arg("--").arg("playwright");
             c
         }
         _ => {
-            let mut c = resolved_command("npx");
+            let mut c = std::process::Command::new("npx");
             c.arg("--no-install").arg("--").arg("playwright");
             c
         }

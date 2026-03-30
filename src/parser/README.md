@@ -70,7 +70,7 @@ impl OutputParser for VitestParser {
                     )
                 } else {
                     // Tier 3: Passthrough
-                    ParseResult::Passthrough(truncate_output(input, 2000))
+                    ParseResult::Passthrough(truncate_output(input, 500))
                 }
             }
         }
@@ -152,7 +152,7 @@ For build tools (next, webpack, vite, cargo, etc.)
 - Human-readable
 
 ### Ultra (verbosity=2+)
-- Symbols: ✓✗⚠ pkg: ^
+- Symbols: ✓✗⚠📦⬆️
 - Ultra-compressed
 - 30-50% token reduction
 

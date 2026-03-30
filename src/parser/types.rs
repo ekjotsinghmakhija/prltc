@@ -29,7 +29,6 @@ pub struct TestFailure {
 
 /// Linting result (eslint, biome, tsc, etc.)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct LintResult {
     pub total_files: usize,
     pub files_with_issues: usize,
@@ -40,7 +39,6 @@ pub struct LintResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct LintIssue {
     pub file_path: String,
     pub line: usize,
@@ -51,7 +49,6 @@ pub struct LintIssue {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum LintSeverity {
     Error,
     Warning,
@@ -77,7 +74,6 @@ pub struct Dependency {
 
 /// Build output (next, webpack, vite, cargo, etc.)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct BuildOutput {
     pub success: bool,
     pub duration_ms: Option<u64>,
@@ -88,7 +84,6 @@ pub struct BuildOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct BundleInfo {
     pub name: String,
     pub size_bytes: u64,
@@ -96,7 +91,6 @@ pub struct BundleInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct RouteInfo {
     pub path: String,
     pub size_kb: f64,
@@ -105,7 +99,6 @@ pub struct RouteInfo {
 
 /// Git operation result
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct GitResult {
     pub operation: String,
     pub files_changed: usize,
@@ -115,7 +108,6 @@ pub struct GitResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct GitCommit {
     pub hash: String,
     pub author: String,
@@ -125,7 +117,6 @@ pub struct GitCommit {
 
 /// Generic command output (for tools without specific types)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct GenericOutput {
     pub exit_code: i32,
     pub stdout: String,
