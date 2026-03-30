@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "prltc hook",
+        "cwd": ".",
+        "timeout": 5
+      }
+    ]
+  }
+}
