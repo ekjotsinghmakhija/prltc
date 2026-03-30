@@ -285,11 +285,6 @@ pub fn run(
         install_cursor_hooks(verbose)?;
     }
 
-    // Telemetry notice (shown once during init)
-    println!();
-    println!("  [info] Anonymous telemetry is enabled (opt-out: PRLTC_TELEMETRY_DISABLED=1)");
-    println!("  [info] See: https://github.com/ekjotsinghmakhija/prltc#privacy--telemetry");
-
     Ok(())
 }
 
