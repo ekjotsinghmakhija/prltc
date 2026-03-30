@@ -320,7 +320,12 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
         }
     };
 
-    println!("{}", filtered);
+    let exit_code = output.status.code().unwrap_or(1);
+    if let Some(hint) = crate::tee::tee_and_hint(&raw, "playwright", exit_code) {
+        println!("{}\n{}", filtered, hint);
+    } else {
+        println!("{}", filtered);
+    }
 
     timer.track(
         &format!("playwright {}", args.join(" ")),
@@ -331,7 +336,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
 
     // Preserve exit code for CI/CD
     if !output.status.success() {
-        std::process::exit(output.status.code().unwrap_or(1));
+        std::process::exit(exit_code);
     }
 
     Ok(())
