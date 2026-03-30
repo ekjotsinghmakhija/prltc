@@ -856,18 +856,6 @@ fn filter_cargo_test(output: &str) -> String {
     }
 
     if result.trim().is_empty() {
-        let has_compile_errors = output.lines().any(|line| {
-            let trimmed = line.trim_start();
-            trimmed.starts_with("error[") || trimmed.starts_with("error:")
-        });
-
-        if has_compile_errors {
-            let build_filtered = filter_cargo_build(output);
-            if build_filtered.starts_with("cargo build:") {
-                return build_filtered.replacen("cargo build:", "cargo test:", 1);
-            }
-        }
-
         // Fallback: show last meaningful lines
         let meaningful: Vec<&str> = output
             .lines()
@@ -1330,29 +1318,6 @@ test result: MALFORMED LINE WITHOUT PROPER FORMAT
             "Expected fallback format, got: {}",
             result
         );
-    }
-
-    #[test]
-    fn test_filter_cargo_test_compile_error_preserves_error_header() {
-        let output = r#"   Compiling prltc v0.31.0 (/workspace/projects/prltc)
-error[E0425]: cannot find value `missing_symbol` in this scope
- --> tests/repro_compile_fail.rs:3:13
-  |
-3 |     let _ = missing_symbol;
-  |             ^^^^^^^^^^^^^^ not found in this scope
-
-For more information about this error, try `rustc --explain E0425`.
-error: could not compile `prltc` (test "repro_compile_fail") due to 1 previous error
-"#;
-        let result = filter_cargo_test(output);
-        assert!(result.contains("cargo test: 1 errors, 0 warnings (1 crates)"));
-        assert!(result.contains("error[E0425]"), "got: {}", result);
-        assert!(
-            result.contains("--> tests/repro_compile_fail.rs:3:13"),
-            "got: {}",
-            result
-        );
-        assert!(!result.starts_with('|'), "got: {}", result);
     }
 
     #[test]

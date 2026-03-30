@@ -1,17 +1,11 @@
 #!/usr/bin/env bash
-# prltc-hook-version: 3
+# prltc-hook-version: 2
 # PRLTC Claude Code hook — rewrites commands to use prltc for token savings.
 # Requires: prltc >= 0.23.0, jq
 #
 # This is a thin delegating hook: all rewrite logic lives in `prltc rewrite`,
 # which is the single source of truth (src/discover/registry.rs).
 # To add or change rewrite rules, edit the Rust registry — not this file.
-#
-# Exit code protocol for `prltc rewrite`:
-#   0 + stdout  Rewrite found, no deny/ask rule matched → auto-allow
-#   1           No PRLTC equivalent → pass through unchanged
-#   2           Deny rule matched → pass through (Claude Code native deny handles it)
-#   3 + stdout  Ask rule matched → rewrite but let Claude Code prompt the user
 
 if ! command -v jq &>/dev/null; then
   echo "[prltc] WARNING: jq is not installed. Hook cannot rewrite commands. Install jq: https://jqlang.github.io/jq/download/" >&2
@@ -43,56 +37,25 @@ if [ -z "$CMD" ]; then
   exit 0
 fi
 
-# Delegate all rewrite + permission logic to the Rust binary.
-REWRITTEN=$(prltc rewrite "$CMD" 2>/dev/null)
-EXIT_CODE=$?
+# Delegate all rewrite logic to the Rust binary.
+# prltc rewrite exits 1 when there's no rewrite — hook passes through silently.
+REWRITTEN=$(prltc rewrite "$CMD" 2>/dev/null) || exit 0
 
-case $EXIT_CODE in
-  0)
-    # Rewrite found, no permission rules matched — safe to auto-allow.
-    # If the output is identical, the command was already using PRLTC.
-    [ "$CMD" = "$REWRITTEN" ] && exit 0
-    ;;
-  1)
-    # No PRLTC equivalent — pass through unchanged.
-    exit 0
-    ;;
-  2)
-    # Deny rule matched — let Claude Code's native deny rule handle it.
-    exit 0
-    ;;
-  3)
-    # Ask rule matched — rewrite the command but do NOT auto-allow so that
-    # Claude Code prompts the user for confirmation.
-    ;;
-  *)
-    exit 0
-    ;;
-esac
+# No change — nothing to do.
+if [ "$CMD" = "$REWRITTEN" ]; then
+  exit 0
+fi
 
 ORIGINAL_INPUT=$(echo "$INPUT" | jq -c '.tool_input')
 UPDATED_INPUT=$(echo "$ORIGINAL_INPUT" | jq --arg cmd "$REWRITTEN" '.command = $cmd')
 
-if [ "$EXIT_CODE" -eq 3 ]; then
-  # Ask: rewrite the command, omit permissionDecision so Claude Code prompts.
-  jq -n \
-    --argjson updated "$UPDATED_INPUT" \
-    '{
-      "hookSpecificOutput": {
-        "hookEventName": "PreToolUse",
-        "updatedInput": $updated
-      }
-    }'
-else
-  # Allow: rewrite the command and auto-allow.
-  jq -n \
-    --argjson updated "$UPDATED_INPUT" \
-    '{
-      "hookSpecificOutput": {
-        "hookEventName": "PreToolUse",
-        "permissionDecision": "allow",
-        "permissionDecisionReason": "PRLTC auto-rewrite",
-        "updatedInput": $updated
-      }
-    }'
-fi
+jq -n \
+  --argjson updated "$UPDATED_INPUT" \
+  '{
+    "hookSpecificOutput": {
+      "hookEventName": "PreToolUse",
+      "permissionDecision": "allow",
+      "permissionDecisionReason": "PRLTC auto-rewrite",
+      "updatedInput": $updated
+    }
+  }'
