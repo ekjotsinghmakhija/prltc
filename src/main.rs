@@ -84,6 +84,8 @@ pub enum AgentTarget {
     Claude,
     /// Cursor Agent (editor and CLI)
     Cursor,
+    /// Windsurf IDE (Cascade)
+    Windsurf,
 }
 
 #[derive(Parser)]
@@ -1677,8 +1679,8 @@ fn main() -> Result<()> {
             } else {
                 let install_opencode = opencode;
                 let install_claude = !opencode;
-                let install_cursor =
-                    agent.map_or(false, |a| a == AgentTarget::Cursor);
+                let install_cursor = agent.map_or(false, |a| a == AgentTarget::Cursor);
+                let install_windsurf = agent.map_or(false, |a| a == AgentTarget::Windsurf);
 
                 let patch_mode = if auto_patch {
                     init::PatchMode::Auto
@@ -1692,6 +1694,7 @@ fn main() -> Result<()> {
                     install_claude,
                     install_opencode,
                     install_cursor,
+                    install_windsurf,
                     claude_md,
                     hook_only,
                     codex,
