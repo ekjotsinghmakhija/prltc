@@ -59,14 +59,14 @@ fn docker_ps(_verbose: u8) -> Result<()> {
     let mut prltc = String::new();
 
     if stdout.trim().is_empty() {
-        prltc.push_str("🐳 0 containers");
+        prltc.push_str("[docker] 0 containers");
         println!("{}", prltc);
         timer.track("docker ps", "prltc docker ps", &raw, &prltc);
         return Ok(());
     }
 
     let count = stdout.lines().count();
-    prltc.push_str(&format!("🐳 {} containers:\n", count));
+    prltc.push_str(&format!("[docker] {} containers:\n", count));
 
     for line in stdout.lines().take(15) {
         let parts: Vec<&str> = line.split('\t').collect();
@@ -125,7 +125,7 @@ fn docker_images(_verbose: u8) -> Result<()> {
     let mut prltc = String::new();
 
     if lines.is_empty() {
-        prltc.push_str("🐳 0 images");
+        prltc.push_str("[docker] 0 images");
         println!("{}", prltc);
         timer.track("docker images", "prltc docker images", &raw, &prltc);
         return Ok(());
@@ -152,7 +152,11 @@ fn docker_images(_verbose: u8) -> Result<()> {
     } else {
         format!("{:.0}MB", total_size_mb)
     };
-    prltc.push_str(&format!("🐳 {} images ({})\n", lines.len(), total_display));
+    prltc.push_str(&format!(
+        "[docker] {} images ({})\n",
+        lines.len(),
+        total_display
+    ));
 
     for line in lines.iter().take(15) {
         let parts: Vec<&str> = line.split('\t').collect();
@@ -208,7 +212,7 @@ fn docker_logs(args: &[String], _verbose: u8) -> Result<()> {
     }
 
     let analyzed = crate::log_cmd::run_stdin_str(&raw);
-    let prltc = format!("🐳 Logs for {}:\n{}", container, analyzed);
+    let prltc = format!("[docker] Logs for {}:\n{}", container, analyzed);
     println!("{}", prltc);
     timer.track(
         &format!("docker logs {}", container),
@@ -244,7 +248,7 @@ fn kubectl_pods(args: &[String], _verbose: u8) -> Result<()> {
     let json: serde_json::Value = match serde_json::from_str(&raw) {
         Ok(v) => v,
         Err(_) => {
-            prltc.push_str("☸️  No pods found");
+            prltc.push_str("No pods found");
             println!("{}", prltc);
             timer.track("kubectl get pods", "prltc kubectl pods", &raw, &prltc);
             return Ok(());
@@ -252,7 +256,7 @@ fn kubectl_pods(args: &[String], _verbose: u8) -> Result<()> {
     };
 
     let Some(pods) = json["items"].as_array().filter(|a| !a.is_empty()) else {
-        prltc.push_str("☸️  No pods found");
+        prltc.push_str("No pods found");
         println!("{}", prltc);
         timer.track("kubectl get pods", "prltc kubectl pods", &raw, &prltc);
         return Ok(());
@@ -298,21 +302,21 @@ fn kubectl_pods(args: &[String], _verbose: u8) -> Result<()> {
 
     let mut parts = Vec::new();
     if running > 0 {
-        parts.push(format!("{} ✓", running));
+        parts.push(format!("{}", running));
     }
     if pending > 0 {
         parts.push(format!("{} pending", pending));
     }
     if failed > 0 {
-        parts.push(format!("{} ✗", failed));
+        parts.push(format!("{} [x]", failed));
     }
     if restarts_total > 0 {
         parts.push(format!("{} restarts", restarts_total));
     }
 
-    prltc.push_str(&format!("☸️  {} pods: {}\n", pods.len(), parts.join(", ")));
+    prltc.push_str(&format!("{} pods: {}\n", pods.len(), parts.join(", ")));
     if !issues.is_empty() {
-        prltc.push_str("⚠️  Issues:\n");
+        prltc.push_str("[warn] Issues:\n");
         for issue in issues.iter().take(10) {
             prltc.push_str(&format!("  {}\n", issue));
         }
@@ -351,7 +355,7 @@ fn kubectl_services(args: &[String], _verbose: u8) -> Result<()> {
     let json: serde_json::Value = match serde_json::from_str(&raw) {
         Ok(v) => v,
         Err(_) => {
-            prltc.push_str("☸️  No services found");
+            prltc.push_str("No services found");
             println!("{}", prltc);
             timer.track("kubectl get svc", "prltc kubectl svc", &raw, &prltc);
             return Ok(());
@@ -359,12 +363,12 @@ fn kubectl_services(args: &[String], _verbose: u8) -> Result<()> {
     };
 
     let Some(services) = json["items"].as_array().filter(|a| !a.is_empty()) else {
-        prltc.push_str("☸️  No services found");
+        prltc.push_str("No services found");
         println!("{}", prltc);
         timer.track("kubectl get svc", "prltc kubectl svc", &raw, &prltc);
         return Ok(());
     };
-    prltc.push_str(&format!("☸️  {} services:\n", services.len()));
+    prltc.push_str(&format!("{} services:\n", services.len()));
 
     for svc in services.iter().take(15) {
         let ns = svc["metadata"]["namespace"].as_str().unwrap_or("-");
@@ -439,7 +443,7 @@ fn kubectl_logs(args: &[String], _verbose: u8) -> Result<()> {
     }
 
     let analyzed = crate::log_cmd::run_stdin_str(&raw);
-    let prltc = format!("☸️  Logs for {}:\n{}", pod, analyzed);
+    let prltc = format!("Logs for {}:\n{}", pod, analyzed);
     println!("{}", prltc);
     timer.track(
         &format!("kubectl logs {}", pod),
@@ -457,10 +461,10 @@ pub fn format_compose_ps(raw: &str) -> String {
     let lines: Vec<&str> = raw.lines().filter(|l| !l.trim().is_empty()).collect();
 
     if lines.is_empty() {
-        return "🐳 0 compose services".to_string();
+        return "[compose] 0 services".to_string();
     }
 
-    let mut result = format!("🐳 {} compose services:\n", lines.len());
+    let mut result = format!("[compose] {} services:\n", lines.len());
 
     for line in lines.iter().take(20) {
         let parts: Vec<&str> = line.split('\t').collect();
@@ -499,19 +503,19 @@ pub fn format_compose_ps(raw: &str) -> String {
 /// Format `docker compose logs` output into compact form
 pub fn format_compose_logs(raw: &str) -> String {
     if raw.trim().is_empty() {
-        return "🐳 No logs".to_string();
+        return "[compose] No logs".to_string();
     }
 
     // docker compose logs prefixes each line with "service-N  | "
     // Use the existing log deduplication engine
     let analyzed = crate::log_cmd::run_stdin_str(raw);
-    format!("🐳 Compose logs:\n{}", analyzed)
+    format!("[compose] Logs:\n{}", analyzed)
 }
 
 /// Format `docker compose build` output into compact summary
 pub fn format_compose_build(raw: &str) -> String {
     if raw.trim().is_empty() {
-        return "🐳 Build: no output".to_string();
+        return "[compose] Build: no output".to_string();
     }
 
     let mut result = String::new();
@@ -519,7 +523,7 @@ pub fn format_compose_build(raw: &str) -> String {
     // Extract the summary line: "[+] Building 12.3s (8/8) FINISHED"
     for line in raw.lines() {
         if line.contains("Building") && line.contains("FINISHED") {
-            result.push_str(&format!("🐳 {}\n", line.trim()));
+            result.push_str(&format!("[compose] {}\n", line.trim()));
             break;
         }
     }
@@ -527,9 +531,9 @@ pub fn format_compose_build(raw: &str) -> String {
     if result.is_empty() {
         // No FINISHED line found — might still be building or errored
         if let Some(line) = raw.lines().find(|l| l.contains("Building")) {
-            result.push_str(&format!("🐳 {}\n", line.trim()));
+            result.push_str(&format!("[compose] {}\n", line.trim()));
         } else {
-            result.push_str("🐳 Build:\n");
+            result.push_str("[compose] Build:\n");
         }
     }
 
@@ -828,8 +832,11 @@ mod tests {
         let raw = "redis-1\tredis:7\tUp 5 hours\t";
         let out = format_compose_ps(raw);
         assert!(out.contains("redis"), "should show service name");
+        // Should not show port info when no ports (but [compose] prefix is OK)
+        let lines: Vec<&str> = out.lines().collect();
+        let redis_line = lines.iter().find(|l| l.contains("redis")).unwrap();
         assert!(
-            !out.contains("["),
+            !redis_line.contains("] ["),
             "should not show port brackets when empty"
         );
     }
@@ -858,10 +865,7 @@ web-1  | 192.168.1.1 - GET /favicon.ico 404
 api-1  | Server listening on port 3000
 api-1  | Connected to database";
         let out = format_compose_logs(raw);
-        assert!(
-            out.contains("Compose logs"),
-            "should have compose logs header"
-        );
+        assert!(out.contains("Logs"), "should have compose logs header");
     }
 
     #[test]

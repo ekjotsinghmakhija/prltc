@@ -178,7 +178,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
     // Check if process was killed by signal (SIGABRT, SIGKILL, etc.)
     if !output.status.success() && output.status.code().is_none() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        eprintln!("⚠️  Linter process terminated abnormally (possibly out of memory)");
+        eprintln!("[warn] Linter process terminated abnormally (possibly out of memory)");
         if !stderr.is_empty() {
             eprintln!(
                 "stderr: {}",
@@ -200,7 +200,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
             if !stdout.trim().is_empty() {
                 ruff_cmd::filter_ruff_check_json(&stdout)
             } else {
-                "✓ Ruff: No issues found".to_string()
+                "Ruff: No issues found".to_string()
             }
         }
         "pylint" => filter_pylint_json(&stdout),
@@ -254,7 +254,7 @@ fn filter_eslint_json(output: &str) -> String {
     let total_files = results.iter().filter(|r| !r.messages.is_empty()).count();
 
     if total_errors == 0 && total_warnings == 0 {
-        return "✓ ESLint: No issues found".to_string();
+        return "ESLint: No issues found".to_string();
     }
 
     // Group messages by rule
@@ -341,7 +341,7 @@ fn filter_pylint_json(output: &str) -> String {
     };
 
     if diagnostics.is_empty() {
-        return "✓ Pylint: No issues found".to_string();
+        return "Pylint: No issues found".to_string();
     }
 
     // Count by type
@@ -460,7 +460,7 @@ fn filter_generic_lint(output: &str) -> String {
     }
 
     if errors == 0 && warnings == 0 {
-        return "✓ Lint: No issues found".to_string();
+        return "Lint: No issues found".to_string();
     }
 
     let mut result = String::new();
@@ -562,7 +562,7 @@ mod tests {
     fn test_filter_pylint_json_no_issues() {
         let output = "[]";
         let result = filter_pylint_json(output);
-        assert!(result.contains("✓ Pylint"));
+        assert!(result.contains("Pylint"));
         assert!(result.contains("No issues found"));
     }
 

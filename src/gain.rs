@@ -115,7 +115,7 @@ pub fn run(
             hook_check::HookStatus::Missing => {
                 eprintln!(
                     "{}",
-                    "⚠️  No hook installed — run `prltc init -g` for automatic token savings"
+                    "[warn] No hook installed — run `prltc init -g` for automatic token savings"
                         .yellow()
                 );
                 eprintln!();
@@ -123,7 +123,7 @@ pub fn run(
             hook_check::HookStatus::Outdated => {
                 eprintln!(
                     "{}",
-                    "⚠️  Hook outdated — run `prltc init -g` to update".yellow()
+                    "[warn] Hook outdated — run `prltc init -g` to update".yellow()
                 );
                 eprintln!();
             }
@@ -665,7 +665,7 @@ fn check_prltc_disabled_bypass() -> Option<String> {
     let pct = (bypassed as f64 / total_bash as f64) * 100.0;
     if pct > 10.0 {
         Some(format!(
-            "⚠️  {} commands ({:.0}%) used PRLTC_DISABLED=1 unnecessarily — run `prltc discover` for details",
+            "[warn] {} commands ({:.0}%) used PRLTC_DISABLED=1 unnecessarily — run `prltc discover` for details",
             bypassed, pct
         ))
     } else {

@@ -68,7 +68,7 @@ pub fn run(
                 eprintln!("{}", stderr.trim());
             }
         }
-        let msg = format!("🔍 0 for '{}'", pattern);
+        let msg = format!("0 matches for '{}'", pattern);
         println!("{}", msg);
         timer.track(
             &format!("grep -rn '{}' {}", pattern, path),
@@ -111,7 +111,7 @@ pub fn run(
     }
 
     let mut prltc_output = String::new();
-    prltc_output.push_str(&format!("🔍 {} in {}F:\n\n", total, by_file.len()));
+    prltc_output.push_str(&format!("{} matches in {}F:\n\n", total, by_file.len()));
 
     let mut shown = 0;
     let mut files: Vec<_> = by_file.iter().collect();
@@ -123,7 +123,7 @@ pub fn run(
         }
 
         let file_display = compact_path(file);
-        prltc_output.push_str(&format!("📄 {} ({}):\n", file_display, matches.len()));
+        prltc_output.push_str(&format!("[file] {} ({}):\n", file_display, matches.len()));
 
         let per_file = config::limits().grep_max_per_file;
         for (line_num, content) in matches.iter().take(per_file) {
