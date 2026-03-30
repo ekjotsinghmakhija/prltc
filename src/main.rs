@@ -5,6 +5,7 @@
  */
 
 mod aws_cmd;
+mod binlog;
 mod cargo_cmd;
 mod cc_economics;
 mod ccusage;
@@ -15,6 +16,9 @@ mod deps;
 mod diff_cmd;
 mod discover;
 mod display_helpers;
+mod dotnet_cmd;
+mod dotnet_format_report;
+mod dotnet_trx;
 mod env_cmd;
 mod filter;
 mod find_cmd;
@@ -28,6 +32,7 @@ mod grep_cmd;
 mod gt_cmd;
 mod hook_audit_cmd;
 mod hook_check;
+mod hook_cmd;
 mod init;
 mod integrity;
 mod json_cmd;
@@ -47,16 +52,21 @@ mod prettier_cmd;
 mod prisma_cmd;
 mod psql_cmd;
 mod pytest_cmd;
+mod rake_cmd;
 mod read;
 mod rewrite_cmd;
+mod rspec_cmd;
+mod rubocop_cmd;
 mod ruff_cmd;
 mod runner;
+mod session_cmd;
 mod summary;
 mod tee;
 mod telemetry;
 mod toml_filter;
 mod tracking;
 mod tree;
+mod trust;
 mod tsc_cmd;
 mod utils;
 mod verify_cmd;
@@ -66,9 +76,22 @@ mod wget_cmd;
 
 use anyhow::{Context, Result};
 use clap::error::ErrorKind;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
+
+/// Target agent for hook installation.
+#[derive(Debug, Clone, Copy, PartialEq, ValueEnum)]
+pub enum AgentTarget {
+    /// Claude Code (default)
+    Claude,
+    /// Cursor Agent (editor and CLI)
+    Cursor,
+    /// Windsurf IDE (Cascade)
+    Windsurf,
+    /// Cline / Roo Code (VS Code)
+    Cline,
+}
 
 #[derive(Parser)]
 #[command(
@@ -118,8 +141,11 @@ enum Commands {
         #[arg(short, long, default_value = "minimal")]
         level: filter::FilterLevel,
         /// Max lines
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with = "tail_lines")]
         max_lines: Option<usize>,
+        /// Keep only last N lines
+        #[arg(long, conflicts_with = "max_lines")]
+        tail_lines: Option<usize>,
         /// Show line numbers
         #[arg(short = 'n', long)]
         line_numbers: bool,
@@ -220,13 +246,16 @@ enum Commands {
         command: Vec<String>,
     },
 
-    /// Show JSON structure without values
+    /// Show JSON (compact values, or schema-only with --schema)
     Json {
         /// JSON file
         file: PathBuf,
         /// Max depth
         #[arg(short, long, default_value = "5")]
         depth: usize,
+        /// Show structure only (strip all values)
+        #[arg(long)]
+        schema: bool,
     },
 
     /// Summarize project dependencies
@@ -267,6 +296,12 @@ enum Commands {
         file: Option<PathBuf>,
     },
 
+    /// .NET commands with compact output (build/test/restore/format)
+    Dotnet {
+        #[command(subcommand)]
+        command: DotnetCommands,
+    },
+
     /// Docker commands with compact output
     Docker {
         #[command(subcommand)]
@@ -297,7 +332,7 @@ enum Commands {
         #[arg(short = 'l', long, default_value = "80")]
         max_len: usize,
         /// Max results to show
-        #[arg(short, long, default_value = "50")]
+        #[arg(short, long, default_value = "200")]
         max: usize,
         /// Show only match context (not full line)
         #[arg(short, long)]
@@ -313,11 +348,23 @@ enum Commands {
         extra_args: Vec<String>,
     },
 
-    /// Initialize prltc instructions in CLAUDE.md
+    /// Initialize prltc instructions for assistant CLI usage
     Init {
-        /// Add to global ~/.claude/CLAUDE.md instead of local
+        /// Add to global assistant config directory instead of local project file
         #[arg(short, long)]
         global: bool,
+
+        /// Install OpenCode plugin (in addition to Claude Code)
+        #[arg(long)]
+        opencode: bool,
+
+        /// Initialize for Gemini CLI instead of Claude Code
+        #[arg(long)]
+        gemini: bool,
+
+        /// Target agent to install hooks for (default: claude)
+        #[arg(long, value_enum)]
+        agent: Option<AgentTarget>,
 
         /// Show current configuration
         #[arg(long)]
@@ -339,18 +386,22 @@ enum Commands {
         #[arg(long = "no-patch", group = "patch")]
         no_patch: bool,
 
-        /// Remove all PRLTC artifacts (hook, PRLTC.md, CLAUDE.md reference, settings.json entry)
+        /// Remove PRLTC artifacts for the selected assistant mode
         #[arg(long)]
         uninstall: bool,
+
+        /// Target Codex CLI (uses AGENTS.md + PRLTC.md, no Claude hook patching)
+        #[arg(long)]
+        codex: bool,
     },
 
     /// Download with compact output (strips progress bars)
     Wget {
         /// URL to download
         url: String,
-        /// Output to stdout instead of file
-        #[arg(short = 'O', long)]
-        stdout: bool,
+        /// Output file (-O - for stdout)
+        #[arg(short = 'O', long = "output-document", allow_hyphen_values = true)]
+        output: Option<String>,
         /// Additional wget arguments
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
@@ -526,6 +577,9 @@ enum Commands {
         format: String,
     },
 
+    /// Show PRLTC adoption across Claude Code sessions
+    Session {},
+
     /// Learn CLI corrections from Claude Code error history
     Learn {
         /// Filter by project path (substring match)
@@ -558,6 +612,16 @@ enum Commands {
         args: Vec<OsString>,
     },
 
+    /// Trust project-local TOML filters in current directory
+    Trust {
+        /// List all trusted projects
+        #[arg(long)]
+        list: bool,
+    },
+
+    /// Revoke trust for project-local TOML filters
+    Untrust,
+
     /// Verify hook integrity and run TOML filter inline tests
     Verify {
         /// Run tests only for this filter name
@@ -585,6 +649,27 @@ enum Commands {
     /// Mypy type checker with grouped error output
     Mypy {
         /// Mypy arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// Rake/Rails test with compact Minitest output (Ruby)
+    Rake {
+        /// Rake arguments (e.g., test, test TEST=path/to/test.rb)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// RuboCop linter with compact output (Ruby)
+    Rubocop {
+        /// RuboCop arguments (e.g., --auto-correct, -A)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// RSpec test runner with compact output (Rails/Ruby)
+    Rspec {
+        /// RSpec arguments (e.g., spec/models, --tag focus)
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
@@ -633,8 +718,24 @@ enum Commands {
     ///   REWRITTEN=$(prltc rewrite "$CMD") || exit 0
     Rewrite {
         /// Raw command to rewrite (e.g. "git status", "cargo test && git push")
-        cmd: String,
+        /// Accepts multiple args: `prltc rewrite ls -al` is equivalent to `prltc rewrite "ls -al"`
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
+
+    /// Hook processors for LLM CLI tools (Gemini CLI, Copilot, etc.)
+    Hook {
+        #[command(subcommand)]
+        command: HookCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum HookCommands {
+    /// Process Gemini CLI BeforeTool hook (reads JSON from stdin)
+    Gemini,
+    /// Process Copilot preToolUse hook (VS Code + Copilot CLI, reads JSON from stdin)
+    Copilot,
 }
 
 #[derive(Subcommand)]
@@ -663,25 +764,25 @@ enum GitCommands {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Add files → "ok ✓"
+    /// Add files → "ok"
     Add {
         /// Files and flags to add (supports all git add flags like -A, -p, --all, etc)
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Commit → "ok ✓ \<hash\>"
+    /// Commit → "ok \<hash\>"
     Commit {
         /// Git commit arguments (supports -a, -m, --amend, --allow-empty, etc)
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Push → "ok ✓ \<branch\>"
+    /// Push → "ok \<branch\>"
     Push {
         /// Git push arguments (supports -u, remote, branch, etc.)
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
-    /// Pull → "ok ✓ \<stats\>"
+    /// Pull → "ok \<stats\>"
     Pull {
         /// Git pull arguments (supports --rebase, remote, branch, etc.)
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
@@ -926,6 +1027,33 @@ enum CargoCommands {
 }
 
 #[derive(Subcommand)]
+enum DotnetCommands {
+    /// Build with compact output
+    Build {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Test with compact output
+    Test {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Restore with compact output
+    Restore {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Format with compact output
+    Format {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Passthrough: runs any unsupported dotnet subcommand directly
+    #[command(external_subcommand)]
+    Other(Vec<OsString>),
+}
+
+#[derive(Subcommand)]
 enum GoCommands {
     /// Run tests with compact output (90% token reduction via JSON streaming)
     Test {
@@ -962,6 +1090,10 @@ const PRLTC_META_COMMANDS: &[&str] = &[
     "hook-audit",
     "cc-economics",
     "verify",
+    "trust",
+    "untrust",
+    "session",
+    "rewrite",
 ];
 
 fn run_fallback(parse_error: clap::Error) -> Result<()> {
@@ -1004,7 +1136,7 @@ fn run_fallback(parse_error: clap::Error) -> Result<()> {
 
     if let Some(filter) = toml_match {
         // TOML match: capture stdout for filtering
-        let result = std::process::Command::new(&args[0])
+        let result = utils::resolved_command(&args[0])
             .args(&args[1..])
             .stdin(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::piped()) // capture
@@ -1049,7 +1181,7 @@ fn run_fallback(parse_error: clap::Error) -> Result<()> {
         }
     } else {
         // No TOML match: original passthrough behaviour (Stdio::inherit, streaming)
-        let status = std::process::Command::new(&args[0])
+        let status = utils::resolved_command(&args[0])
             .args(&args[1..])
             .stdin(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::inherit())
@@ -1115,12 +1247,36 @@ enum GtCommands {
     Other(Vec<OsString>),
 }
 
+/// Split a string into shell-like tokens, respecting single and double quotes.
+/// e.g. `git log --format="%H %s"` → ["git", "log", "--format=%H %s"]
+fn shell_split(input: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let chars = input.chars();
+    let mut in_single = false;
+    let mut in_double = false;
+
+    for c in chars {
+        match c {
+            '\'' if !in_double => in_single = !in_single,
+            '"' if !in_single => in_double = !in_double,
+            ' ' | '\t' if !in_single && !in_double => {
+                if !current.is_empty() {
+                    tokens.push(std::mem::take(&mut current));
+                }
+            }
+            _ => current.push(c),
+        }
+    }
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+    tokens
+}
+
 fn main() -> Result<()> {
     // Fire-and-forget telemetry ping (1/day, non-blocking)
     telemetry::maybe_ping();
-
-    // Warn if installed hook is outdated (1/day, non-blocking)
-    hook_check::maybe_warn();
 
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
@@ -1131,6 +1287,12 @@ fn main() -> Result<()> {
             return run_fallback(e);
         }
     };
+
+    // Warn if installed hook is outdated/missing (1/day, non-blocking).
+    // Skip for Gain — it shows its own inline hook warning.
+    if !matches!(cli.command, Commands::Gain { .. }) {
+        hook_check::maybe_warn();
+    }
 
     // Runtime integrity check for operational commands.
     // Meta commands (init, gain, verify, config, etc.) skip the check
@@ -1152,12 +1314,20 @@ fn main() -> Result<()> {
             file,
             level,
             max_lines,
+            tail_lines,
             line_numbers,
         } => {
             if file == Path::new("-") {
-                read::run_stdin(level, max_lines, line_numbers, cli.verbose)?;
+                read::run_stdin(level, max_lines, tail_lines, line_numbers, cli.verbose)?;
             } else {
-                read::run(&file, level, max_lines, line_numbers, cli.verbose)?;
+                read::run(
+                    &file,
+                    level,
+                    max_lines,
+                    tail_lines,
+                    line_numbers,
+                    cli.verbose,
+                )?;
             }
         }
 
@@ -1364,11 +1534,15 @@ fn main() -> Result<()> {
             runner::run_test(&cmd, cli.verbose)?;
         }
 
-        Commands::Json { file, depth } => {
+        Commands::Json {
+            file,
+            depth,
+            schema,
+        } => {
             if file == Path::new("-") {
-                json_cmd::run_stdin(depth, cli.verbose)?;
+                json_cmd::run_stdin(depth, schema, cli.verbose)?;
             } else {
-                json_cmd::run(&file, depth, cli.verbose)?;
+                json_cmd::run(&file, depth, schema, cli.verbose)?;
             }
         }
 
@@ -1399,6 +1573,24 @@ fn main() -> Result<()> {
                 log_cmd::run_stdin(cli.verbose)?;
             }
         }
+
+        Commands::Dotnet { command } => match command {
+            DotnetCommands::Build { args } => {
+                dotnet_cmd::run_build(&args, cli.verbose)?;
+            }
+            DotnetCommands::Test { args } => {
+                dotnet_cmd::run_test(&args, cli.verbose)?;
+            }
+            DotnetCommands::Restore { args } => {
+                dotnet_cmd::run_restore(&args, cli.verbose)?;
+            }
+            DotnetCommands::Format { args } => {
+                dotnet_cmd::run_format(&args, cli.verbose)?;
+            }
+            DotnetCommands::Other(args) => {
+                dotnet_cmd::run_passthrough(&args, cli.verbose)?;
+            }
+        },
 
         Commands::Docker { command } => match command {
             DockerCommands::Ps => {
@@ -1492,18 +1684,23 @@ fn main() -> Result<()> {
 
         Commands::Init {
             global,
+            opencode,
+            gemini,
+            agent,
             show,
             claude_md,
             hook_only,
             auto_patch,
             no_patch,
             uninstall,
+            codex,
         } => {
             if show {
-                init::show_config()?;
+                init::show_config(codex)?;
             } else if uninstall {
-                init::uninstall(global, cli.verbose)?;
-            } else {
+                let cursor = agent == Some(AgentTarget::Cursor);
+                init::uninstall(global, gemini, codex, cursor, cli.verbose)?;
+            } else if gemini {
                 let patch_mode = if auto_patch {
                     init::PatchMode::Auto
                 } else if no_patch {
@@ -1511,15 +1708,49 @@ fn main() -> Result<()> {
                 } else {
                     init::PatchMode::Ask
                 };
-                init::run(global, claude_md, hook_only, patch_mode, cli.verbose)?;
+                init::run_gemini(global, hook_only, patch_mode, cli.verbose)?;
+            } else {
+                let install_opencode = opencode;
+                let install_claude = !opencode;
+                let install_cursor = agent == Some(AgentTarget::Cursor);
+                let install_windsurf = agent == Some(AgentTarget::Windsurf);
+                let install_cline = agent == Some(AgentTarget::Cline);
+
+                let patch_mode = if auto_patch {
+                    init::PatchMode::Auto
+                } else if no_patch {
+                    init::PatchMode::Skip
+                } else {
+                    init::PatchMode::Ask
+                };
+                init::run(
+                    global,
+                    install_claude,
+                    install_opencode,
+                    install_cursor,
+                    install_windsurf,
+                    install_cline,
+                    claude_md,
+                    hook_only,
+                    codex,
+                    patch_mode,
+                    cli.verbose,
+                )?;
             }
         }
 
-        Commands::Wget { url, stdout, args } => {
-            if stdout {
+        Commands::Wget { url, output, args } => {
+            if output.as_deref() == Some("-") {
                 wget_cmd::run_stdout(&url, &args, cli.verbose)?;
             } else {
-                wget_cmd::run(&url, &args, cli.verbose)?;
+                // Pass -O <file> through to wget via args
+                let mut all_args = Vec::new();
+                if let Some(out_file) = &output {
+                    all_args.push("-O".to_string());
+                    all_args.push(out_file.clone());
+                }
+                all_args.extend(args);
+                wget_cmd::run(&url, &all_args, cli.verbose)?;
             }
         }
 
@@ -1685,6 +1916,10 @@ fn main() -> Result<()> {
             discover::run(project.as_deref(), all, since, limit, &format, cli.verbose)?;
         }
 
+        Commands::Session {} => {
+            session_cmd::run(cli.verbose)?;
+        }
+
         Commands::Learn {
             project,
             all,
@@ -1740,7 +1975,7 @@ fn main() -> Result<()> {
                             _ => {
                                 // Passthrough other prisma subcommands
                                 let timer = tracking::TimedExecution::start();
-                                let mut cmd = std::process::Command::new("npx");
+                                let mut cmd = utils::resolved_command("npx");
                                 for arg in &args {
                                     cmd.arg(arg);
                                 }
@@ -1757,7 +1992,7 @@ fn main() -> Result<()> {
                         }
                     } else {
                         let timer = tracking::TimedExecution::start();
-                        let status = std::process::Command::new("npx")
+                        let status = utils::resolved_command("npx")
                             .arg("prisma")
                             .status()
                             .context("Failed to run npx prisma")?;
@@ -1793,6 +2028,18 @@ fn main() -> Result<()> {
 
         Commands::Mypy { args } => {
             mypy_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Rake { args } => {
+            rake_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Rubocop { args } => {
+            rubocop_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Rspec { args } => {
+            rspec_cmd::run(&args, cli.verbose)?;
         }
 
         Commands::Pip { args } => {
@@ -1846,13 +2093,23 @@ fn main() -> Result<()> {
             hook_audit_cmd::run(since, cli.verbose)?;
         }
 
-        Commands::Rewrite { cmd } => {
+        Commands::Hook { command } => match command {
+            HookCommands::Gemini => {
+                hook_cmd::run_gemini()?;
+            }
+            HookCommands::Copilot => {
+                hook_cmd::run_copilot()?;
+            }
+        },
+
+        Commands::Rewrite { args } => {
+            let cmd = args.join(" ");
             rewrite_cmd::run(&cmd)?;
         }
 
         Commands::Proxy { args } => {
             use std::io::{Read, Write};
-            use std::process::{Command, Stdio};
+            use std::process::Stdio;
             use std::thread;
 
             if args.is_empty() {
@@ -1863,17 +2120,32 @@ fn main() -> Result<()> {
 
             let timer = tracking::TimedExecution::start();
 
-            let cmd_name = args[0].to_string_lossy();
-            let cmd_args: Vec<String> = args[1..]
-                .iter()
-                .map(|s| s.to_string_lossy().into_owned())
-                .collect();
+            // If a single quoted arg contains spaces, split it respecting quotes (#388).
+            // e.g. prltc proxy 'head -50 file.php' → cmd=head, args=["-50", "file.php"]
+            // e.g. prltc proxy 'git log --format="%H %s"' → cmd=git, args=["log", "--format=%H %s"]
+            let (cmd_name, cmd_args): (String, Vec<String>) = if args.len() == 1 {
+                let full = args[0].to_string_lossy();
+                let parts = shell_split(&full);
+                if parts.len() > 1 {
+                    (parts[0].clone(), parts[1..].to_vec())
+                } else {
+                    (full.into_owned(), vec![])
+                }
+            } else {
+                (
+                    args[0].to_string_lossy().into_owned(),
+                    args[1..]
+                        .iter()
+                        .map(|s| s.to_string_lossy().into_owned())
+                        .collect(),
+                )
+            };
 
             if cli.verbose > 0 {
                 eprintln!("Proxy mode: {} {}", cmd_name, cmd_args.join(" "));
             }
 
-            let mut child = Command::new(cmd_name.as_ref())
+            let mut child = utils::resolved_command(cmd_name.as_ref())
                 .args(&cmd_args)
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
@@ -1956,6 +2228,14 @@ fn main() -> Result<()> {
             }
         }
 
+        Commands::Trust { list } => {
+            trust::run_trust(list)?;
+        }
+
+        Commands::Untrust => {
+            trust::run_untrust()?;
+        }
+
         Commands::Verify {
             filter,
             require_all,
@@ -2002,6 +2282,7 @@ fn is_operational_command(cmd: &Commands) -> bool {
             | Commands::Find { .. }
             | Commands::Diff { .. }
             | Commands::Log { .. }
+            | Commands::Dotnet { .. }
             | Commands::Docker { .. }
             | Commands::Kubectl { .. }
             | Commands::Summary { .. }
@@ -2020,6 +2301,9 @@ fn is_operational_command(cmd: &Commands) -> bool {
             | Commands::Curl { .. }
             | Commands::Ruff { .. }
             | Commands::Pytest { .. }
+            | Commands::Rake { .. }
+            | Commands::Rubocop { .. }
+            | Commands::Rspec { .. }
             | Commands::Pip { .. }
             | Commands::Go { .. }
             | Commands::GolangciLint { .. }
@@ -2238,8 +2522,8 @@ mod tests {
         // PRLTC meta-commands should produce parse errors (not fall through to raw execution).
         // Skip "proxy" because it uses trailing_var_arg (accepts any args by design).
         for cmd in PRLTC_META_COMMANDS {
-            if *cmd == "proxy" {
-                continue;
+            if matches!(*cmd, "proxy" | "rewrite" | "session") {
+                continue; // these use trailing_var_arg (accept any args by design)
             }
             let result = Cli::try_parse_from(["prltc", cmd, "--nonexistent-flag-xyz"]);
             assert!(
@@ -2270,6 +2554,88 @@ mod tests {
                 "Meta-command {:?} should parse successfully",
                 args
             );
+        }
+    }
+
+    #[test]
+    fn test_shell_split_simple() {
+        assert_eq!(
+            shell_split("head -50 file.php"),
+            vec!["head", "-50", "file.php"]
+        );
+    }
+
+    #[test]
+    fn test_shell_split_double_quotes() {
+        assert_eq!(
+            shell_split(r#"git log --format="%H %s""#),
+            vec!["git", "log", "--format=%H %s"]
+        );
+    }
+
+    #[test]
+    fn test_shell_split_single_quotes() {
+        assert_eq!(
+            shell_split("grep -r 'hello world' ."),
+            vec!["grep", "-r", "hello world", "."]
+        );
+    }
+
+    #[test]
+    fn test_shell_split_single_word() {
+        assert_eq!(shell_split("ls"), vec!["ls"]);
+    }
+
+    #[test]
+    fn test_shell_split_empty() {
+        let result: Vec<String> = shell_split("");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_rewrite_clap_multi_args() {
+        // This is the bug KuSh reported: `prltc rewrite ls -al` failed because
+        // Clap rejected `-al` as an unknown flag. With trailing_var_arg + allow_hyphen_values,
+        // multiple args are accepted and joined into a single command string.
+        let cases = vec![
+            vec!["prltc", "rewrite", "ls", "-al"],
+            vec!["prltc", "rewrite", "git", "status"],
+            vec!["prltc", "rewrite", "npm", "exec"],
+            vec!["prltc", "rewrite", "cargo", "test"],
+            vec!["prltc", "rewrite", "du", "-sh", "."],
+            vec!["prltc", "rewrite", "head", "-50", "file.txt"],
+        ];
+        for args in &cases {
+            let result = Cli::try_parse_from(args.iter());
+            assert!(
+                result.is_ok(),
+                "prltc rewrite {:?} should parse (was failing before trailing_var_arg fix)",
+                &args[2..]
+            );
+            if let Ok(cli) = result {
+                match cli.command {
+                    Commands::Rewrite { ref args } => {
+                        assert!(args.len() >= 2, "rewrite args should capture all tokens");
+                    }
+                    _ => panic!("expected Rewrite command"),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_rewrite_clap_quoted_single_arg() {
+        // Quoted form: `prltc rewrite "git status"` — single arg containing spaces
+        let result = Cli::try_parse_from(["prltc", "rewrite", "git status"]);
+        assert!(result.is_ok());
+        if let Ok(cli) = result {
+            match cli.command {
+                Commands::Rewrite { ref args } => {
+                    assert_eq!(args.len(), 1);
+                    assert_eq!(args[0], "git status");
+                }
+                _ => panic!("expected Rewrite command"),
+            }
         }
     }
 }

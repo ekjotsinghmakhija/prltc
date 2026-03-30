@@ -5,6 +5,7 @@
  */
 
 use crate::tracking;
+use crate::utils::{resolved_command, tool_exists};
 use anyhow::{Context, Result};
 use std::process::Command;
 
@@ -32,16 +33,10 @@ pub fn run(cmd: PrismaCommand, args: &[String], verbose: u8) -> Result<()> {
 
 /// Create a Command that will run prisma (tries global first, then npx)
 fn create_prisma_command() -> Command {
-    let prisma_exists = Command::new("which")
-        .arg("prisma")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-
-    if prisma_exists {
-        Command::new("prisma")
+    if tool_exists("prisma") {
+        resolved_command("prisma")
     } else {
-        let mut c = Command::new("npx");
+        let mut c = resolved_command("npx");
         c.arg("prisma");
         c
     }
@@ -65,18 +60,24 @@ fn run_generate(args: &[String], verbose: u8) -> Result<()> {
         .output()
         .context("Failed to run prisma generate (try: npm install -g prisma)")?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("prisma generate failed: {}", stderr);
-    }
-
+    let exit_code = output.status.code().unwrap_or(1);
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let raw = format!("{}\n{}", stdout, stderr);
+
+    if !output.status.success() {
+        if !stdout.trim().is_empty() {
+            eprint!("{}", stdout);
+        }
+        if !stderr.trim().is_empty() {
+            eprint!("{}", stderr);
+        }
+        timer.track("prisma generate", "prltc prisma generate", &raw, &raw);
+        std::process::exit(exit_code);
+    }
+
     let filtered = filter_prisma_generate(&raw);
-
     println!("{}", filtered);
-
     timer.track("prisma generate", "prltc prisma generate", &raw, &filtered);
 
     Ok(())
@@ -116,14 +117,21 @@ fn run_migrate(subcommand: MigrateSubcommand, args: &[String], verbose: u8) -> R
 
     let output = cmd.output().context("Failed to run prisma migrate")?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("prisma migrate failed: {}", stderr);
-    }
-
+    let exit_code = output.status.code().unwrap_or(1);
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let raw = format!("{}\n{}", stdout, stderr);
+
+    if !output.status.success() {
+        if !stdout.trim().is_empty() {
+            eprint!("{}", stdout);
+        }
+        if !stderr.trim().is_empty() {
+            eprint!("{}", stderr);
+        }
+        timer.track(cmd_name, &format!("prltc {}", cmd_name), &raw, &raw);
+        std::process::exit(exit_code);
+    }
 
     let filtered = match subcommand {
         MigrateSubcommand::Dev { .. } => filter_migrate_dev(&raw),
@@ -132,7 +140,6 @@ fn run_migrate(subcommand: MigrateSubcommand, args: &[String], verbose: u8) -> R
     };
 
     println!("{}", filtered);
-
     timer.track(cmd_name, &format!("prltc {}", cmd_name), &raw, &filtered);
 
     Ok(())
@@ -154,18 +161,24 @@ fn run_db_push(args: &[String], verbose: u8) -> Result<()> {
 
     let output = cmd.output().context("Failed to run prisma db push")?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("prisma db push failed: {}", stderr);
-    }
-
+    let exit_code = output.status.code().unwrap_or(1);
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let raw = format!("{}\n{}", stdout, stderr);
+
+    if !output.status.success() {
+        if !stdout.trim().is_empty() {
+            eprint!("{}", stdout);
+        }
+        if !stderr.trim().is_empty() {
+            eprint!("{}", stderr);
+        }
+        timer.track("prisma db push", "prltc prisma db push", &raw, &raw);
+        std::process::exit(exit_code);
+    }
+
     let filtered = filter_db_push(&raw);
-
     println!("{}", filtered);
-
     timer.track("prisma db push", "prltc prisma db push", &raw, &filtered);
 
     Ok(())
@@ -214,7 +227,7 @@ fn filter_prisma_generate(output: &str) -> String {
     }
 
     let mut result = String::new();
-    result.push_str("✓ Prisma Client generated\n");
+    result.push_str("Prisma Client generated\n");
 
     if models > 0 || enums > 0 || types > 0 {
         result.push_str(&format!(
@@ -276,7 +289,7 @@ fn filter_migrate_dev(output: &str) -> String {
     let mut result = String::new();
 
     if !migration_name.is_empty() {
-        result.push_str(&format!("🗃️  Migration: {}\n", migration_name));
+        result.push_str(&format!("Migration: {}\n", migration_name));
         result.push_str("═══════════════════════════════════════\n");
     }
 
@@ -296,7 +309,7 @@ fn filter_migrate_dev(output: &str) -> String {
 
     result.push('\n');
     if applied {
-        result.push_str("✓ Applied | Pending: 0\n");
+        result.push_str("Applied | Pending: 0\n");
     }
 
     result.trim().to_string()
@@ -353,9 +366,9 @@ fn filter_migrate_deploy(output: &str) -> String {
     let mut result = String::new();
 
     if errors.is_empty() {
-        result.push_str(&format!("✓ {} migration(s) deployed\n", deployed));
+        result.push_str(&format!("{} migration(s) deployed\n", deployed));
     } else {
-        result.push_str("❌ Deployment failed:\n");
+        result.push_str("[FAIL] Deployment failed:\n");
         for err in errors.iter().take(5) {
             result.push_str(&format!("  {}\n", err));
         }
@@ -383,7 +396,7 @@ fn filter_db_push(output: &str) -> String {
     }
 
     let mut result = String::new();
-    result.push_str("✓ Schema pushed to database\n");
+    result.push_str("Schema pushed to database\n");
 
     if tables_added > 0 || columns_modified > 0 || dropped > 0 {
         result.push_str(&format!(
@@ -453,7 +466,7 @@ import { PrismaClient } from '@prisma/client'
 42 models, 18 enums, 890 types generated
 "#;
         let result = filter_prisma_generate(output);
-        assert!(result.contains("✓ Prisma Client generated"));
+        assert!(result.contains("Prisma Client generated"));
         // Parser may not extract exact counts from this format, just check it doesn't crash
         assert!(!result.contains("Prisma schema loaded"));
         assert!(!result.contains("Start by importing"));
@@ -477,7 +490,7 @@ CREATE INDEX "session_status_idx" ON "Session"("status");
         let result = filter_migrate_dev(output);
         assert!(result.contains("20260128_add_sessions"));
         assert!(result.contains("+ 1 table"));
-        assert!(result.contains("✓ Applied"));
+        assert!(result.contains("Applied"));
     }
 
     #[test]

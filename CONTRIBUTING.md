@@ -29,33 +29,46 @@
 
 ## Branch Naming Convention
 
-Git branch names cannot include spaces or colons, so we use slash-prefixed names. Pick the prefix that matches your change type and follow it with an optional scope and a short, kebab-case description.
+Every branch **must** follow one of these prefixes to identify the level of change:
 
 | Prefix | Semver Impact | When to Use |
 |--------|---------------|-------------|
-| `fix/` | Patch | Bug fixes, corrections, minor adjustments |
-| `feat/` | Minor | New features, new filters, new command support |
-| `chore/` | Major | Breaking changes, API changes, removed functionality |
+| `fix(scope): ...` | Patch | Bug fixes, corrections, minor adjustments |
+| `feat(scope): ...` | Minor | New features, new filters, new command support |
+| `chore(scope): ...` | Major | Breaking changes, API changes, removed functionality |
 
-Combine the prefix with a scope if it adds clarity (e.g. `git`, `kubectl`, `filter`, `tracking`, `config`) and finish with a descriptive slug: `fix/<scope>-<description>` or `feat/<description>`.
+The **scope** in parentheses indicates which part of the project is concerned (e.g. `git`, `kubectl`, `filter`, `tracking`, `config`).
+
+**Branch title must clearly describe what is affected and the goal.**
 
 Examples:
 ```
-fix/git-log-filter-drops-merge-commits
-feat/kubectl-add-pod-list-filter
-chore/release-pipeline-cleanup
+fix(git): log-filter-drops-merge-commits
+feat(kubectl): add-pod-list-filter
+chore(proxy): remove-deprecated-flags
 ```
 
 ---
 
 ## Pull Request Process
 
+### Scope Rules
+
+**Each PR must focus on a single feature, fix, or change.** The diff must stay in-scope with the description written by the author in the PR title and body. Out-of-scope changes (unrelated refactors, drive-by fixes, formatting of untouched files) must go in a separate PR.
+
+**For large features or refactors**, prefer multi-part PRs over one enormous PR. Split the work into logical, reviewable chunks that can each be merged independently. Examples:
+- Part 1: Add data model and tests
+- Part 2: Add CLI command and integration
+- Part 3: Update documentation and CHANGELOG
+
+**Why**: Small, focused PRs are easier to review, safer to merge, and faster to ship. Large PRs slow down review, hide bugs, and increase merge conflict risk.
+
 ### 1. Create Your Branch
 
 ```bash
 git checkout develop
 git pull origin develop
-git checkout -b feat/scope-your-clear-description
+git checkout -b "feat(scope): your-clear-description"
 ```
 
 ### 2. Make Your Changes

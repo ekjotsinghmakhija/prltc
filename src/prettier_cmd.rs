@@ -118,7 +118,7 @@ pub fn filter_prettier_output(output: &str) -> String {
 
     // Check if all files are formatted
     if files_to_format.is_empty() && output.contains("All matched files use Prettier") {
-        return "✓ Prettier: All files formatted correctly".to_string();
+        return "Prettier: All files formatted correctly".to_string();
     }
 
     // Check if files were written (write mode)
@@ -131,7 +131,7 @@ pub fn filter_prettier_output(output: &str) -> String {
     if is_check_mode {
         // Check mode: show files that need formatting
         if files_to_format.is_empty() {
-            result.push_str("✓ Prettier: All files formatted correctly\n");
+            result.push_str("Prettier: All files formatted correctly\n");
         } else {
             result.push_str(&format!(
                 "Prettier: {} files need formatting\n",
@@ -152,7 +152,7 @@ pub fn filter_prettier_output(output: &str) -> String {
 
             if files_checked > 0 {
                 result.push_str(&format!(
-                    "\n✓ {} files already formatted\n",
+                    "\n{} files already formatted\n",
                     files_checked - files_to_format.len()
                 ));
             }
@@ -160,7 +160,7 @@ pub fn filter_prettier_output(output: &str) -> String {
     } else {
         // Write mode: show what was formatted
         result.push_str(&format!(
-            "✓ Prettier: {} files formatted\n",
+            "Prettier: {} files formatted\n",
             files_to_format.len()
         ));
     }
@@ -179,7 +179,7 @@ Checking formatting...
 All matched files use Prettier code style!
         "#;
         let result = filter_prettier_output(output);
-        assert!(result.contains("✓ Prettier"));
+        assert!(result.contains("Prettier"));
         assert!(result.contains("All files formatted correctly"));
     }
 

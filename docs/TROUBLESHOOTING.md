@@ -167,6 +167,67 @@ Then add to `~/.claude/settings.json` (replace `~` with full path):
 
 ---
 
+## Problem: PRLTC not working in OpenCode
+
+### Symptom
+OpenCode runs commands without prltc, outputs are verbose.
+
+### Checklist
+
+**1. Verify prltc is installed and correct:**
+```bash
+prltc --version
+prltc gain  # Must show stats
+```
+
+**2. Install the OpenCode plugin (global only):**
+```bash
+prltc init -g --opencode
+```
+
+**3. Verify plugin file exists:**
+```bash
+ls -la ~/.config/opencode/plugins/prltc.ts
+```
+
+**4. Restart OpenCode**
+OpenCode must be restarted to load the plugin.
+
+**5. Verify status:**
+```bash
+prltc init --show  # Should show "OpenCode: plugin installed"
+```
+
+---
+
+## Problem: PRLTC commands fail on Windows ("program not found" or "No such file")
+
+### Symptom
+```
+prltc vitest --run
+# Error: program not found
+# Or: The system cannot find the file specified
+
+prltc lint .
+# Error: No such file or directory
+```
+
+### Root Cause
+On Windows, Node.js tools (vitest, eslint, tsc, etc.) are installed as `.CMD` or `.BAT` wrapper scripts, not as native `.exe` binaries. Rust's `std::process::Command::new("vitest")` does not honor the Windows `PATHEXT` environment variable, so it cannot find `vitest.CMD` even when it's on PATH.
+
+### Solution
+Update to prltc v0.23.1+ which resolves this via the `which` crate for proper PATH+PATHEXT resolution. All 16+ command modules now use `resolved_command()` instead of `Command::new()`.
+
+```bash
+cargo install --git https://github.com/ekjotsinghmakhija/prltc
+prltc --version  # Should be 0.23.1+
+```
+
+### Affected Commands
+All commands that spawn external tools: `prltc vitest`, `prltc lint`, `prltc tsc`, `prltc pnpm`, `prltc playwright`, `prltc prisma`, `prltc next`, `prltc prettier`, `prltc ruff`, `prltc pytest`, `prltc pip`, `prltc mypy`, `prltc golangci-lint`, and others.
+
+---
+
 ## Problem: "command not found: prltc" after installation
 
 ### Symptom

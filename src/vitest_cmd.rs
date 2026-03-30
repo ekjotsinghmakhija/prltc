@@ -9,7 +9,7 @@ use regex::Regex;
 use serde::Deserialize;
 
 use crate::parser::{
-    emit_degradation_warning, emit_passthrough_warning, extract_json_object, truncate_output,
+    emit_degradation_warning, emit_passthrough_warning, extract_json_object, truncate_passthrough,
     FormatMode, OutputParser, ParseResult, TestFailure, TestResult, TokenFormatter,
 };
 use crate::tracking;
@@ -94,7 +94,7 @@ impl OutputParser for VitestParser {
                     }
                     None => {
                         // Tier 3: Passthrough
-                        ParseResult::Passthrough(truncate_output(input, 500))
+                        ParseResult::Passthrough(truncate_passthrough(input))
                     }
                 }
             }
@@ -188,7 +188,7 @@ fn extract_failures_regex(output: &str) -> Vec<TestFailure> {
 
     while i < lines.len() {
         let line = lines[i];
-        if line.contains('✗') || line.contains("FAIL") {
+        if line.contains("[x]") || line.contains("FAIL") {
             let mut error_lines = vec![line.to_string()];
             i += 1;
 

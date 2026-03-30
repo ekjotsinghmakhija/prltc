@@ -54,6 +54,10 @@ lazy_static! {
         .collect();
     static ref ENV_PREFIX: Regex =
         Regex::new(r"^(?:sudo\s+|env\s+|[A-Z_][A-Z0-9_]*=[^\s]*\s+)+").unwrap();
+    // Git global options that appear before the subcommand: -C <path>, -c <key=val>,
+    // --git-dir <dir>, --work-tree <dir>, and flag-only options (#163)
+    static ref GIT_GLOBAL_OPT: Regex =
+        Regex::new(r"^(?:(?:-C\s+\S+|-c\s+\S+|--git-dir(?:=\S+|\s+\S+)|--work-tree(?:=\S+|\s+\S+)|--no-pager|--no-optional-locks|--bare|--literal-pathspecs)\s+)+").unwrap();
 }
 
 /// Classify a single (already-split) command.
@@ -80,6 +84,32 @@ pub fn classify_command(cmd: &str) -> Classification {
     let cmd_clean = stripped.trim();
     if cmd_clean.is_empty() {
         return Classification::Ignored;
+    }
+
+    // Normalize absolute binary paths: /usr/bin/grep → grep (#485)
+    let cmd_normalized = strip_absolute_path(cmd_clean);
+    // Strip git global options: git -C /tmp status → git status (#163)
+    let cmd_normalized = strip_git_global_opts(&cmd_normalized);
+    let cmd_clean = cmd_normalized.as_str();
+
+    // Exclude cat/head/tail with redirect operators — these are writes, not reads (#315)
+    if cmd_clean.starts_with("cat ")
+        || cmd_clean.starts_with("head ")
+        || cmd_clean.starts_with("tail ")
+    {
+        let has_redirect = cmd_clean
+            .split_whitespace()
+            .skip(1)
+            .any(|t| t.starts_with('>') || t == "<" || t.starts_with(">>"));
+        if has_redirect {
+            return Classification::Unsupported {
+                base_command: cmd_clean
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("cat")
+                    .to_string(),
+            };
+        }
     }
 
     // Fast check with RegexSet — take the last (most specific) match
@@ -248,6 +278,61 @@ pub fn split_command_chain(cmd: &str) -> Vec<&str> {
     results
 }
 
+/// Strip git global options before the subcommand (#163).
+/// `git -C /tmp status` → `git status`, preserving the rest.
+/// Returns the original string unchanged if not a git command.
+fn strip_git_global_opts(cmd: &str) -> String {
+    // Only applies to commands starting with "git "
+    if !cmd.starts_with("git ") {
+        return cmd.to_string();
+    }
+    let after_git = &cmd[4..]; // skip "git "
+    let stripped = GIT_GLOBAL_OPT.replace(after_git, "");
+    format!("git {}", stripped.trim())
+}
+
+/// Normalize absolute binary paths: `/usr/bin/grep -rn foo` → `grep -rn foo` (#485)
+/// Only strips if the first word contains a `/` (Unix path).
+fn strip_absolute_path(cmd: &str) -> String {
+    let first_space = cmd.find(' ');
+    let first_word = match first_space {
+        Some(pos) => &cmd[..pos],
+        None => cmd,
+    };
+    if first_word.contains('/') {
+        // Extract basename
+        let basename = first_word.rsplit('/').next().unwrap_or(first_word);
+        if basename.is_empty() {
+            return cmd.to_string();
+        }
+        match first_space {
+            Some(pos) => format!("{}{}", basename, &cmd[pos..]),
+            None => basename.to_string(),
+        }
+    } else {
+        cmd.to_string()
+    }
+}
+
+/// Check if a command has PRLTC_DISABLED= prefix in its env prefix portion.
+pub fn has_prltc_disabled_prefix(cmd: &str) -> bool {
+    let trimmed = cmd.trim();
+    let stripped = ENV_PREFIX.replace(trimmed, "");
+    let prefix_len = trimmed.len() - stripped.len();
+    let prefix_part = &trimmed[..prefix_len];
+    prefix_part.contains("PRLTC_DISABLED=")
+}
+
+/// Strip PRLTC_DISABLED=X and other env prefixes, return the actual command.
+pub fn strip_disabled_prefix(cmd: &str) -> &str {
+    let trimmed = cmd.trim();
+    let stripped = ENV_PREFIX.replace(trimmed, "");
+    // stripped is a Cow<str> that borrows from trimmed when no replacement happens.
+    // We need to return a &str into the original, so compute the offset.
+    let prefix_len = trimmed.len() - stripped.len();
+    trimmed[prefix_len..].trim_start()
+}
+
 /// Rewrite a raw command to its PRLTC equivalent.
 ///
 /// Returns `Some(rewritten)` if the command has an PRLTC equivalent or is already PRLTC.
@@ -322,8 +407,18 @@ fn rewrite_compound(cmd: &str, excluded: &[String]) -> Option<String> {
                 } else {
                     // `|` pipe — rewrite first segment only, pass through the rest unchanged
                     let seg = cmd[seg_start..i].trim();
-                    let rewritten =
-                        rewrite_segment(seg, excluded).unwrap_or_else(|| seg.to_string());
+                    // Skip rewriting `find`/`fd` in pipes — prltc find outputs a grouped
+                    // format that is incompatible with pipe consumers like xargs, grep,
+                    // wc, sort, etc. which expect one path per line (#439).
+                    let is_pipe_incompatible = seg.starts_with("find ")
+                        || seg == "find"
+                        || seg.starts_with("fd ")
+                        || seg == "fd";
+                    let rewritten = if is_pipe_incompatible {
+                        seg.to_string()
+                    } else {
+                        rewrite_segment(seg, excluded).unwrap_or_else(|| seg.to_string())
+                    };
                     if rewritten != seg {
                         any_changed = true;
                     }
@@ -437,6 +532,36 @@ fn rewrite_head_numeric(cmd: &str) -> Option<String> {
     None
 }
 
+/// Rewrite `tail` numeric line forms to `prltc read ... --tail-lines N`.
+/// Returns `None` when the pattern is unsupported (caller falls through / skips rewrite).
+fn rewrite_tail_lines(cmd: &str) -> Option<String> {
+    lazy_static! {
+        static ref TAIL_N: Regex = Regex::new(r"^tail\s+-(\d+)\s+(.+)$").expect("valid regex");
+        static ref TAIL_N_SPACE: Regex =
+            Regex::new(r"^tail\s+-n\s+(\d+)\s+(.+)$").expect("valid regex");
+        static ref TAIL_LINES_EQ: Regex =
+            Regex::new(r"^tail\s+--lines=(\d+)\s+(.+)$").expect("valid regex");
+        static ref TAIL_LINES_SPACE: Regex =
+            Regex::new(r"^tail\s+--lines\s+(\d+)\s+(.+)$").expect("valid regex");
+    }
+
+    for re in [
+        &*TAIL_N,
+        &*TAIL_N_SPACE,
+        &*TAIL_LINES_EQ,
+        &*TAIL_LINES_SPACE,
+    ] {
+        if let Some(caps) = re.captures(cmd) {
+            let n = caps.get(1)?.as_str();
+            let file = caps.get(2)?.as_str();
+            return Some(format!("prltc read {} --tail-lines {}", file, n));
+        }
+    }
+
+    // Unknown tail form: skip rewrite to preserve native behavior.
+    None
+}
+
 /// Rewrite a single (non-compound) command segment.
 /// Returns `Some(rewritten)` if matched (including already-PRLTC pass-through).
 /// Returns `None` if no match (caller uses original segment).
@@ -457,6 +582,12 @@ fn rewrite_segment(seg: &str, excluded: &[String]) -> Option<String> {
     // through to the generic rewrite below and produces `prltc read file` as expected.
     if trimmed.starts_with("head -") {
         return rewrite_head_numeric(trimmed);
+    }
+
+    // tail has several forms that are not compatible with generic prefix replacement.
+    // Only rewrite recognized numeric line forms; otherwise skip rewrite.
+    if trimmed.starts_with("tail ") {
+        return rewrite_tail_lines(trimmed);
     }
 
     // Use classify_command for correct ignore/prefix handling
@@ -482,7 +613,7 @@ fn rewrite_segment(seg: &str, excluded: &[String]) -> Option<String> {
     let cmd_clean = stripped_cow.trim();
 
     // #345: PRLTC_DISABLED=1 in env prefix → skip rewrite entirely
-    if env_prefix.contains("PRLTC_DISABLED=") {
+    if has_prltc_disabled_prefix(trimmed) {
         return None;
     }
 
@@ -599,6 +730,25 @@ mod tests {
     }
 
     #[test]
+    fn test_classify_cat_redirect_not_supported() {
+        // cat > file and cat >> file are writes, not reads — should not be classified as supported
+        let write_commands = [
+            "cat > /tmp/output.txt",
+            "cat >> /tmp/output.txt",
+            "cat file.txt > output.txt",
+            "cat -n file.txt >> log.txt",
+            "head -10 README.md > output.txt",
+            "tail -f app.log > /dev/null",
+        ];
+        for cmd in &write_commands {
+            if let Classification::Supported { .. } = classify_command(cmd) {
+                panic!("{} should NOT be classified as Supported", cmd)
+            }
+            // Unsupported or Ignored is fine
+        }
+    }
+
+    #[test]
     fn test_classify_cd_ignored() {
         assert_eq!(classify_command("cd /tmp"), Classification::Ignored);
     }
@@ -617,10 +767,10 @@ mod tests {
     }
 
     #[test]
-    fn test_classify_terraform_unsupported() {
-        match classify_command("terraform plan -var-file=prod.tfvars") {
+    fn test_classify_htop_unsupported() {
+        match classify_command("htop -d 10") {
             Classification::Unsupported { base_command } => {
-                assert_eq!(base_command, "terraform plan");
+                assert_eq!(base_command, "htop");
             }
             other => panic!("expected Unsupported, got {:?}", other),
         }
@@ -846,6 +996,48 @@ mod tests {
         );
     }
 
+    // --- git -C <path> support (#555) ---
+
+    #[test]
+    fn test_rewrite_git_dash_c_status() {
+        assert_eq!(
+            rewrite_command("git -C /path/to/repo status", &[]),
+            Some("prltc git -C /path/to/repo status".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_git_dash_c_log() {
+        assert_eq!(
+            rewrite_command("git -C /tmp/myrepo log --oneline -5", &[]),
+            Some("prltc git -C /tmp/myrepo log --oneline -5".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_git_dash_c_diff() {
+        assert_eq!(
+            rewrite_command("git -C /home/user/project diff --name-only", &[]),
+            Some("prltc git -C /home/user/project diff --name-only".into())
+        );
+    }
+
+    #[test]
+    fn test_classify_git_dash_c() {
+        let result = classify_command("git -C /tmp status");
+        assert!(
+            matches!(
+                result,
+                Classification::Supported {
+                    prltc_equivalent: "prltc git",
+                    ..
+                }
+            ),
+            "git -C should be classified as supported, got: {:?}",
+            result
+        );
+    }
+
     #[test]
     fn test_rewrite_cargo_test() {
         assert_eq!(
@@ -892,8 +1084,8 @@ mod tests {
     #[test]
     fn test_rewrite_background_unsupported_right() {
         assert_eq!(
-            rewrite_command("cargo test & terraform plan", &[]),
-            Some("prltc cargo test & terraform plan".into())
+            rewrite_command("cargo test & htop", &[]),
+            Some("prltc cargo test & htop".into())
         );
     }
 
@@ -908,7 +1100,7 @@ mod tests {
 
     #[test]
     fn test_rewrite_unsupported_returns_none() {
-        assert_eq!(rewrite_command("terraform plan", &[]), None);
+        assert_eq!(rewrite_command("htop", &[]), None);
     }
 
     #[test]
@@ -978,6 +1170,30 @@ mod tests {
         assert_eq!(
             rewrite_command("git log -10 | grep feat", &[]),
             Some("prltc git log -10 | grep feat".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_find_pipe_skipped() {
+        // find in a pipe should NOT be rewritten — prltc find output format
+        // is incompatible with pipe consumers like xargs (#439)
+        assert_eq!(
+            rewrite_command("find . -name '*.rs' | xargs grep 'fn run'", &[]),
+            None
+        );
+    }
+
+    #[test]
+    fn test_rewrite_find_pipe_xargs_wc() {
+        assert_eq!(rewrite_command("find src -type f | wc -l", &[]), None);
+    }
+
+    #[test]
+    fn test_rewrite_find_no_pipe_still_rewritten() {
+        // find WITHOUT a pipe should still be rewritten
+        assert_eq!(
+            rewrite_command("find . -name '*.rs'", &[]),
+            Some("prltc find . -name '*.rs'".into())
         );
     }
 
@@ -1116,6 +1332,48 @@ mod tests {
     fn test_rewrite_head_other_flag_skipped() {
         // head -c 100 file: unsupported flag, skip rewriting
         assert_eq!(rewrite_command("head -c 100 src/main.rs", &[]), None);
+    }
+
+    #[test]
+    fn test_rewrite_tail_numeric_flag() {
+        assert_eq!(
+            rewrite_command("tail -20 src/main.rs", &[]),
+            Some("prltc read src/main.rs --tail-lines 20".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_tail_n_space_flag() {
+        assert_eq!(
+            rewrite_command("tail -n 12 src/lib.rs", &[]),
+            Some("prltc read src/lib.rs --tail-lines 12".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_tail_lines_long_flag() {
+        assert_eq!(
+            rewrite_command("tail --lines=7 src/lib.rs", &[]),
+            Some("prltc read src/lib.rs --tail-lines 7".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_tail_lines_space_flag() {
+        assert_eq!(
+            rewrite_command("tail --lines 7 src/lib.rs", &[]),
+            Some("prltc read src/lib.rs --tail-lines 7".into())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_tail_other_flag_skipped() {
+        assert_eq!(rewrite_command("tail -c 100 src/main.rs", &[]), None);
+    }
+
+    #[test]
+    fn test_rewrite_tail_plain_file_skipped() {
+        assert_eq!(rewrite_command("tail src/main.rs", &[]), None);
     }
 
     // --- New registry entries ---
@@ -1264,6 +1522,27 @@ mod tests {
         assert_eq!(
             rewrite_command("docker run --rm ubuntu bash", &[]),
             Some("prltc docker run --rm ubuntu bash".into())
+        );
+    }
+
+    #[test]
+    fn test_classify_swift_test() {
+        assert!(matches!(
+            classify_command("swift test"),
+            Classification::Supported {
+                prltc_equivalent: "prltc swift",
+                category: "Build",
+                estimated_savings_pct: 90.0,
+                status: RtkStatus::Existing,
+            }
+        ));
+    }
+
+    #[test]
+    fn test_rewrite_swift_test() {
+        assert_eq!(
+            rewrite_command("swift test --parallel", &[]),
+            Some("prltc swift test --parallel".into())
         );
     }
 
@@ -1701,18 +1980,15 @@ mod tests {
     fn test_rewrite_compound_mixed_supported_unsupported() {
         // unsupported segments stay raw
         assert_eq!(
-            rewrite_command("cargo test && terraform plan", &[]),
-            Some("prltc cargo test && terraform plan".into())
+            rewrite_command("cargo test && htop", &[]),
+            Some("prltc cargo test && htop".into())
         );
     }
 
     #[test]
     fn test_rewrite_compound_all_unsupported_returns_none() {
         // No rewrite at all: returns None
-        assert_eq!(
-            rewrite_command("terraform plan && terraform apply", &[]),
-            None
-        );
+        assert_eq!(rewrite_command("htop && top", &[]), None);
     }
 
     // --- sudo / env prefix + rewrite ---
@@ -1862,5 +2138,160 @@ mod tests {
             rewrite_command("gh pr list", &[]),
             Some("prltc gh pr list".into())
         );
+    }
+
+    // --- #508: PRLTC_DISABLED detection helpers ---
+
+    #[test]
+    fn test_has_prltc_disabled_prefix() {
+        assert!(has_prltc_disabled_prefix("PRLTC_DISABLED=1 git status"));
+        assert!(has_prltc_disabled_prefix("FOO=1 PRLTC_DISABLED=1 cargo test"));
+        assert!(has_prltc_disabled_prefix(
+            "PRLTC_DISABLED=true git log --oneline"
+        ));
+        assert!(!has_prltc_disabled_prefix("git status"));
+        assert!(!has_prltc_disabled_prefix("prltc git status"));
+        assert!(!has_prltc_disabled_prefix("SOME_VAR=1 git status"));
+    }
+
+    #[test]
+    fn test_strip_disabled_prefix() {
+        assert_eq!(
+            strip_disabled_prefix("PRLTC_DISABLED=1 git status"),
+            "git status"
+        );
+        assert_eq!(
+            strip_disabled_prefix("FOO=1 PRLTC_DISABLED=1 cargo test"),
+            "cargo test"
+        );
+        assert_eq!(strip_disabled_prefix("git status"), "git status");
+    }
+
+    // --- #485: absolute path normalization ---
+
+    #[test]
+    fn test_classify_absolute_path_grep() {
+        assert_eq!(
+            classify_command("/usr/bin/grep -rni pattern"),
+            Classification::Supported {
+                prltc_equivalent: "prltc grep",
+                category: "Files",
+                estimated_savings_pct: 75.0,
+                status: RtkStatus::Existing,
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_absolute_path_ls() {
+        assert_eq!(
+            classify_command("/bin/ls -la"),
+            Classification::Supported {
+                prltc_equivalent: "prltc ls",
+                category: "Files",
+                estimated_savings_pct: 65.0,
+                status: RtkStatus::Existing,
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_absolute_path_git() {
+        assert_eq!(
+            classify_command("/usr/local/bin/git status"),
+            Classification::Supported {
+                prltc_equivalent: "prltc git",
+                category: "Git",
+                estimated_savings_pct: 70.0,
+                status: RtkStatus::Existing,
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_absolute_path_no_args() {
+        // /usr/bin/find alone → still classified
+        assert_eq!(
+            classify_command("/usr/bin/find ."),
+            Classification::Supported {
+                prltc_equivalent: "prltc find",
+                category: "Files",
+                estimated_savings_pct: 70.0,
+                status: RtkStatus::Existing,
+            }
+        );
+    }
+
+    #[test]
+    fn test_strip_absolute_path_helper() {
+        assert_eq!(strip_absolute_path("/usr/bin/grep -rn foo"), "grep -rn foo");
+        assert_eq!(strip_absolute_path("/bin/ls -la"), "ls -la");
+        assert_eq!(strip_absolute_path("grep -rn foo"), "grep -rn foo");
+        assert_eq!(strip_absolute_path("/usr/local/bin/git"), "git");
+    }
+
+    // --- #163: git global options ---
+
+    #[test]
+    fn test_classify_git_with_dash_c_path() {
+        assert_eq!(
+            classify_command("git -C /tmp status"),
+            Classification::Supported {
+                prltc_equivalent: "prltc git",
+                category: "Git",
+                estimated_savings_pct: 70.0,
+                status: RtkStatus::Existing,
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_git_no_pager_log() {
+        assert_eq!(
+            classify_command("git --no-pager log -5"),
+            Classification::Supported {
+                prltc_equivalent: "prltc git",
+                category: "Git",
+                estimated_savings_pct: 70.0,
+                status: RtkStatus::Existing,
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_git_git_dir() {
+        assert_eq!(
+            classify_command("git --git-dir /tmp/.git status"),
+            Classification::Supported {
+                prltc_equivalent: "prltc git",
+                category: "Git",
+                estimated_savings_pct: 70.0,
+                status: RtkStatus::Existing,
+            }
+        );
+    }
+
+    #[test]
+    fn test_rewrite_git_dash_c() {
+        assert_eq!(
+            rewrite_command("git -C /tmp status", &[]),
+            Some("prltc git -C /tmp status".to_string())
+        );
+    }
+
+    #[test]
+    fn test_rewrite_git_no_pager() {
+        assert_eq!(
+            rewrite_command("git --no-pager log -5", &[]),
+            Some("prltc git --no-pager log -5".to_string())
+        );
+    }
+
+    #[test]
+    fn test_strip_git_global_opts_helper() {
+        assert_eq!(strip_git_global_opts("git -C /tmp status"), "git status");
+        assert_eq!(strip_git_global_opts("git --no-pager log"), "git log");
+        assert_eq!(strip_git_global_opts("git status"), "git status");
+        assert_eq!(strip_git_global_opts("cargo test"), "cargo test");
     }
 }

@@ -90,7 +90,7 @@ Download from [releases](https://github.com/ekjotsinghmakhija/prltc/releases):
 ### Verify Installation
 
 ```bash
-prltc --version   # Should show "prltc 0.28.0"
+prltc --version   # Should show "prltc 0.28.2"
 prltc gain        # Should show token savings stats
 ```
 
@@ -102,12 +102,15 @@ prltc gain        # Should show token savings stats
 # 1. Install hook for Claude Code (recommended)
 prltc init --global
 # Follow instructions to register in ~/.claude/settings.json
+# Claude Code only by default (use --opencode for OpenCode, --gemini for Gemini CLI)
 
 # 2. Restart Claude Code, then test
 git status  # Automatically rewritten to prltc git status
 ```
 
-The hook transparently rewrites commands (e.g., `git status` -> `prltc git status`) before execution. Claude never sees the rewrite, it just gets compressed output.
+The hook transparently rewrites Bash commands (e.g., `git status` -> `prltc git status`) before execution. Claude never sees the rewrite, it just gets compressed output.
+
+**Important:** the hook only runs on Bash tool calls. Claude Code built-in tools like `Read`, `Grep`, and `Glob` do not pass through the Bash hook, so they are not auto-rewritten. To get PRLTC's compact output for those workflows, use shell commands (`cat`/`head`/`tail`, `rg`/`grep`, `find`) or call `prltc read`, `prltc grep`, or `prltc find` directly.
 
 ## How It Works
 
@@ -168,6 +171,8 @@ prltc playwright test             # E2E results (failures only)
 prltc pytest                      # Python tests (-90%)
 prltc go test                     # Go tests (NDJSON, -90%)
 prltc cargo test                  # Cargo tests (-90%)
+prltc rake test                   # Ruby minitest (-90%)
+prltc rspec                       # RSpec tests (JSON, -60%+)
 ```
 
 ### Build & Lint
@@ -181,6 +186,7 @@ prltc cargo build                 # Cargo build (-80%)
 prltc cargo clippy                # Cargo clippy (-80%)
 prltc ruff check                  # Python linting (JSON, -80%)
 prltc golangci-lint run           # Go linting (JSON, -85%)
+prltc rubocop                     # Ruby linting (JSON, -60%+)
 ```
 
 ### Package Managers
@@ -188,6 +194,7 @@ prltc golangci-lint run           # Go linting (JSON, -85%)
 prltc pnpm list                   # Compact dependency tree
 prltc pip list                    # Python packages (auto-detect uv)
 prltc pip outdated                # Outdated packages
+prltc bundle install              # Ruby gems (strip Using lines)
 prltc prisma generate             # Schema generation (no ASCII art)
 ```
 
@@ -224,6 +231,8 @@ prltc gain --all --format json    # JSON export for dashboards
 
 prltc discover                    # Find missed savings opportunities
 prltc discover --all --since 7    # All projects, last 7 days
+
+prltc session                     # Show PRLTC adoption across recent sessions
 ```
 
 ## Global Flags
@@ -268,16 +277,62 @@ The most effective way to use prltc. The hook transparently intercepts Bash comm
 
 **Result**: 100% prltc adoption across all conversations and subagents, zero token overhead.
 
+**Scope note:** this only applies to Bash tool calls. Claude Code built-in tools such as `Read`, `Grep`, and `Glob` bypass the hook, so use shell commands or explicit `prltc` commands when you want PRLTC filtering there.
+
 ### Setup
 
 ```bash
 prltc init -g                 # Install hook + PRLTC.md (recommended)
+prltc init -g --opencode      # OpenCode plugin (instead of Claude Code)
 prltc init -g --auto-patch    # Non-interactive (CI/CD)
 prltc init -g --hook-only     # Hook only, no PRLTC.md
 prltc init --show             # Verify installation
 ```
 
 After install, **restart Claude Code**.
+
+## Gemini CLI Support (Global)
+
+PRLTC supports Gemini CLI via a native Rust hook processor. The hook intercepts `run_shell_command` tool calls and rewrites them to `prltc` equivalents using the same rewrite engine as Claude Code.
+
+**Install Gemini hook:**
+```bash
+prltc init -g --gemini
+```
+
+**What it creates:**
+- `~/.gemini/hooks/prltc-hook-gemini.sh` (thin wrapper calling `prltc hook gemini`)
+- `~/.gemini/GEMINI.md` (PRLTC awareness instructions)
+- Patches `~/.gemini/settings.json` with BeforeTool hook
+
+**Uninstall:**
+```bash
+prltc init -g --gemini --uninstall
+```
+
+**Restart Required**: Restart Gemini CLI, then test with `git status` in a session.
+
+## OpenCode Plugin (Global)
+
+OpenCode supports plugins that can intercept tool execution. PRLTC provides a global plugin that mirrors the Claude auto-rewrite behavior by rewriting Bash tool commands to `prltc ...` before they execute. This plugin is **not** installed by default.
+
+> **Note**: This plugin uses OpenCode's `tool.execute.before` hook. Known limitation: plugin hooks do not intercept subagent tool calls ([upstream issue](https://github.com/sst/opencode/issues/5894)). See [OpenCode plugin docs](https://open-code.ai/en/docs/plugins) for API details.
+
+**Install OpenCode plugin:**
+```bash
+prltc init -g --opencode
+```
+
+**What it creates:**
+- `~/.config/opencode/plugins/prltc.ts`
+
+**Restart Required**: Restart OpenCode, then test with `git status` in a session.
+
+**Manual install (fallback):**
+```bash
+mkdir -p ~/.config/opencode/plugins
+cp hooks/opencode-prltc.ts ~/.config/opencode/plugins/prltc.ts
+```
 
 ### Commands Rewritten
 
@@ -300,6 +355,10 @@ After install, **restart Claude Code**.
 | `pip list/install` | `prltc pip ...` |
 | `go test/build/vet` | `prltc go ...` |
 | `golangci-lint` | `prltc golangci-lint` |
+| `rake test` / `rails test` | `prltc rake test` |
+| `rspec` / `bundle exec rspec` | `prltc rspec` |
+| `rubocop` / `bundle exec rubocop` | `prltc rubocop` |
+| `bundle install/update` | `prltc bundle ...` |
 | `docker ps/images/logs` | `prltc docker ...` |
 | `kubectl get/logs` | `prltc kubectl ...` |
 | `curl` | `prltc curl` |
