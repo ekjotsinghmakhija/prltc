@@ -194,7 +194,8 @@ impl TomlFilterRegistry {
                 .unwrap_or(crate::hooks::trust::TrustStatus::Untrusted);
 
             match trust_status {
-                crate::hooks::trust::TrustStatus::Trusted | crate::hooks::trust::TrustStatus::EnvOverride => {
+                crate::hooks::trust::TrustStatus::Trusted
+                | crate::hooks::trust::TrustStatus::EnvOverride => {
                     if let Ok(content) = std::fs::read_to_string(project_filter_path) {
                         match Self::parse_and_compile(&content, "project") {
                             Ok(f) => filters.extend(f),
@@ -556,10 +557,11 @@ pub fn run_filter_tests(filter_name_opt: Option<&str>) -> VerifyResults {
     // Trust-gated: only verify project-local filters if trusted (SA-2025-PRLTC-002)
     let project_path = std::path::Path::new(".prltc/filters.toml");
     if project_path.exists() {
-        let trust_status =
-            crate::hooks::trust::check_trust(project_path).unwrap_or(crate::hooks::trust::TrustStatus::Untrusted);
+        let trust_status = crate::hooks::trust::check_trust(project_path)
+            .unwrap_or(crate::hooks::trust::TrustStatus::Untrusted);
         match trust_status {
-            crate::hooks::trust::TrustStatus::Trusted | crate::hooks::trust::TrustStatus::EnvOverride => {
+            crate::hooks::trust::TrustStatus::Trusted
+            | crate::hooks::trust::TrustStatus::EnvOverride => {
                 if let Ok(content) = std::fs::read_to_string(project_path) {
                     collect_test_outcomes(
                         &content,
