@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # prltc-hook-version: 3
 # PRLTC auto-rewrite hook for Claude Code PreToolUse:Bash
 # Transparently rewrites raw commands to their PRLTC equivalents.
