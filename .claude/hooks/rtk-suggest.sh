@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # PRLTC suggest hook for Claude Code PreToolUse:Bash
 # Emits system reminders when prltc-compatible commands are detected.
 # Outputs JSON with systemMessage to inform Claude Code without modifying execution.

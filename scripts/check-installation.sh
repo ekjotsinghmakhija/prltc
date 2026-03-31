@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # PRLTC Installation Verification Script
 # Helps diagnose if you have the correct prltc (Token Killer) installed
 

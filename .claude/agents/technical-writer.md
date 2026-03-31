@@ -227,11 +227,11 @@ echo $LAST_COMMAND  # Should show "prltc git status"
 ### 1. Create Filter Module
 
 ```bash
-touch src/cmds/<ecosystem>/newcmd_cmd.rs
+touch src/newcmd_cmd.rs
 ```
 
 ```rust
-// src/cmds/<ecosystem>/newcmd_cmd.rs
+// src/newcmd_cmd.rs
 use anyhow::{Context, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
