@@ -94,6 +94,7 @@ pub const PATTERNS: &[&str] = &[
     r"^trunk\s+build",
     r"^uv\s+(sync|pip\s+install)\b",
     r"^yamllint\b",
+    r"^wc(\s|$)",
 ];
 
 pub const RULES: &[RtkRule] = &[
@@ -659,6 +660,14 @@ pub const RULES: &[RtkRule] = &[
         subcmd_savings: &[],
         subcmd_status: &[],
     },
+    RtkRule {
+        prltc_cmd: "prltc wc",
+        rewrite_prefixes: &["wc"],
+        category: "Files",
+        savings_pct: 60.0,
+        subcmd_savings: &[],
+        subcmd_status: &[],
+    },
 ];
 
 /// Commands to ignore (shell builtins, trivial, already prltc).
@@ -687,7 +696,6 @@ pub const IGNORED_PREFIXES: &[&str] = &[
     "kill ",
     "set ",
     "unset ",
-    "wc ",
     "sort ",
     "uniq ",
     "tr ",
