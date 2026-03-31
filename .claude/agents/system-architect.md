@@ -30,24 +30,21 @@ Think in terms of filter families, not individual commands. Every new `*_cmd.rs`
 ## PRLTC Architecture Map
 
 ```
-src/main.rs
+main.rs
 ├── Commands enum (clap derive)
-│   ├── Git(GitArgs)      → cmds/git/git.rs
-│   ├── Cargo(CargoArgs)  → cmds/rust/runner.rs
-│   ├── Gh(GhArgs)        → cmds/git/gh_cmd.rs
-│   ├── Grep(GrepArgs)    → cmds/system/grep_cmd.rs
-│   ├── ...               → cmds/<ecosystem>/*_cmd.rs
-│   ├── Gain              → analytics/gain.rs
+│   ├── Git(GitArgs)      → git.rs
+│   ├── Cargo(CargoArgs)  → runner.rs
+│   ├── Gh(GhArgs)        → gh_cmd.rs
+│   ├── Grep(GrepArgs)    → grep_cmd.rs
+│   ├── ...               → *_cmd.rs
+│   ├── Gain              → tracking.rs
 │   └── Proxy(ProxyArgs)  → passthrough
 │
-├── core/
-│   ├── tracking.rs       ← SQLite, token metrics, 90-day retention
-│   ├── config.rs         ← ~/.config/prltc/config.toml
-│   ├── tee.rs            ← Raw output recovery on failure
-│   ├── filter.rs         ← Language-aware code filtering
-│   └── utils.rs          ← strip_ansi, truncate, execute_command
-├── hooks/                ← init, rewrite, verify, trust, integrity
-└── analytics/            ← gain, cc_economics, ccusage, session_cmd
+├── tracking.rs           ← SQLite, token metrics, 90-day retention
+├── config.rs             ← ~/.config/prltc/config.toml
+├── tee.rs                ← Raw output recovery on failure
+├── filter.rs             ← Language-aware code filtering
+└── utils.rs              ← strip_ansi, truncate, execute_command
 ```
 
 **TOML Filter DSL** (v0.25.0+):
