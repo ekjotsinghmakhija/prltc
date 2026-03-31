@@ -2313,6 +2313,81 @@ fn uninstall_gemini(verbose: u8) -> Result<Vec<String>> {
     Ok(removed)
 }
 
+// ── Copilot integration ─────────────────────────────────────
+
+const COPILOT_HOOK_JSON: &str = r#"{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "prltc hook copilot",
+        "cwd": ".",
+        "timeout": 5
+      }
+    ]
+  }
+}
+"#;
+
+const COPILOT_INSTRUCTIONS: &str = r#"# PRLTC — Token-Optimized CLI
+
+**prltc** is a CLI proxy that filters and compresses command outputs, saving 60-90% tokens.
+
+## Rule
+
+Always prefix shell commands with `prltc`:
+
+```bash
+# Instead of:              Use:
+git status                 prltc git status
+git log -10                prltc git log -10
+cargo test                 prltc cargo test
+docker ps                  prltc docker ps
+kubectl get pods           prltc kubectl pods
+```
+
+## Meta commands (use directly)
+
+```bash
+prltc gain              # Token savings dashboard
+prltc gain --history    # Per-command savings history
+prltc discover          # Find missed prltc opportunities
+prltc proxy <cmd>       # Run raw (no filtering) but track usage
+```
+"#;
+
+/// Entry point for `prltc init --copilot`
+pub fn run_copilot(verbose: u8) -> Result<()> {
+    // Install in current project's .github/ directory
+    let github_dir = Path::new(".github");
+    let hooks_dir = github_dir.join("hooks");
+
+    fs::create_dir_all(&hooks_dir)
+        .context("Failed to create .github/hooks/ directory")?;
+
+    // 1. Write hook config
+    let hook_path = hooks_dir.join("prltc-rewrite.json");
+    write_if_changed(&hook_path, COPILOT_HOOK_JSON, "Copilot hook config", verbose)?;
+
+    // 2. Write instructions
+    let instructions_path = github_dir.join("copilot-instructions.md");
+    write_if_changed(
+        &instructions_path,
+        COPILOT_INSTRUCTIONS,
+        "Copilot instructions",
+        verbose,
+    )?;
+
+    println!("\nGitHub Copilot integration installed (project-scoped).\n");
+    println!("  Hook config:    {}", hook_path.display());
+    println!("  Instructions:   {}", instructions_path.display());
+    println!("\n  Works with VS Code Copilot Chat (transparent rewrite)");
+    println!("  and Copilot CLI (deny-with-suggestion).");
+    println!("\n  Restart your IDE or Copilot CLI session to activate.\n");
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

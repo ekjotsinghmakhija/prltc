@@ -296,12 +296,13 @@ After install, **restart Claude Code**.
 
 ## Supported AI Tools
 
-PRLTC supports 9 AI coding tools. Each integration transparently rewrites shell commands to `prltc` equivalents for 60-90% token savings.
+PRLTC supports 10 AI coding tools. Each integration transparently rewrites shell commands to `prltc` equivalents for 60-90% token savings.
 
 | Tool | Install | Method |
 |------|---------|--------|
 | **Claude Code** | `prltc init -g` | PreToolUse hook (bash) |
-| **GitHub Copilot** | `prltc init -g` | PreToolUse hook (`prltc hook copilot`) |
+| **GitHub Copilot (VS Code)** | `prltc init -g --copilot` | PreToolUse hook (`prltc hook copilot`) — transparent rewrite |
+| **GitHub Copilot CLI** | `prltc init -g --copilot` | PreToolUse deny-with-suggestion (CLI limitation) |
 | **Cursor** | `prltc init -g --agent cursor` | preToolUse hook (hooks.json) |
 | **Gemini CLI** | `prltc init -g --gemini` | BeforeTool hook (`prltc hook gemini`) |
 | **Codex** | `prltc init -g --codex` | AGENTS.md + PRLTC.md instructions |
@@ -309,6 +310,7 @@ PRLTC supports 9 AI coding tools. Each integration transparently rewrites shell 
 | **Cline / Roo Code** | `prltc init --agent cline` | .clinerules (project-scoped) |
 | **OpenCode** | `prltc init -g --opencode` | Plugin TS (tool.execute.before) |
 | **OpenClaw** | `openclaw plugins install ./openclaw` | Plugin TS (before_tool_call) |
+| **Mistral Vibe** | Planned (#800) | Blocked on upstream BeforeToolCallback |
 
 ### Claude Code (default)
 
@@ -322,10 +324,14 @@ prltc init -g --uninstall     # Remove
 ### GitHub Copilot (VS Code + CLI)
 
 ```bash
-prltc init -g                 # Same hook as Claude Code
+prltc init -g --copilot         # Install hook + instructions
 ```
 
-The hook auto-detects Copilot format (VS Code `runTerminalCommand` or CLI `toolName: bash`) and rewrites commands. Works with both Copilot Chat in VS Code and `copilot` CLI.
+Creates `.github/hooks/prltc-rewrite.json` (PreToolUse hook) and `.github/copilot-instructions.md` (prompt-level awareness).
+
+The hook (`prltc hook copilot`) auto-detects the format:
+- **VS Code Copilot Chat**: transparent rewrite via `updatedInput` (same as Claude Code)
+- **Copilot CLI**: deny-with-suggestion (CLI does not support `updatedInput` yet — see [copilot-cli#2013](https://github.com/github/copilot-cli/issues/2013))
 
 ### Cursor
 
@@ -383,6 +389,10 @@ openclaw plugins install ./openclaw
 ```
 
 Plugin in `openclaw/` directory. Uses `before_tool_call` hook, delegates to `prltc rewrite`.
+
+### Mistral Vibe (planned)
+
+Blocked on upstream BeforeToolCallback support ([mistral-vibe#531](https://github.com/mistralai/mistral-vibe/issues/531), [PR #533](https://github.com/mistralai/mistral-vibe/pull/533)). Tracked in [#800](https://github.com/ekjotsinghmakhija/prltc/issues/800).
 
 ### Commands Rewritten
 
