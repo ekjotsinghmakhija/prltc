@@ -621,16 +621,6 @@ fn rewrite_segment(seg: &str, excluded: &[String]) -> Option<String> {
         return rewrite_tail_lines(cmd_part).map(|r| format!("{}{}", r, redirect_suffix));
     }
 
-    // Most cat flags (-v, -A, -e, -t, -s, -b, --show-all, etc.) have different
-    // semantics than prltc read or no equivalent at all. Only `-n` (line numbers)
-    // maps correctly to `prltc read -n`. Skip rewrite for any other flag.
-    if cmd_part.starts_with("cat ") {
-        let args = cmd_part["cat ".len()..].trim_start();
-        if args.starts_with('-') && !args.starts_with("-n ") && !args.starts_with("-n\t") {
-            return None;
-        }
-    }
-
     // Use classify_command for correct ignore/prefix handling
     let prltc_equivalent = match classify_command(cmd_part) {
         Classification::Supported { prltc_equivalent, .. } => {
@@ -1178,26 +1168,6 @@ mod tests {
         assert_eq!(
             rewrite_command("cat src/main.rs", &[]),
             Some("prltc read src/main.rs".into())
-        );
-    }
-
-    #[test]
-    fn test_rewrite_cat_with_incompatible_flags_skipped() {
-        // cat flags with different semantics than prltc read — skip rewrite
-        assert_eq!(rewrite_command("cat -A file.cpp", &[]), None);
-        assert_eq!(rewrite_command("cat -v file.txt", &[]), None);
-        assert_eq!(rewrite_command("cat -e file.txt", &[]), None);
-        assert_eq!(rewrite_command("cat -t file.txt", &[]), None);
-        assert_eq!(rewrite_command("cat -s file.txt", &[]), None);
-        assert_eq!(rewrite_command("cat --show-all file.txt", &[]), None);
-    }
-
-    #[test]
-    fn test_rewrite_cat_with_compatible_flags() {
-        // cat -n (line numbers) maps to prltc read -n — allow rewrite
-        assert_eq!(
-            rewrite_command("cat -n file.txt", &[]),
-            Some("prltc read -n file.txt".into())
         );
     }
 
