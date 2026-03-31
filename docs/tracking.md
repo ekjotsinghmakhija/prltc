@@ -538,8 +538,8 @@ let _ = conn.execute(
 
 ## Security & Privacy
 
-- **Local storage only**: Database never leaves the machine
-- **No telemetry**: PRLTC does not phone home or send analytics
+- **Local storage only**: Tracking database never leaves the machine
+- **Telemetry enabled by default**: PRLTC sends a daily anonymous usage ping (version, OS, command counts, token savings). Device identity is a salted SHA-256 hash. Opt out with `PRLTC_TELEMETRY_DISABLED=1` or `[telemetry] enabled = false` in `~/.config/prltc/config.toml`
 - **User control**: Users can delete `~/.local/share/prltc/tracking.db` anytime
 - **90-day retention**: Old data automatically purged
 
