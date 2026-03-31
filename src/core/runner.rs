@@ -59,7 +59,7 @@ pub fn run_filtered<F>(
     args_display: &str,
     filter_fn: F,
     opts: RunOptions<'_>,
-) -> Result<()>
+) -> Result<i32>
 where
     F: Fn(&str) -> String,
 {
@@ -99,8 +99,5 @@ where
         &filtered,
     );
 
-    if !output.status.success() {
-        std::process::exit(exit_code);
-    }
-    Ok(())
+    Ok(exit_code)
 }

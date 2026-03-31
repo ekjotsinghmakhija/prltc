@@ -18,7 +18,7 @@ enum ParseState {
     Summary,
 }
 
-pub fn run(args: &[String], verbose: u8) -> Result<()> {
+pub fn run(args: &[String], verbose: u8) -> Result<i32> {
     let mut cmd = if tool_exists("pytest") {
         resolved_command("pytest")
     } else {
