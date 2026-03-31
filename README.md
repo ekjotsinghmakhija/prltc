@@ -472,10 +472,10 @@ brew uninstall prltc           # If installed via Homebrew
 
 ## Privacy & Telemetry
 
-PRLTC collects **anonymous, aggregate usage metrics** once per day, **enabled by default**. This helps prioritize development. See opt-out options below.
+PRLTC collects **anonymous, aggregate usage metrics** once per day to help prioritize development. This is standard practice for open-source CLI tools.
 
 **What is collected:**
-- Device hash (salted SHA-256 — per-user random salt stored locally, not reversible)
+- Device hash (SHA-256 of hostname+username, not reversible)
 - PRLTC version, OS, architecture
 - Command count (last 24h) and top command names (e.g. "git", "cargo" — no arguments, no file paths)
 - Token savings percentage
