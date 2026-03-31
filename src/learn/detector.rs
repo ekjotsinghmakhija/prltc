@@ -4,6 +4,8 @@
  * Proprietary Clean Room Implementation
  */
 
+//! Pattern-matches CLI errors against known correction rules.
+
 use lazy_static::lazy_static;
 use regex::Regex;
 

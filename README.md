@@ -33,7 +33,7 @@
 
 ---
 
-prltc filters and compresses command outputs before they reach your LLM context. Single Rust binary, zero dependencies, <10ms overhead.
+prltc filters and compresses command outputs before they reach your LLM context. Single Rust binary, 100+ supported commands, <10ms overhead.
 
 ## Token Savings (30-min Claude Code Session)
 
@@ -99,15 +99,12 @@ prltc gain        # Should show token savings stats
 ## Quick Start
 
 ```bash
-# 1. Install for your AI tool
-prltc init -g                     # Claude Code / Copilot (default)
-prltc init -g --gemini            # Gemini CLI
-prltc init -g --codex             # Codex (OpenAI)
-prltc init -g --agent cursor      # Cursor
-prltc init --agent windsurf       # Windsurf
-prltc init --agent cline          # Cline / Roo Code
+# 1. Install hook for Claude Code (recommended)
+prltc init --global
+# Follow instructions to register in ~/.claude/settings.json
+# Claude Code only by default (use --opencode for OpenCode, --gemini for Gemini CLI)
 
-# 2. Restart your AI tool, then test
+# 2. Restart Claude Code, then test
 git status  # Automatically rewritten to prltc git status
 ```
 
@@ -294,105 +291,48 @@ prltc init --show             # Verify installation
 
 After install, **restart Claude Code**.
 
-## Supported AI Tools
+## Gemini CLI Support (Global)
 
-PRLTC supports 10 AI coding tools. Each integration transparently rewrites shell commands to `prltc` equivalents for 60-90% token savings.
+PRLTC supports Gemini CLI via a native Rust hook processor. The hook intercepts `run_shell_command` tool calls and rewrites them to `prltc` equivalents using the same rewrite engine as Claude Code.
 
-| Tool | Install | Method |
-|------|---------|--------|
-| **Claude Code** | `prltc init -g` | PreToolUse hook (bash) |
-| **GitHub Copilot (VS Code)** | `prltc init -g --copilot` | PreToolUse hook (`prltc hook copilot`) — transparent rewrite |
-| **GitHub Copilot CLI** | `prltc init -g --copilot` | PreToolUse deny-with-suggestion (CLI limitation) |
-| **Cursor** | `prltc init -g --agent cursor` | preToolUse hook (hooks.json) |
-| **Gemini CLI** | `prltc init -g --gemini` | BeforeTool hook (`prltc hook gemini`) |
-| **Codex** | `prltc init -g --codex` | AGENTS.md + PRLTC.md instructions |
-| **Windsurf** | `prltc init --agent windsurf` | .windsurfrules (project-scoped) |
-| **Cline / Roo Code** | `prltc init --agent cline` | .clinerules (project-scoped) |
-| **OpenCode** | `prltc init -g --opencode` | Plugin TS (tool.execute.before) |
-| **OpenClaw** | `openclaw plugins install ./openclaw` | Plugin TS (before_tool_call) |
-| **Mistral Vibe** | Planned (#800) | Blocked on upstream BeforeToolCallback |
-
-### Claude Code (default)
-
-```bash
-prltc init -g                 # Install hook + PRLTC.md
-prltc init -g --auto-patch    # Non-interactive (CI/CD)
-prltc init --show             # Verify installation
-prltc init -g --uninstall     # Remove
-```
-
-### GitHub Copilot (VS Code + CLI)
-
-```bash
-prltc init -g --copilot         # Install hook + instructions
-```
-
-Creates `.github/hooks/prltc-rewrite.json` (PreToolUse hook) and `.github/copilot-instructions.md` (prompt-level awareness).
-
-The hook (`prltc hook copilot`) auto-detects the format:
-- **VS Code Copilot Chat**: transparent rewrite via `updatedInput` (same as Claude Code)
-- **Copilot CLI**: deny-with-suggestion (CLI does not support `updatedInput` yet — see [copilot-cli#2013](https://github.com/github/copilot-cli/issues/2013))
-
-### Cursor
-
-```bash
-prltc init -g --agent cursor
-```
-
-Creates `~/.cursor/hooks/prltc-rewrite.sh` + patches `~/.cursor/hooks.json` with preToolUse matcher. Works with both Cursor editor and `cursor-agent` CLI.
-
-### Gemini CLI
-
+**Install Gemini hook:**
 ```bash
 prltc init -g --gemini
+```
+
+**What it creates:**
+- `~/.gemini/hooks/prltc-hook-gemini.sh` (thin wrapper calling `prltc hook gemini`)
+- `~/.gemini/GEMINI.md` (PRLTC awareness instructions)
+- Patches `~/.gemini/settings.json` with BeforeTool hook
+
+**Uninstall:**
+```bash
 prltc init -g --gemini --uninstall
 ```
 
-Creates `~/.gemini/hooks/prltc-hook-gemini.sh` + patches `~/.gemini/settings.json` with BeforeTool hook.
+**Restart Required**: Restart Gemini CLI, then test with `git status` in a session.
 
-### Codex (OpenAI)
+## OpenCode Plugin (Global)
 
-```bash
-prltc init -g --codex
-```
+OpenCode supports plugins that can intercept tool execution. PRLTC provides a global plugin that mirrors the Claude auto-rewrite behavior by rewriting Bash tool commands to `prltc ...` before they execute. This plugin is **not** installed by default.
 
-Creates `~/.codex/PRLTC.md` + `~/.codex/AGENTS.md` with `@PRLTC.md` reference. Codex reads these as global instructions.
+> **Note**: This plugin uses OpenCode's `tool.execute.before` hook. Known limitation: plugin hooks do not intercept subagent tool calls ([upstream issue](https://github.com/sst/opencode/issues/5894)). See [OpenCode plugin docs](https://open-code.ai/en/docs/plugins) for API details.
 
-### Windsurf
-
-```bash
-prltc init --agent windsurf
-```
-
-Creates `.windsurfrules` in the current project. Cascade reads rules and prefixes commands with `prltc`.
-
-### Cline / Roo Code
-
-```bash
-prltc init --agent cline
-```
-
-Creates `.clinerules` in the current project. Cline reads rules and prefixes commands with `prltc`.
-
-### OpenCode
-
+**Install OpenCode plugin:**
 ```bash
 prltc init -g --opencode
 ```
 
-Creates `~/.config/opencode/plugins/prltc.ts`. Uses `tool.execute.before` hook.
+**What it creates:**
+- `~/.config/opencode/plugins/prltc.ts`
 
-### OpenClaw
+**Restart Required**: Restart OpenCode, then test with `git status` in a session.
 
+**Manual install (fallback):**
 ```bash
-openclaw plugins install ./openclaw
+mkdir -p ~/.config/opencode/plugins
+cp hooks/opencode-prltc.ts ~/.config/opencode/plugins/prltc.ts
 ```
-
-Plugin in `openclaw/` directory. Uses `before_tool_call` hook, delegates to `prltc rewrite`.
-
-### Mistral Vibe (planned)
-
-Blocked on upstream BeforeToolCallback support ([mistral-vibe#531](https://github.com/mistralai/mistral-vibe/issues/531), [PR #533](https://github.com/mistralai/mistral-vibe/pull/533)). Tracked in [#800](https://github.com/ekjotsinghmakhija/prltc/issues/800).
 
 ### Commands Rewritten
 
@@ -469,28 +409,6 @@ brew uninstall prltc           # If installed via Homebrew
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture
 - **[SECURITY.md](SECURITY.md)** - Security policy and PR review process
 - **[AUDIT_GUIDE.md](docs/AUDIT_GUIDE.md)** - Token savings analytics guide
-
-## Privacy & Telemetry
-
-PRLTC collects **anonymous, aggregate usage metrics** once per day to help prioritize development. This is standard practice for open-source CLI tools.
-
-**What is collected:**
-- Device hash (SHA-256 of hostname+username, not reversible)
-- PRLTC version, OS, architecture
-- Command count (last 24h) and top command names (e.g. "git", "cargo" — no arguments, no file paths)
-- Token savings percentage
-
-**What is NOT collected:** source code, file paths, command arguments, secrets, environment variables, or any personally identifiable information.
-
-**Opt-out** (any of these):
-```bash
-# Environment variable
-export PRLTC_TELEMETRY_DISABLED=1
-
-# Or in config file (~/.config/prltc/config.toml)
-[telemetry]
-enabled = false
-```
 
 ## Contributing
 
