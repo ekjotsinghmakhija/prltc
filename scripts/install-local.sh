@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Install PRLTC from a local release build (builds from source, no network download).
 
 set -euo pipefail
