@@ -644,7 +644,12 @@ fn rewrite_segment(seg: &str, excluded: &[String]) -> Option<String> {
     let cmd_clean = stripped_cow.trim();
 
     // #345: PRLTC_DISABLED=1 in env prefix → skip rewrite entirely
+    // #508: warn on stderr so agents learn to stop overusing it
     if has_prltc_disabled_prefix(cmd_part) {
+        eprintln!(
+            "[prltc] PRLTC_DISABLED=1 detected — skipping filter for this command. \
+             Remove PRLTC_DISABLED=1 to restore token savings."
+        );
         return None;
     }
 
