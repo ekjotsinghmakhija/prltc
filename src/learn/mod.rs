@@ -4,6 +4,8 @@
  * Proprietary Clean Room Implementation
  */
 
+//! Watches for repeated CLI mistakes in coding sessions and suggests corrections.
+
 pub mod detector;
 pub mod report;
 
