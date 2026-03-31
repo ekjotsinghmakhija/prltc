@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Auto-format Rust code before commits
 # Hook: PreToolUse for git commit
 

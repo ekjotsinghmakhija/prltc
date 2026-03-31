@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Test suite for prltc-rewrite.sh
 # Feeds mock JSON through the hook and verifies the rewritten commands.
 #

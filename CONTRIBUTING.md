@@ -109,21 +109,23 @@ For the step-by-step checklist (create filter, register rewrite pattern, registe
 
 ## Branch Naming Convention
 
-Git branch names cannot include spaces or colons, so we use slash-prefixed names. Pick the prefix that matches your change type and follow it with an optional scope and a short, kebab-case description.
+Every branch **must** follow one of these prefixes to identify the level of change:
 
 | Prefix | Semver Impact | When to Use |
 |--------|---------------|-------------|
-| `fix/` | Patch | Bug fixes, corrections, minor adjustments |
-| `feat/` | Minor | New features, new filters, new command support |
-| `chore/` | Major | Breaking changes, API changes, removed functionality |
+| `fix(scope): ...` | Patch | Bug fixes, corrections, minor adjustments |
+| `feat(scope): ...` | Minor | New features, new filters, new command support |
+| `chore(scope): ...` | Major | Breaking changes, API changes, removed functionality |
 
-Combine the prefix with a scope if it adds clarity (e.g. `git`, `kubectl`, `filter`, `tracking`, `config`) and finish with a descriptive slug: `fix/<scope>-<description>` or `feat/<description>`.
+The **scope** in parentheses indicates which part of the project is concerned (e.g. `git`, `kubectl`, `filter`, `tracking`, `config`).
+
+**Branch title must clearly describe what is affected and the goal.**
 
 Examples:
 ```
-fix/git-log-filter-drops-merge-commits
-feat/kubectl-add-pod-list-filter
-chore/release-pipeline-cleanup
+fix(git): log-filter-drops-merge-commits
+feat(kubectl): add-pod-list-filter
+chore(proxy): remove-deprecated-flags
 ```
 
 ---
@@ -147,7 +149,7 @@ chore/release-pipeline-cleanup
 ```bash
 git checkout develop
 git pull origin develop
-git checkout -b feat/scope-your-clear-description
+git checkout -b "feat(scope): your-clear-description"
 ```
 
 ### 2. Make Your Changes

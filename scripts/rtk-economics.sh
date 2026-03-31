@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # prltc-economics.sh
 # Combine ccusage (tokens spent) with prltc (tokens saved) for economic analysis
 
