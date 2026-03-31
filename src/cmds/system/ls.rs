@@ -9,7 +9,6 @@
 use crate::core::tracking;
 use crate::core::utils::resolved_command;
 use anyhow::{Context, Result};
-use std::io::IsTerminal;
 
 /// Noise directories commonly excluded from LLM context
 const NOISE_DIRS: &[&str] = &[
@@ -98,15 +97,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
     }
 
     let raw = String::from_utf8_lossy(&output.stdout).to_string();
-    let (entries, summary) = compact_ls(&raw, show_all);
-
-    // Only show summary in interactive mode (not when piped)
-    let is_tty = std::io::stdout().is_terminal();
-    let filtered = if is_tty {
-        format!("{}{}", entries, summary)
-    } else {
-        entries
-    };
+    let filtered = compact_ls(&raw, show_all);
 
     if verbose > 0 {
         eprintln!(
@@ -151,8 +142,7 @@ fn human_size(bytes: u64) -> String {
 /// Parse ls -la output into compact format:
 ///   name/  (dirs)
 ///   name  size  (files)
-/// Returns (entries, summary) so caller can suppress summary when piped.
-fn compact_ls(raw: &str, show_all: bool) -> (String, String) {
+fn compact_ls(raw: &str, show_all: bool) -> String {
     use std::collections::HashMap;
 
     let mut dirs: Vec<String> = Vec::new();
@@ -200,27 +190,28 @@ fn compact_ls(raw: &str, show_all: bool) -> (String, String) {
     }
 
     if dirs.is_empty() && files.is_empty() {
-        return ("(empty)\n".to_string(), String::new());
+        return "(empty)\n".to_string();
     }
 
-    let mut entries = String::new();
+    let mut out = String::new();
 
     // Dirs first, compact
     for d in &dirs {
-        entries.push_str(d);
-        entries.push_str("/\n");
+        out.push_str(d);
+        out.push_str("/\n");
     }
 
     // Files with size
     for (name, size) in &files {
-        entries.push_str(name);
-        entries.push_str("  ");
-        entries.push_str(size);
-        entries.push('\n');
+        out.push_str(name);
+        out.push_str("  ");
+        out.push_str(size);
+        out.push('\n');
     }
 
-    // Summary line (separate so caller can suppress when piped)
-    let mut summary = format!("\n📊 {} files, {} dirs", files.len(), dirs.len());
+    // Summary line
+    out.push('\n');
+    let mut summary = format!("{} files, {} dirs", files.len(), dirs.len());
     if !by_ext.is_empty() {
         let mut ext_counts: Vec<_> = by_ext.iter().collect();
         ext_counts.sort_by(|a, b| b.1.cmp(a.1));
@@ -236,9 +227,10 @@ fn compact_ls(raw: &str, show_all: bool) -> (String, String) {
         }
         summary.push(')');
     }
-    summary.push('\n');
+    out.push_str(&summary);
+    out.push('\n');
 
-    (entries, summary)
+    out
 }
 
 #[cfg(test)]
@@ -253,17 +245,17 @@ mod tests {
                      drwxr-xr-x  2 user  staff    64 Jan  1 12:00 src\n\
                      -rw-r--r--  1 user  staff  1234 Jan  1 12:00 Cargo.toml\n\
                      -rw-r--r--  1 user  staff  5678 Jan  1 12:00 README.md\n";
-        let (entries, _summary) = compact_ls(input, false);
-        assert!(entries.contains("src/"));
-        assert!(entries.contains("Cargo.toml"));
-        assert!(entries.contains("README.md"));
-        assert!(entries.contains("1.2K")); // 1234 bytes
-        assert!(entries.contains("5.5K")); // 5678 bytes
-        assert!(!entries.contains("drwx")); // no permissions
-        assert!(!entries.contains("staff")); // no group
-        assert!(!entries.contains("total")); // no total
-        assert!(!entries.contains("\n.\n")); // no . entry
-        assert!(!entries.contains("\n..\n")); // no .. entry
+        let output = compact_ls(input, false);
+        assert!(output.contains("src/"));
+        assert!(output.contains("Cargo.toml"));
+        assert!(output.contains("README.md"));
+        assert!(output.contains("1.2K")); // 1234 bytes
+        assert!(output.contains("5.5K")); // 5678 bytes
+        assert!(!output.contains("drwx")); // no permissions
+        assert!(!output.contains("staff")); // no group
+        assert!(!output.contains("total")); // no total
+        assert!(!output.contains("\n.\n")); // no . entry
+        assert!(!output.contains("\n..\n")); // no .. entry
     }
 
     #[test]
@@ -274,12 +266,12 @@ mod tests {
                      drwxr-xr-x  2 user  staff  64 Jan  1 12:00 target\n\
                      drwxr-xr-x  2 user  staff  64 Jan  1 12:00 src\n\
                      -rw-r--r--  1 user  staff  100 Jan  1 12:00 main.rs\n";
-        let (entries, _summary) = compact_ls(input, false);
-        assert!(!entries.contains("node_modules"));
-        assert!(!entries.contains(".git"));
-        assert!(!entries.contains("target"));
-        assert!(entries.contains("src/"));
-        assert!(entries.contains("main.rs"));
+        let output = compact_ls(input, false);
+        assert!(!output.contains("node_modules"));
+        assert!(!output.contains(".git"));
+        assert!(!output.contains("target"));
+        assert!(output.contains("src/"));
+        assert!(output.contains("main.rs"));
     }
 
     #[test]
@@ -287,17 +279,16 @@ mod tests {
         let input = "total 8\n\
                      drwxr-xr-x  2 user  staff  64 Jan  1 12:00 .git\n\
                      drwxr-xr-x  2 user  staff  64 Jan  1 12:00 src\n";
-        let (entries, _summary) = compact_ls(input, true);
-        assert!(entries.contains(".git/"));
-        assert!(entries.contains("src/"));
+        let output = compact_ls(input, true);
+        assert!(output.contains(".git/"));
+        assert!(output.contains("src/"));
     }
 
     #[test]
     fn test_compact_empty() {
         let input = "total 0\n";
-        let (entries, summary) = compact_ls(input, false);
-        assert_eq!(entries, "(empty)\n");
-        assert!(summary.is_empty());
+        let output = compact_ls(input, false);
+        assert_eq!(output, "(empty)\n");
     }
 
     #[test]
@@ -307,10 +298,10 @@ mod tests {
                      -rw-r--r--  1 user  staff  1234 Jan  1 12:00 main.rs\n\
                      -rw-r--r--  1 user  staff  5678 Jan  1 12:00 lib.rs\n\
                      -rw-r--r--  1 user  staff   100 Jan  1 12:00 Cargo.toml\n";
-        let (_entries, summary) = compact_ls(input, false);
-        assert!(summary.contains("📊 3 files, 1 dirs"));
-        assert!(summary.contains(".rs"));
-        assert!(summary.contains(".toml"));
+        let output = compact_ls(input, false);
+        assert!(output.contains("3 files, 1 dirs"));
+        assert!(output.contains(".rs"));
+        assert!(output.contains(".toml"));
     }
 
     #[test]
@@ -327,43 +318,15 @@ mod tests {
     fn test_compact_handles_filenames_with_spaces() {
         let input = "total 8\n\
                      -rw-r--r--  1 user  staff  1234 Jan  1 12:00 my file.txt\n";
-        let (entries, _summary) = compact_ls(input, false);
-        assert!(entries.contains("my file.txt"));
+        let output = compact_ls(input, false);
+        assert!(output.contains("my file.txt"));
     }
 
     #[test]
     fn test_compact_symlinks() {
         let input = "total 8\n\
                      lrwxr-xr-x  1 user  staff  10 Jan  1 12:00 link -> target\n";
-        let (entries, _summary) = compact_ls(input, false);
-        assert!(entries.contains("link -> target"));
-    }
-
-    #[test]
-    fn test_entries_no_summary() {
-        // Entries should never contain the summary line
-        let input = "total 48\n\
-                     drwxr-xr-x  2 user  staff    64 Jan  1 12:00 src\n\
-                     -rw-r--r--  1 user  staff  1234 Jan  1 12:00 main.rs\n";
-        let (entries, summary) = compact_ls(input, false);
-        assert!(!entries.contains("📊"), "entries must not contain summary");
-        assert!(summary.contains("📊"), "summary must contain the icon");
-    }
-
-    #[test]
-    fn test_pipe_line_count() {
-        // Simulates: prltc ls | wc -l
-        // Entries should have exactly 1 line per file/dir, no extra blank or summary
-        let input = "total 48\n\
-                     drwxr-xr-x  2 user  staff    64 Jan  1 12:00 src\n\
-                     -rw-r--r--  1 user  staff  1234 Jan  1 12:00 main.rs\n\
-                     -rw-r--r--  1 user  staff  5678 Jan  1 12:00 lib.rs\n";
-        let (entries, _summary) = compact_ls(input, false);
-        let line_count = entries.lines().count();
-        assert_eq!(
-            line_count, 3,
-            "pipe should see exactly 3 lines (1 dir + 2 files), got {}",
-            line_count
-        );
+        let output = compact_ls(input, false);
+        assert!(output.contains("link -> target"));
     }
 }
