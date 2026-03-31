@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/bin/sh
 # prltc installer - https://github.com/ekjotsinghmakhija/prltc
 # Usage: curl -fsSL https://raw.githubusercontent.com/ekjotsinghmakhija/prltc/refs/heads/master/install.sh | sh
 
