@@ -4,6 +4,8 @@
  * Proprietary Clean Room Implementation
  */
 
+//! Matches shell commands against known PRLTC rewrite rules to decide how to handle them.
+
 use lazy_static::lazy_static;
 use regex::{Regex, RegexSet};
 
