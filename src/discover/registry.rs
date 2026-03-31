@@ -1583,6 +1583,27 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_classify_swift_test() {
+        assert!(matches!(
+            classify_command("swift test"),
+            Classification::Supported {
+                prltc_equivalent: "prltc swift",
+                category: "Build",
+                estimated_savings_pct: 90.0,
+                status: RtkStatus::Existing,
+            }
+        ));
+    }
+
+    #[test]
+    fn test_rewrite_swift_test() {
+        assert_eq!(
+            rewrite_command("swift test --parallel", &[]),
+            Some("prltc swift test --parallel".into())
+        );
+    }
+
     // --- #336: docker compose supported subcommands rewritten, unsupported skipped ---
 
     #[test]
