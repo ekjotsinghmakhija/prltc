@@ -1277,6 +1277,38 @@ mod tests {
     }
 
     #[test]
+    fn test_rewrite_prltc_disabled_warns_on_stderr() {
+        // PRLTC_DISABLED=1 should still return None (no rewrite)
+        // and emit a warning on stderr (tested via subprocess below)
+        assert_eq!(rewrite_command("PRLTC_DISABLED=1 git status", &[]), None);
+
+        // Verify warning via subprocess: `prltc rewrite "PRLTC_DISABLED=1 git status"`
+        // should exit non-zero AND print warning to stderr
+        let prltc_bin = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("debug")
+            .join("prltc");
+        if !prltc_bin.exists() {
+            return; // Binary not built — skip subprocess check
+        }
+        let output = std::process::Command::new(&prltc_bin)
+            .args(["rewrite", "PRLTC_DISABLED=1 git status"])
+            .output()
+            .expect("Failed to run prltc");
+
+        assert!(
+            !output.status.success(),
+            "Should exit non-zero (no rewrite)"
+        );
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("PRLTC_DISABLED=1 detected"),
+            "Should warn on stderr, got: {}",
+            stderr
+        );
+    }
+
+    #[test]
     fn test_rewrite_non_prltc_disabled_env_still_rewrites() {
         assert_eq!(
             rewrite_command("SOME_VAR=1 git status", &[]),
