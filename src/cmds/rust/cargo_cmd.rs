@@ -573,6 +573,7 @@ fn filter_cargo_build(output: &str) -> String {
     let mut compiled = 0;
     let mut in_error = false;
     let mut current_error = Vec::new();
+    let mut finished_line: Option<String> = None;
 
     for line in output.lines() {
         if line.trim_start().starts_with("Compiling") || line.trim_start().starts_with("Checking") {
@@ -585,6 +586,7 @@ fn filter_cargo_build(output: &str) -> String {
             continue;
         }
         if line.trim_start().starts_with("Finished") {
+            finished_line = Some(line.trim_start().to_string());
             continue;
         }
 
@@ -631,7 +633,11 @@ fn filter_cargo_build(output: &str) -> String {
     }
 
     if error_count == 0 && warnings == 0 {
-        return format!("cargo build ({} crates compiled)", compiled);
+        return if let Some(finished) = finished_line {
+            format!("cargo build ({} crates compiled)\n{}", compiled, finished)
+        } else {
+            format!("cargo build ({} crates compiled)", compiled)
+        };
     }
 
     let mut result = String::new();
@@ -889,6 +895,7 @@ fn filter_cargo_clippy(output: &str) -> String {
     let mut by_rule: HashMap<String, Vec<String>> = HashMap::new();
     let mut error_count = 0;
     let mut warning_count = 0;
+    let mut error_details: Vec<String> = Vec::new();
 
     // Parse clippy output lines
     // Format: "warning: description\n  --> file:line:col\n  |\n  | code\n"
@@ -921,6 +928,7 @@ fn filter_cargo_clippy(output: &str) -> String {
             let is_error = line.starts_with("error");
             if is_error {
                 error_count += 1;
+                error_details.push(truncate(line.trim(), 160));
             } else {
                 warning_count += 1;
             }
@@ -958,6 +966,17 @@ fn filter_cargo_clippy(output: &str) -> String {
         error_count, warning_count
     ));
     result.push_str("═══════════════════════════════════════\n");
+
+    if !error_details.is_empty() {
+        result.push_str("\nError details:\n");
+        for (idx, detail) in error_details.iter().take(5).enumerate() {
+            result.push_str(&format!("  {}. {}\n", idx + 1, detail));
+        }
+        if error_details.len() > 5 {
+            result.push_str(&format!("  ... +{} more errors\n", error_details.len() - 5));
+        }
+        result.push('\n');
+    }
 
     // Sort rules by frequency
     let mut rule_counts: Vec<_> = by_rule.iter().collect();
@@ -1389,6 +1408,19 @@ warning: `prltc` (bin) generated 2 warnings
         assert!(result.contains("0 errors, 2 warnings"));
         assert!(result.contains("unused_variables"));
         assert!(result.contains("clippy::too_many_arguments"));
+    }
+
+    #[test]
+    fn test_filter_cargo_clippy_includes_error_details() {
+        let output = r#"    Checking prltc v0.5.0
+error: struct literals are not allowed here
+warning: unused variable: `x` [unused_variables]
+    Finished dev [unoptimized + debuginfo] target(s) in 1.53s
+"#;
+        let result = filter_cargo_clippy(output);
+        assert!(result.contains("cargo clippy: 1 errors, 1 warnings"));
+        assert!(result.contains("Error details:"));
+        assert!(result.contains("struct literals are not allowed here"));
     }
 
     #[test]
