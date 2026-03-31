@@ -4,8 +4,6 @@
  * Proprietary Clean Room Implementation
  */
 
-//! Data types for reporting which commands PRLTC can and cannot optimize.
-
 use serde::Serialize;
 
 /// PRLTC support status for a command.

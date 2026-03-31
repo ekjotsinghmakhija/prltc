@@ -4,8 +4,6 @@
  * Proprietary Clean Room Implementation
  */
 
-//! The master list of shell commands PRLTC knows how to rewrite.
-
 use super::report::RtkStatus;
 
 /// A rule mapping a shell command pattern to its PRLTC equivalent.

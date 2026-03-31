@@ -14,15 +14,13 @@ Prevent bugs, performance regressions, and token savings failures before they re
 ## PRLTC Architecture Context
 
 ```
-src/main.rs (Commands enum + routing)
-  → src/cmds/**/*_cmd.rs (filter logic, organized by ecosystem)
-  → src/core/tracking.rs (SQLite, token metrics)
-  → src/core/utils.rs (shared helpers)
-  → src/core/tee.rs (failure recovery)
-  → src/core/config.rs (user config)
-  → src/core/filter.rs (language-aware filtering)
-  → src/hooks/ (init, rewrite, verify, trust)
-  → src/analytics/ (gain, cc_economics, ccusage)
+main.rs (Commands enum + routing)
+  → *_cmd.rs modules (filter logic)
+  → tracking.rs (SQLite, token metrics)
+  → utils.rs (shared helpers)
+  → tee.rs (failure recovery)
+  → config.rs (user config)
+  → filter.rs (language-aware filtering)
 ```
 
 **Non-negotiable constraints:**
