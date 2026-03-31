@@ -394,6 +394,10 @@ enum Commands {
         /// Target Codex CLI (uses AGENTS.md + PRLTC.md, no Claude hook patching)
         #[arg(long)]
         codex: bool,
+
+        /// Install GitHub Copilot integration (VS Code + CLI)
+        #[arg(long)]
+        copilot: bool,
     },
 
     /// Download with compact output (strips progress bars)
@@ -1695,6 +1699,7 @@ fn main() -> Result<()> {
             no_patch,
             uninstall,
             codex,
+            copilot,
         } => {
             if show {
                 init::show_config(codex)?;
@@ -1710,6 +1715,8 @@ fn main() -> Result<()> {
                     init::PatchMode::Ask
                 };
                 init::run_gemini(global, hook_only, patch_mode, cli.verbose)?;
+            } else if copilot {
+                init::run_copilot(cli.verbose)?;
             } else {
                 let install_opencode = opencode;
                 let install_claude = !opencode;
