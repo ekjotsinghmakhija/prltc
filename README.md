@@ -201,6 +201,18 @@ prltc bundle install              # Ruby gems (strip Using lines)
 prltc prisma generate             # Schema generation (no ASCII art)
 ```
 
+### AWS
+```bash
+prltc aws sts get-caller-identity # One-line identity
+prltc aws ec2 describe-instances  # Compact instance list
+prltc aws lambda list-functions   # Name/runtime/memory (strips secrets)
+prltc aws logs get-log-events     # Timestamped messages only
+prltc aws cloudformation describe-stack-events  # Failures first
+prltc aws dynamodb scan           # Unwraps type annotations
+prltc aws iam list-roles          # Strips policy documents
+prltc aws s3 ls                   # Truncated with tee recovery
+```
+
 ### Containers
 ```bash
 prltc docker ps                   # Compact container list
@@ -419,6 +431,7 @@ Blocked on upstream BeforeToolCallback support ([mistral-vibe#531](https://githu
 | `rspec` / `bundle exec rspec` | `prltc rspec` |
 | `rubocop` / `bundle exec rubocop` | `prltc rubocop` |
 | `bundle install/update` | `prltc bundle ...` |
+| `aws sts/ec2/lambda/...` | `prltc aws ...` |
 | `docker ps/images/logs` | `prltc docker ...` |
 | `kubectl get/logs` | `prltc kubectl ...` |
 | `curl` | `prltc curl` |
