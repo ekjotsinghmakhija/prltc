@@ -4,7 +4,4 @@
  * Proprietary Clean Room Implementation
  */
 
-//! Go ecosystem filters.
-
-pub mod go_cmd;
-pub mod golangci_cmd;
+automod::dir!(pub "src/cmds/go");
