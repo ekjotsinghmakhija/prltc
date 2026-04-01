@@ -67,8 +67,7 @@ fn project_filter_params(project_path: Option<&str>) -> (Option<String>, Option<
     }
 }
 
-/// Number of days to retain tracking history before automatic cleanup.
-const HISTORY_DAYS: i64 = 90;
+use super::constants::{DEFAULT_HISTORY_DAYS, HISTORY_DB, PRLTC_DATA_DIR};
 
 /// Main tracking interface for recording and querying command history.
 ///
@@ -393,7 +392,7 @@ impl Tracker {
     }
 
     fn cleanup_old(&self) -> Result<()> {
-        let cutoff = Utc::now() - chrono::Duration::days(HISTORY_DAYS);
+        let cutoff = Utc::now() - chrono::Duration::days(DEFAULT_HISTORY_DAYS);
         self.conn.execute(
             "DELETE FROM commands WHERE timestamp < ?1",
             params![cutoff.to_rfc3339()],
@@ -980,7 +979,7 @@ fn get_db_path() -> Result<PathBuf> {
 
     // Priority 3: Default platform-specific location
     let data_dir = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
-    Ok(data_dir.join("prltc").join("history.db"))
+    Ok(data_dir.join(PRLTC_DATA_DIR).join(HISTORY_DB))
 }
 
 /// Individual parse failure record.
