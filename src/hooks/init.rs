@@ -1279,8 +1279,17 @@ fn run_codex_mode(global: bool, verbose: u8) -> Result<()> {
         }
     }
 
+    // ISSUE #892: In global mode, use absolute path so @PRLTC.md resolves
+    // from any CWD (worktrees, nested projects). Codex resolves @ references
+    // relative to CWD, not the AGENTS.md file location.
+    let prltc_md_ref = if global {
+        format!("@{}", prltc_md_path.display())
+    } else {
+        PRLTC_MD_REF.to_string()
+    };
+
     write_if_changed(&prltc_md_path, PRLTC_SLIM_CODEX, PRLTC_MD, verbose)?;
-    let added_ref = patch_agents_md(&agents_md_path, verbose)?;
+    let added_ref = patch_agents_md(&agents_md_path, &prltc_md_ref, verbose)?;
 
     println!("\nPRLTC configured for Codex CLI.\n");
     println!("  PRLTC.md:    {}", prltc_md_path.display());
@@ -1416,8 +1425,8 @@ fn patch_claude_md(path: &Path, verbose: u8) -> Result<bool> {
     Ok(migrated)
 }
 
-/// Patch AGENTS.md: add @PRLTC.md, migrate old inline block if present
-fn patch_agents_md(path: &Path, verbose: u8) -> Result<bool> {
+/// Patch AGENTS.md: add @PRLTC.md (or absolute path), migrate old inline block if present
+fn patch_agents_md(path: &Path, prltc_md_ref: &str, verbose: u8) -> Result<bool> {
     let mut content = if path.exists() {
         fs::read_to_string(path)
             .with_context(|| format!("Failed to read AGENTS.md: {}", path.display()))?
@@ -1437,9 +1446,21 @@ fn patch_agents_md(path: &Path, verbose: u8) -> Result<bool> {
         }
     }
 
-    if content.contains(PRLTC_MD_REF) {
+    // ISSUE #892: Check for both relative and absolute @PRLTC.md references
+    if content.contains(PRLTC_MD_REF) || content.contains(prltc_md_ref) {
         if verbose > 0 {
-            eprintln!("@PRLTC.md reference already present in AGENTS.md");
+            eprintln!("{} reference already present in AGENTS.md", prltc_md_ref);
+        }
+        // ISSUE #892: Migrate old relative @PRLTC.md to absolute path if needed
+        if prltc_md_ref != PRLTC_MD_REF && content.contains(PRLTC_MD_REF) && !content.contains(prltc_md_ref)
+        {
+            content = content.replace(PRLTC_MD_REF, prltc_md_ref);
+            atomic_write(path, &content)
+                .with_context(|| format!("Failed to write AGENTS.md: {}", path.display()))?;
+            if verbose > 0 {
+                eprintln!("Migrated {} to {}", PRLTC_MD_REF, prltc_md_ref);
+            }
+            return Ok(true);
         }
         if migrated {
             atomic_write(path, &content)
@@ -1449,15 +1470,15 @@ fn patch_agents_md(path: &Path, verbose: u8) -> Result<bool> {
     }
 
     let new_content = if content.is_empty() {
-        "@PRLTC.md\n".to_string()
+        format!("{}\n", prltc_md_ref)
     } else {
-        format!("{}\n\n@PRLTC.md\n", content.trim())
+        format!("{}\n\n{}\n", content.trim(), prltc_md_ref)
     };
 
     atomic_write(path, &new_content)
         .with_context(|| format!("Failed to write AGENTS.md: {}", path.display()))?;
     if verbose > 0 {
-        eprintln!("Added @PRLTC.md reference to AGENTS.md");
+        eprintln!("Added {} reference to AGENTS.md", prltc_md_ref);
     }
 
     Ok(true)
@@ -2609,8 +2630,8 @@ More notes
         let agents_md = temp.path().join("AGENTS.md");
 
         fs::write(&agents_md, "# Team rules\n").unwrap();
-        let first_added = patch_agents_md(&agents_md, 0).unwrap();
-        let second_added = patch_agents_md(&agents_md, 0).unwrap();
+        let first_added = patch_agents_md(&agents_md, PRLTC_MD_REF, 0).unwrap();
+        let second_added = patch_agents_md(&agents_md, PRLTC_MD_REF, 0).unwrap();
 
         assert!(first_added);
         assert!(!second_added);
@@ -2668,7 +2689,7 @@ More notes
         let temp = TempDir::new().unwrap();
         let agents_md = temp.path().join("AGENTS.md");
 
-        let added = patch_agents_md(&agents_md, 0).unwrap();
+        let added = patch_agents_md(&agents_md, PRLTC_MD_REF, 0).unwrap();
 
         assert!(added);
         let content = fs::read_to_string(&agents_md).unwrap();
@@ -2685,7 +2706,7 @@ More notes
         )
         .unwrap();
 
-        let added = patch_agents_md(&agents_md, 0).unwrap();
+        let added = patch_agents_md(&agents_md, PRLTC_MD_REF, 0).unwrap();
 
         assert!(added);
         let content = fs::read_to_string(&agents_md).unwrap();
