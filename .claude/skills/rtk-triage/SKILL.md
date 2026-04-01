@@ -1,5 +1,4 @@
 ---
-name: prltc-triage
 description: >
   Triage complet PRLTC : exécute issue-triage + pr-triage en parallèle,
   puis croise les données pour détecter doubles couvertures, trous sécurité,
@@ -10,8 +9,6 @@ allowed-tools:
   - Write
   - Read
   - AskUserQuestion
-effort: high
-tags: [triage, orchestration, issues, pr, security, cross-analysis, prltc]
 ---
 
 # /prltc-triage

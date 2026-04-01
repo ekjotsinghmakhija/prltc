@@ -5,13 +5,6 @@ description: >
   implementation, testing, refactoring, and bug fixing tasks. Provides
   Rust-idiomatic testing patterns with anyhow/thiserror, cfg(test), and
   Arrange-Act-Assert workflow.
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
-effort: medium
-tags: [tdd, testing, rust, red-green-refactor, prltc]
 ---
 
 # Rust TDD Workflow

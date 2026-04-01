@@ -4,14 +4,11 @@
  * Proprietary Clean Room Implementation
  */
 
-//! The master list of shell commands PRLTC knows how to rewrite.
-
 use super::report::RtkStatus;
 
-/// A rule mapping a shell command pattern to its PRLTC equivalent.
 pub struct RtkRule {
+    pub pattern: &'static str,
     pub prltc_cmd: &'static str,
-    /// Original command prefixes to replace with prltc_cmd (longest first for correct matching).
     pub rewrite_prefixes: &'static [&'static str],
     pub category: &'static str,
     pub savings_pct: f64,
@@ -19,86 +16,9 @@ pub struct RtkRule {
     pub subcmd_status: &'static [(&'static str, RtkStatus)],
 }
 
-// Patterns ordered to match RULES indices exactly.
-pub const PATTERNS: &[&str] = &[
-    r"^git\s+(?:-[Cc]\s+\S+\s+)*(status|log|diff|show|add|commit|push|pull|branch|fetch|stash|worktree)",
-    r"^gh\s+(pr|issue|run|repo|api|release)",
-    r"^cargo\s+(build|test|clippy|check|fmt|install)",
-    r"^pnpm\s+(list|ls|outdated|install)",
-    r"^npm\s+(run|exec)",
-    r"^npx\s+",
-    r"^(cat|head|tail)\s+",
-    r"^(rg|grep)\s+",
-    r"^ls(\s|$)",
-    r"^find\s+",
-    r"^(npx\s+|pnpm\s+)?tsc(\s|$)",
-    r"^(npx\s+|pnpm\s+)?(eslint|biome|lint)(\s|$)",
-    r"^(npx\s+|pnpm\s+)?prettier",
-    r"^(npx\s+|pnpm\s+)?next\s+build",
-    r"^(pnpm\s+|npx\s+)?(vitest|jest|test)(\s|$)",
-    r"^(npx\s+|pnpm\s+)?playwright",
-    r"^(npx\s+|pnpm\s+)?prisma",
-    r"^docker\s+(ps|images|logs|run|exec|build|compose\s+(ps|logs|build))",
-    r"^kubectl\s+(get|logs|describe|apply)",
-    r"^tree(\s|$)",
-    r"^diff\s+",
-    r"^curl\s+",
-    r"^wget\s+",
-    r"^(python3?\s+-m\s+)?mypy(\s|$)",
-    // Python tooling
-    r"^ruff\s+(check|format)",
-    r"^(python\s+-m\s+)?pytest(\s|$)",
-    r"^(pip3?|uv\s+pip)\s+(list|outdated|install)",
-    // Go tooling
-    r"^go\s+(test|build|vet)",
-    r"^golangci-lint(\s|$)",
-    // Ruby tooling
-    r"^bundle\s+(install|update)\b",
-    r"^(?:bundle\s+exec\s+)?(?:bin/)?(?:rake|rails)\s+test",
-    r"^(?:bundle\s+exec\s+)?rspec(?:\s|$)",
-    r"^(?:bundle\s+exec\s+)?rubocop(?:\s|$)",
-    // AWS CLI
-    r"^aws\s+",
-    // PostgreSQL
-    r"^psql(\s|$)",
-    // TOML-filtered commands
-    r"^ansible-playbook\b",
-    r"^brew\s+(install|upgrade)\b",
-    r"^composer\s+(install|update|require)\b",
-    r"^df(\s|$)",
-    r"^dotnet\s+build\b",
-    r"^du\b",
-    r"^fail2ban-client\b",
-    r"^gcloud\b",
-    r"^hadolint\b",
-    r"^helm\b",
-    r"^iptables\b",
-    r"^make\b",
-    r"^markdownlint\b",
-    r"^mix\s+(compile|format)(\s|$)",
-    r"^mvn\s+(compile|package|clean|install)\b",
-    r"^ping\b",
-    r"^pio\s+run",
-    r"^poetry\s+(install|lock|update)\b",
-    r"^pre-commit\b",
-    r"^ps(\s|$)",
-    r"^quarto\s+render",
-    r"^rsync\b",
-    r"^shellcheck\b",
-    r"^shopify\s+theme\s+(push|pull)",
-    r"^sops\b",
-    r"^swift\s+(build|test)\b",
-    r"^systemctl\s+status\b",
-    r"^terraform\s+plan",
-    r"^tofu\s+(fmt|init|plan|validate)(\s|$)",
-    r"^trunk\s+build",
-    r"^uv\s+(sync|pip\s+install)\b",
-    r"^yamllint\b",
-    r"^wc(\s|$)",
-];
-
 pub const RULES: &[RtkRule] = &[
     RtkRule {
+        pattern: r"^git\s+(?:-[Cc]\s+\S+\s+)*(status|log|diff|show|add|commit|push|pull|branch|fetch|stash|worktree)",
         prltc_cmd: "prltc git",
         rewrite_prefixes: &["git"],
         category: "Git",
@@ -112,6 +32,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^gh\s+(pr|issue|run|repo|api|release)",
         prltc_cmd: "prltc gh",
         rewrite_prefixes: &["gh"],
         category: "GitHub",
@@ -120,6 +41,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^cargo\s+(build|test|clippy|check|fmt|install)",
         prltc_cmd: "prltc cargo",
         rewrite_prefixes: &["cargo"],
         category: "Cargo",
@@ -128,6 +50,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[("fmt", RtkStatus::Passthrough)],
     },
     RtkRule {
+        pattern: r"^pnpm\s+(list|ls|outdated|install)",
         prltc_cmd: "prltc pnpm",
         rewrite_prefixes: &["pnpm"],
         category: "PackageManager",
@@ -136,6 +59,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^npm\s+(run|exec)",
         prltc_cmd: "prltc npm",
         rewrite_prefixes: &["npm"],
         category: "PackageManager",
@@ -144,6 +68,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^npx\s+",
         prltc_cmd: "prltc npx",
         rewrite_prefixes: &["npx"],
         category: "PackageManager",
@@ -152,6 +77,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^(cat|head|tail)\s+",
         prltc_cmd: "prltc read",
         rewrite_prefixes: &["cat", "head", "tail"],
         category: "Files",
@@ -160,6 +86,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^(rg|grep)\s+",
         prltc_cmd: "prltc grep",
         rewrite_prefixes: &["rg", "grep"],
         category: "Files",
@@ -168,6 +95,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^ls(\s|$)",
         prltc_cmd: "prltc ls",
         rewrite_prefixes: &["ls"],
         category: "Files",
@@ -176,6 +104,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^find\s+",
         prltc_cmd: "prltc find",
         rewrite_prefixes: &["find"],
         category: "Files",
@@ -184,7 +113,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        // Longest prefixes first for correct matching
+        pattern: r"^(npx\s+|pnpm\s+)?tsc(\s|$)",
         prltc_cmd: "prltc tsc",
         rewrite_prefixes: &["pnpm tsc", "npx tsc", "tsc"],
         category: "Build",
@@ -193,6 +122,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^(npx\s+|pnpm\s+)?(eslint|biome|lint)(\s|$)",
         prltc_cmd: "prltc lint",
         rewrite_prefixes: &[
             "npx eslint",
@@ -208,6 +138,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^(npx\s+|pnpm\s+)?prettier",
         prltc_cmd: "prltc prettier",
         rewrite_prefixes: &["npx prettier", "pnpm prettier", "prettier"],
         category: "Build",
@@ -216,7 +147,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
-        // "next build" is stripped to "prltc next" — the build subcommand is internal
+        pattern: r"^(npx\s+|pnpm\s+)?next\s+build",
         prltc_cmd: "prltc next",
         rewrite_prefixes: &["npx next build", "pnpm next build", "next build"],
         category: "Build",
@@ -225,6 +156,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^(pnpm\s+|npx\s+)?(vitest|jest|test)(\s|$)",
         prltc_cmd: "prltc vitest",
         rewrite_prefixes: &["pnpm vitest", "npx vitest", "vitest", "jest"],
         category: "Tests",
@@ -233,6 +165,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^(npx\s+|pnpm\s+)?playwright",
         prltc_cmd: "prltc playwright",
         rewrite_prefixes: &["npx playwright", "pnpm playwright", "playwright"],
         category: "Tests",
@@ -241,6 +174,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^(npx\s+|pnpm\s+)?prisma",
         prltc_cmd: "prltc prisma",
         rewrite_prefixes: &["npx prisma", "pnpm prisma", "prisma"],
         category: "Build",
@@ -249,6 +183,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^docker\s+(ps|images|logs|run|exec|build|compose\s+(ps|logs|build))",
         prltc_cmd: "prltc docker",
         rewrite_prefixes: &["docker"],
         category: "Infra",
@@ -257,6 +192,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^kubectl\s+(get|logs|describe|apply)",
         prltc_cmd: "prltc kubectl",
         rewrite_prefixes: &["kubectl"],
         category: "Infra",
@@ -265,6 +201,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^tree(\s|$)",
         prltc_cmd: "prltc tree",
         rewrite_prefixes: &["tree"],
         category: "Files",
@@ -273,6 +210,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^diff\s+",
         prltc_cmd: "prltc diff",
         rewrite_prefixes: &["diff"],
         category: "Files",
@@ -281,6 +219,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^curl\s+",
         prltc_cmd: "prltc curl",
         rewrite_prefixes: &["curl"],
         category: "Network",
@@ -289,6 +228,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^wget\s+",
         prltc_cmd: "prltc wget",
         rewrite_prefixes: &["wget"],
         category: "Network",
@@ -297,6 +237,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^(python3?\s+-m\s+)?mypy(\s|$)",
         prltc_cmd: "prltc mypy",
         rewrite_prefixes: &["python3 -m mypy", "python -m mypy", "mypy"],
         category: "Build",
@@ -304,8 +245,8 @@ pub const RULES: &[RtkRule] = &[
         subcmd_savings: &[],
         subcmd_status: &[],
     },
-    // Python tooling
     RtkRule {
+        pattern: r"^ruff\s+(check|format)",
         prltc_cmd: "prltc ruff",
         rewrite_prefixes: &["ruff"],
         category: "Python",
@@ -314,6 +255,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^(python\s+-m\s+)?pytest(\s|$)",
         prltc_cmd: "prltc pytest",
         rewrite_prefixes: &["python -m pytest", "pytest"],
         category: "Python",
@@ -322,6 +264,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^(pip3?|uv\s+pip)\s+(list|outdated|install)",
         prltc_cmd: "prltc pip",
         rewrite_prefixes: &["pip3", "pip", "uv pip"],
         category: "Python",
@@ -329,8 +272,8 @@ pub const RULES: &[RtkRule] = &[
         subcmd_savings: &[("list", 75.0), ("outdated", 80.0)],
         subcmd_status: &[],
     },
-    // Go tooling
     RtkRule {
+        pattern: r"^go\s+(test|build|vet)",
         prltc_cmd: "prltc go",
         rewrite_prefixes: &["go"],
         category: "Go",
@@ -339,6 +282,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^golangci-lint(\s|$)",
         prltc_cmd: "prltc golangci-lint",
         rewrite_prefixes: &["golangci-lint", "golangci"],
         category: "Go",
@@ -346,8 +290,8 @@ pub const RULES: &[RtkRule] = &[
         subcmd_savings: &[],
         subcmd_status: &[],
     },
-    // Ruby tooling
     RtkRule {
+        pattern: r"^bundle\s+(install|update)\b",
         prltc_cmd: "prltc bundle",
         rewrite_prefixes: &["bundle"],
         category: "Ruby",
@@ -356,6 +300,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^(?:bundle\s+exec\s+)?(?:bin/)?(?:rake|rails)\s+test",
         prltc_cmd: "prltc rake",
         rewrite_prefixes: &[
             "bundle exec rails",
@@ -370,6 +315,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^(?:bundle\s+exec\s+)?rspec(?:\s|$)",
         prltc_cmd: "prltc rspec",
         rewrite_prefixes: &["bundle exec rspec", "bin/rspec", "rspec"],
         category: "Tests",
@@ -378,6 +324,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^(?:bundle\s+exec\s+)?rubocop(?:\s|$)",
         prltc_cmd: "prltc rubocop",
         rewrite_prefixes: &["bundle exec rubocop", "rubocop"],
         category: "Build",
@@ -385,8 +332,8 @@ pub const RULES: &[RtkRule] = &[
         subcmd_savings: &[],
         subcmd_status: &[],
     },
-    // AWS CLI
     RtkRule {
+        pattern: r"^aws\s+",
         prltc_cmd: "prltc aws",
         rewrite_prefixes: &["aws"],
         category: "Infra",
@@ -394,8 +341,8 @@ pub const RULES: &[RtkRule] = &[
         subcmd_savings: &[],
         subcmd_status: &[],
     },
-    // PostgreSQL
     RtkRule {
+        pattern: r"^psql(\s|$)",
         prltc_cmd: "prltc psql",
         rewrite_prefixes: &["psql"],
         category: "Infra",
@@ -403,8 +350,8 @@ pub const RULES: &[RtkRule] = &[
         subcmd_savings: &[],
         subcmd_status: &[],
     },
-    // TOML-filtered commands
     RtkRule {
+        pattern: r"^ansible-playbook\b",
         prltc_cmd: "prltc ansible-playbook",
         rewrite_prefixes: &["ansible-playbook"],
         category: "Infra",
@@ -413,6 +360,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^brew\s+(install|upgrade)\b",
         prltc_cmd: "prltc brew",
         rewrite_prefixes: &["brew"],
         category: "PackageManager",
@@ -421,6 +369,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^composer\s+(install|update|require)\b",
         prltc_cmd: "prltc composer",
         rewrite_prefixes: &["composer"],
         category: "PackageManager",
@@ -429,6 +378,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^df(\s|$)",
         prltc_cmd: "prltc df",
         rewrite_prefixes: &["df"],
         category: "System",
@@ -437,6 +387,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^dotnet\s+build\b",
         prltc_cmd: "prltc dotnet",
         rewrite_prefixes: &["dotnet"],
         category: "Build",
@@ -445,6 +396,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^du\b",
         prltc_cmd: "prltc du",
         rewrite_prefixes: &["du"],
         category: "System",
@@ -453,6 +405,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^fail2ban-client\b",
         prltc_cmd: "prltc fail2ban-client",
         rewrite_prefixes: &["fail2ban-client"],
         category: "Infra",
@@ -461,6 +414,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^gcloud\b",
         prltc_cmd: "prltc gcloud",
         rewrite_prefixes: &["gcloud"],
         category: "Infra",
@@ -469,6 +423,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^hadolint\b",
         prltc_cmd: "prltc hadolint",
         rewrite_prefixes: &["hadolint"],
         category: "Build",
@@ -477,6 +432,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^helm\b",
         prltc_cmd: "prltc helm",
         rewrite_prefixes: &["helm"],
         category: "Infra",
@@ -485,6 +441,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^iptables\b",
         prltc_cmd: "prltc iptables",
         rewrite_prefixes: &["iptables"],
         category: "Infra",
@@ -493,6 +450,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^make\b",
         prltc_cmd: "prltc make",
         rewrite_prefixes: &["make"],
         category: "Build",
@@ -501,6 +459,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^markdownlint\b",
         prltc_cmd: "prltc markdownlint",
         rewrite_prefixes: &["markdownlint"],
         category: "Build",
@@ -509,6 +468,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^mix\s+(compile|format)(\s|$)",
         prltc_cmd: "prltc mix",
         rewrite_prefixes: &["mix"],
         category: "Build",
@@ -517,6 +477,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^mvn\s+(compile|package|clean|install)\b",
         prltc_cmd: "prltc mvn",
         rewrite_prefixes: &["mvn"],
         category: "Build",
@@ -525,6 +486,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^ping\b",
         prltc_cmd: "prltc ping",
         rewrite_prefixes: &["ping"],
         category: "Network",
@@ -533,6 +495,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^pio\s+run",
         prltc_cmd: "prltc pio",
         rewrite_prefixes: &["pio"],
         category: "Build",
@@ -541,6 +504,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^poetry\s+(install|lock|update)\b",
         prltc_cmd: "prltc poetry",
         rewrite_prefixes: &["poetry"],
         category: "Python",
@@ -549,6 +513,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^pre-commit\b",
         prltc_cmd: "prltc pre-commit",
         rewrite_prefixes: &["pre-commit"],
         category: "Build",
@@ -557,6 +522,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^ps(\s|$)",
         prltc_cmd: "prltc ps",
         rewrite_prefixes: &["ps"],
         category: "System",
@@ -565,6 +531,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^quarto\s+render",
         prltc_cmd: "prltc quarto",
         rewrite_prefixes: &["quarto"],
         category: "Build",
@@ -573,6 +540,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^rsync\b",
         prltc_cmd: "prltc rsync",
         rewrite_prefixes: &["rsync"],
         category: "Network",
@@ -581,6 +549,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^shellcheck\b",
         prltc_cmd: "prltc shellcheck",
         rewrite_prefixes: &["shellcheck"],
         category: "Build",
@@ -589,6 +558,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^shopify\s+theme\s+(push|pull)",
         prltc_cmd: "prltc shopify",
         rewrite_prefixes: &["shopify"],
         category: "Build",
@@ -597,6 +567,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^sops\b",
         prltc_cmd: "prltc sops",
         rewrite_prefixes: &["sops"],
         category: "Infra",
@@ -605,6 +576,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^swift\s+(build|test)\b",
         prltc_cmd: "prltc swift",
         rewrite_prefixes: &["swift"],
         category: "Build",
@@ -613,6 +585,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^systemctl\s+status\b",
         prltc_cmd: "prltc systemctl",
         rewrite_prefixes: &["systemctl"],
         category: "System",
@@ -621,6 +594,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^terraform\s+plan",
         prltc_cmd: "prltc terraform",
         rewrite_prefixes: &["terraform"],
         category: "Infra",
@@ -629,6 +603,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^tofu\s+(fmt|init|plan|validate)(\s|$)",
         prltc_cmd: "prltc tofu",
         rewrite_prefixes: &["tofu"],
         category: "Infra",
@@ -637,6 +612,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^trunk\s+build",
         prltc_cmd: "prltc trunk",
         rewrite_prefixes: &["trunk"],
         category: "Build",
@@ -645,6 +621,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^uv\s+(sync|pip\s+install)\b",
         prltc_cmd: "prltc uv",
         rewrite_prefixes: &["uv"],
         category: "Python",
@@ -653,6 +630,7 @@ pub const RULES: &[RtkRule] = &[
         subcmd_status: &[],
     },
     RtkRule {
+        pattern: r"^yamllint\b",
         prltc_cmd: "prltc yamllint",
         rewrite_prefixes: &["yamllint"],
         category: "Build",
@@ -660,17 +638,8 @@ pub const RULES: &[RtkRule] = &[
         subcmd_savings: &[],
         subcmd_status: &[],
     },
-    RtkRule {
-        prltc_cmd: "prltc wc",
-        rewrite_prefixes: &["wc"],
-        category: "Files",
-        savings_pct: 60.0,
-        subcmd_savings: &[],
-        subcmd_status: &[],
-    },
 ];
 
-/// Commands to ignore (shell builtins, trivial, already prltc).
 pub const IGNORED_PREFIXES: &[&str] = &[
     "cd ",
     "cd\t",
@@ -696,6 +665,7 @@ pub const IGNORED_PREFIXES: &[&str] = &[
     "kill ",
     "set ",
     "unset ",
+    "wc ",
     "sort ",
     "uniq ",
     "tr ",

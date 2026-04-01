@@ -8,13 +8,6 @@ triggers:
   - "write tests for"
   - "test coverage"
   - "fix failing test"
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - Bash
-effort: medium
-tags: [tdd, testing, rust, filters, snapshots, token-savings, prltc]
 ---
 
 # PRLTC TDD Workflow

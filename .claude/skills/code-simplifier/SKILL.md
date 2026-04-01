@@ -7,13 +7,6 @@ triggers:
   - "over-engineered"
   - "refactor this"
   - "make this idiomatic"
-allowed-tools:
-  - Read
-  - Grep
-  - Glob
-  - Edit
-effort: low
-tags: [rust, simplify, refactor, idioms, prltc]
 ---
 
 # PRLTC Code Simplifier

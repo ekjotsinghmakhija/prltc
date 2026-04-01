@@ -6,6 +6,7 @@
 
 //! Processes incoming hook calls from AI agents and rewrites commands on the fly.
 
+use super::constants::PRE_TOOL_USE_KEY;
 use anyhow::{Context, Result};
 use serde_json::{json, Value};
 use std::io::{self, Read};
@@ -118,7 +119,7 @@ fn handle_vscode(cmd: &str) -> Result<()> {
 
     let output = json!({
         "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
+            "hookEventName": PRE_TOOL_USE_KEY,
             "permissionDecision": "allow",
             "permissionDecisionReason": "PRLTC auto-rewrite",
             "updatedInput": { "command": rewritten }
