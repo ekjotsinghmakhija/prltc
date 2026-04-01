@@ -7,7 +7,7 @@
 //! Filters directory listings into a compact tree format.
 
 use crate::core::tracking;
-use crate::core::utils::resolved_command;
+use crate::core::utils::{exit_code_from_output, resolved_command};
 use anyhow::{Context, Result};
 use std::io::IsTerminal;
 
@@ -39,7 +39,7 @@ const NOISE_DIRS: &[&str] = &[
     ".eggs",
 ];
 
-pub fn run(args: &[String], verbose: u8) -> Result<()> {
+pub fn run(args: &[String], verbose: u8) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     // Separate flags from paths
@@ -94,7 +94,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         eprint!("{}", stderr);
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "ls"));
     }
 
     let raw = String::from_utf8_lossy(&output.stdout).to_string();
@@ -134,7 +134,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<()> {
         &filtered,
     );
 
-    Ok(())
+    Ok(0)
 }
 
 /// Format bytes into human-readable size
@@ -220,7 +220,7 @@ fn compact_ls(raw: &str, show_all: bool) -> (String, String) {
     }
 
     // Summary line (separate so caller can suppress when piped)
-    let mut summary = format!("\nSummary: {} files, {} dirs", files.len(), dirs.len());
+    let mut summary = format!("\n📊 {} files, {} dirs", files.len(), dirs.len());
     if !by_ext.is_empty() {
         let mut ext_counts: Vec<_> = by_ext.iter().collect();
         ext_counts.sort_by(|a, b| b.1.cmp(a.1));
@@ -308,7 +308,7 @@ mod tests {
                      -rw-r--r--  1 user  staff  5678 Jan  1 12:00 lib.rs\n\
                      -rw-r--r--  1 user  staff   100 Jan  1 12:00 Cargo.toml\n";
         let (_entries, summary) = compact_ls(input, false);
-        assert!(summary.contains("Summary: 3 files, 1 dirs"));
+        assert!(summary.contains("📊 3 files, 1 dirs"));
         assert!(summary.contains(".rs"));
         assert!(summary.contains(".toml"));
     }
@@ -346,14 +346,8 @@ mod tests {
                      drwxr-xr-x  2 user  staff    64 Jan  1 12:00 src\n\
                      -rw-r--r--  1 user  staff  1234 Jan  1 12:00 main.rs\n";
         let (entries, summary) = compact_ls(input, false);
-        assert!(
-            !entries.contains("Summary:"),
-            "entries must not contain summary"
-        );
-        assert!(
-            summary.contains("Summary:"),
-            "summary must contain the icon"
-        );
+        assert!(!entries.contains("📊"), "entries must not contain summary");
+        assert!(summary.contains("📊"), "summary must contain the icon");
     }
 
     #[test]

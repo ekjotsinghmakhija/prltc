@@ -25,7 +25,7 @@ pub enum MigrateSubcommand {
     Deploy,
 }
 
-pub fn run(cmd: PrismaCommand, args: &[String], verbose: u8) -> Result<()> {
+pub fn run(cmd: PrismaCommand, args: &[String], verbose: u8) -> Result<i32> {
     match cmd {
         PrismaCommand::Generate => run_generate(args, verbose),
         PrismaCommand::Migrate { subcommand } => run_migrate(subcommand, args, verbose),
@@ -44,7 +44,7 @@ fn create_prisma_command() -> Command {
     }
 }
 
-fn run_generate(args: &[String], verbose: u8) -> Result<()> {
+fn run_generate(args: &[String], verbose: u8) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = create_prisma_command();
@@ -62,7 +62,7 @@ fn run_generate(args: &[String], verbose: u8) -> Result<()> {
         .output()
         .context("Failed to run prisma generate (try: npm install -g prisma)")?;
 
-    let exit_code = output.status.code().unwrap_or(1);
+    let exit_code = crate::core::utils::exit_code_from_output(&output, "prisma");
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let raw = format!("{}\n{}", stdout, stderr);
@@ -75,17 +75,17 @@ fn run_generate(args: &[String], verbose: u8) -> Result<()> {
             eprint!("{}", stderr);
         }
         timer.track("prisma generate", "prltc prisma generate", &raw, &raw);
-        std::process::exit(exit_code);
+        return Ok(exit_code);
     }
 
     let filtered = filter_prisma_generate(&raw);
     println!("{}", filtered);
     timer.track("prisma generate", "prltc prisma generate", &raw, &filtered);
 
-    Ok(())
+    Ok(0)
 }
 
-fn run_migrate(subcommand: MigrateSubcommand, args: &[String], verbose: u8) -> Result<()> {
+fn run_migrate(subcommand: MigrateSubcommand, args: &[String], verbose: u8) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = create_prisma_command();
@@ -119,7 +119,7 @@ fn run_migrate(subcommand: MigrateSubcommand, args: &[String], verbose: u8) -> R
 
     let output = cmd.output().context("Failed to run prisma migrate")?;
 
-    let exit_code = output.status.code().unwrap_or(1);
+    let exit_code = crate::core::utils::exit_code_from_output(&output, "prisma");
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let raw = format!("{}\n{}", stdout, stderr);
@@ -132,7 +132,7 @@ fn run_migrate(subcommand: MigrateSubcommand, args: &[String], verbose: u8) -> R
             eprint!("{}", stderr);
         }
         timer.track(cmd_name, &format!("prltc {}", cmd_name), &raw, &raw);
-        std::process::exit(exit_code);
+        return Ok(exit_code);
     }
 
     let filtered = match subcommand {
@@ -144,10 +144,10 @@ fn run_migrate(subcommand: MigrateSubcommand, args: &[String], verbose: u8) -> R
     println!("{}", filtered);
     timer.track(cmd_name, &format!("prltc {}", cmd_name), &raw, &filtered);
 
-    Ok(())
+    Ok(0)
 }
 
-fn run_db_push(args: &[String], verbose: u8) -> Result<()> {
+fn run_db_push(args: &[String], verbose: u8) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = create_prisma_command();
@@ -163,7 +163,7 @@ fn run_db_push(args: &[String], verbose: u8) -> Result<()> {
 
     let output = cmd.output().context("Failed to run prisma db push")?;
 
-    let exit_code = output.status.code().unwrap_or(1);
+    let exit_code = crate::core::utils::exit_code_from_output(&output, "prisma");
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let raw = format!("{}\n{}", stdout, stderr);
@@ -176,14 +176,14 @@ fn run_db_push(args: &[String], verbose: u8) -> Result<()> {
             eprint!("{}", stderr);
         }
         timer.track("prisma db push", "prltc prisma db push", &raw, &raw);
-        std::process::exit(exit_code);
+        return Ok(exit_code);
     }
 
     let filtered = filter_db_push(&raw);
     println!("{}", filtered);
     timer.track("prisma db push", "prltc prisma db push", &raw, &filtered);
 
-    Ok(())
+    Ok(0)
 }
 
 /// Filter prisma generate output - strip ASCII art, extract counts

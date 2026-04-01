@@ -5,11 +5,11 @@
  */
 
 use crate::core::tracking;
-use crate::core::utils::resolved_command;
+use crate::core::utils::{exit_code_from_output, resolved_command};
 use anyhow::{Context, Result};
 
 /// Compact wget - strips progress bars, shows only result
-pub fn run(url: &str, args: &[String], verbose: u8) -> Result<()> {
+pub fn run(url: &str, args: &[String], verbose: u8) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     if verbose > 0 {
@@ -51,14 +51,14 @@ pub fn run(url: &str, args: &[String], verbose: u8) -> Result<()> {
         let msg = format!("{} FAILED: {}", compact_url(url), error);
         println!("{}", msg);
         timer.track(&format!("wget {}", url), "prltc wget", &raw_output, &msg);
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "wget"));
     }
 
-    Ok(())
+    Ok(0)
 }
 
 /// Run wget and output to stdout (for piping)
-pub fn run_stdout(url: &str, args: &[String], verbose: u8) -> Result<()> {
+pub fn run_stdout(url: &str, args: &[String], verbose: u8) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     if verbose > 0 {
@@ -114,10 +114,10 @@ pub fn run_stdout(url: &str, args: &[String], verbose: u8) -> Result<()> {
         let msg = format!("{} FAILED: {}", compact_url(url), error);
         println!("{}", msg);
         timer.track(&format!("wget -O - {}", url), "prltc wget -o", &stderr, &msg);
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "wget"));
     }
 
-    Ok(())
+    Ok(0)
 }
 
 fn extract_filename_from_output(stderr: &str, url: &str, args: &[String]) -> String {

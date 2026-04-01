@@ -221,13 +221,13 @@ pub enum VitestCommand {
     Run,
 }
 
-pub fn run(cmd: VitestCommand, args: &[String], verbose: u8) -> Result<()> {
+pub fn run(cmd: VitestCommand, args: &[String], verbose: u8) -> Result<i32> {
     match cmd {
         VitestCommand::Run => run_vitest(args, verbose),
     }
 }
 
-fn run_vitest(args: &[String], verbose: u8) -> Result<()> {
+fn run_vitest(args: &[String], verbose: u8) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = package_manager_exec("vitest");
@@ -268,7 +268,7 @@ fn run_vitest(args: &[String], verbose: u8) -> Result<()> {
         }
     };
 
-    let exit_code = output.status.code().unwrap_or(1);
+    let exit_code = crate::core::utils::exit_code_from_output(&output, "vitest");
     if let Some(hint) = crate::core::tee::tee_and_hint(&combined, "vitest_run", exit_code) {
         println!("{}\n{}", filtered, hint);
     } else {
@@ -277,8 +277,10 @@ fn run_vitest(args: &[String], verbose: u8) -> Result<()> {
 
     timer.track("vitest run", "prltc vitest run", &combined, &filtered);
 
-    // Propagate original exit code
-    std::process::exit(exit_code)
+    if !output.status.success() {
+        return Ok(exit_code);
+    }
+    Ok(0)
 }
 
 #[cfg(test)]
