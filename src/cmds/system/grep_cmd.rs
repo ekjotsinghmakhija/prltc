@@ -12,6 +12,7 @@ use crate::core::utils::{exit_code_from_output, resolved_command};
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::collections::HashMap;
+use std::process::Stdio;
 
 #[allow(clippy::too_many_arguments)]
 pub fn run(
@@ -34,7 +35,9 @@ pub fn run(
     let rg_pattern = pattern.replace(r"\|", "|");
 
     let mut rg_cmd = resolved_command("rg");
-    rg_cmd.args(["-n", "--no-heading", &rg_pattern, path]);
+    rg_cmd
+        .args(["-n", "--no-heading", &rg_pattern, path])
+        .stdin(Stdio::null());
 
     if let Some(ft) = file_type {
         rg_cmd.arg("--type").arg(ft);
@@ -53,6 +56,7 @@ pub fn run(
         .or_else(|_| {
             resolved_command("grep")
                 .args(["-rn", pattern, path])
+                .stdin(Stdio::null())
                 .output()
         })
         .context("grep/rg failed")?;
