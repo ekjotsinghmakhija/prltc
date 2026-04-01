@@ -638,6 +638,15 @@ pub const RULES: &[RtkRule] = &[
         subcmd_savings: &[],
         subcmd_status: &[],
     },
+    RtkRule {
+        pattern: r"^wc(\s|$)",
+        prltc_cmd: "prltc wc",
+        rewrite_prefixes: &["wc"],
+        category: "Files",
+        savings_pct: 60.0,
+        subcmd_savings: &[],
+        subcmd_status: &[],
+    },
 ];
 
 pub const IGNORED_PREFIXES: &[&str] = &[
@@ -665,7 +674,6 @@ pub const IGNORED_PREFIXES: &[&str] = &[
     "kill ",
     "set ",
     "unset ",
-    "wc ",
     "sort ",
     "uniq ",
     "tr ",
