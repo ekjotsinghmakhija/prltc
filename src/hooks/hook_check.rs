@@ -6,8 +6,6 @@
 
 //! Detects whether PRLTC hooks are installed and warns if they are outdated.
 
-use super::constants::{CLAUDE_DIR, HOOKS_SUBDIR, REWRITE_HOOK_FILE};
-use crate::core::constants::PRLTC_DATA_DIR;
 use std::path::PathBuf;
 
 const CURRENT_HOOK_VERSION: u8 = 3;
@@ -32,7 +30,7 @@ pub fn status() -> HookStatus {
         Some(h) => h,
         None => return HookStatus::Ok,
     };
-    if !home.join(CLAUDE_DIR).exists() {
+    if !home.join(".claude").exists() {
         return HookStatus::Ok;
     }
 
@@ -98,10 +96,7 @@ pub fn parse_hook_version(content: &str) -> u8 {
 
 fn hook_installed_path() -> Option<PathBuf> {
     let home = dirs::home_dir()?;
-    let path = home
-        .join(CLAUDE_DIR)
-        .join(HOOKS_SUBDIR)
-        .join(REWRITE_HOOK_FILE);
+    let path = home.join(".claude").join("hooks").join("prltc-rewrite.sh");
     if path.exists() {
         Some(path)
     } else {
@@ -110,7 +105,7 @@ fn hook_installed_path() -> Option<PathBuf> {
 }
 
 fn warn_marker_path() -> Option<PathBuf> {
-    let data_dir = dirs::data_local_dir()?.join(PRLTC_DATA_DIR);
+    let data_dir = dirs::data_local_dir()?.join("prltc");
     Some(data_dir.join(".hook_warn_last"))
 }
 

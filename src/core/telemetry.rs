@@ -6,7 +6,6 @@
 
 //! Optional usage ping so we know which commands people run most.
 
-use super::constants::PRLTC_DATA_DIR;
 use crate::core::config;
 use crate::core::tracking;
 use sha2::{Digest, Sha256};
@@ -222,7 +221,7 @@ fn install_method_from_path(path: &str) -> &'static str {
 fn telemetry_marker_path() -> PathBuf {
     let data_dir = dirs::data_local_dir()
         .unwrap_or_else(|| PathBuf::from("/tmp"))
-        .join(PRLTC_DATA_DIR);
+        .join("prltc");
     let _ = std::fs::create_dir_all(&data_dir);
     data_dir.join(".telemetry_last_ping")
 }
