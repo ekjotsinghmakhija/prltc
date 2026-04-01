@@ -76,7 +76,7 @@ pub fn run(
     } else {
         filtered.clone()
     };
-    print!("{}", prltc_output);
+    println!("{}", prltc_output);
     timer.track(
         &format!("cat {}", file.display()),
         "prltc read",
@@ -140,7 +140,7 @@ pub fn run_stdin(
     } else {
         filtered.clone()
     };
-    print!("{}", prltc_output);
+    println!("{}", prltc_output);
 
     timer.track("cat - (stdin)", "prltc read -", &content, &prltc_output);
     Ok(())
