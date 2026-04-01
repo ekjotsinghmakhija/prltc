@@ -76,7 +76,7 @@ pub fn run(
     } else {
         filtered.clone()
     };
-    println!("{}", prltc_output);
+    print!("{}", prltc_output);
     timer.track(
         &format!("cat {}", file.display()),
         "prltc read",
@@ -140,7 +140,7 @@ pub fn run_stdin(
     } else {
         filtered.clone()
     };
-    println!("{}", prltc_output);
+    print!("{}", prltc_output);
 
     timer.track("cat - (stdin)", "prltc read -", &content, &prltc_output);
     Ok(())
@@ -231,5 +231,75 @@ fn main() {{
         let output = apply_line_window(input, Some(2), None, &Language::Unknown);
         assert!(output.starts_with("a\n"));
         assert!(output.contains("more lines"));
+    }
+
+    fn prltc_bin() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("debug")
+            .join("prltc")
+    }
+
+    #[test]
+    #[ignore]
+    fn test_read_two_valid_files_concatenated() {
+        let bin = prltc_bin();
+        assert!(bin.exists(), "Run `cargo build` first");
+
+        let mut f1 = NamedTempFile::with_suffix(".txt").unwrap();
+        let mut f2 = NamedTempFile::with_suffix(".txt").unwrap();
+        writeln!(f1, "alpha\nbravo").unwrap();
+        writeln!(f2, "charlie\ndelta").unwrap();
+
+        let output = std::process::Command::new(&bin)
+            .args(["read", &f1.path().to_string_lossy(), &f2.path().to_string_lossy()])
+            .output()
+            .expect("failed to run prltc read");
+
+        assert!(output.status.success());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("alpha"), "first file content missing");
+        assert!(stdout.contains("charlie"), "second file content missing");
+    }
+
+    #[test]
+    #[ignore]
+    fn test_read_valid_and_nonexistent() {
+        let bin = prltc_bin();
+        assert!(bin.exists(), "Run `cargo build` first");
+
+        let mut f1 = NamedTempFile::with_suffix(".txt").unwrap();
+        writeln!(f1, "valid content").unwrap();
+
+        let output = std::process::Command::new(&bin)
+            .args(["read", &f1.path().to_string_lossy(), "/tmp/prltc_nonexistent_file.txt"])
+            .output()
+            .expect("failed to run prltc read");
+
+        assert!(!output.status.success(), "should exit non-zero on missing file");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stdout.contains("valid content"), "valid file should still be printed");
+        assert!(stderr.contains("prltc_nonexistent_file"), "should report missing file on stderr");
+    }
+
+    #[test]
+    #[ignore]
+    fn test_read_stdin_dedup_warning() {
+        let bin = prltc_bin();
+        assert!(bin.exists(), "Run `cargo build` first");
+
+        let output = std::process::Command::new(&bin)
+            .args(["read", "-", "-"])
+            .stdin(std::process::Stdio::piped())
+            .output()
+            .expect("failed to run prltc read");
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("stdin specified more than once"),
+            "should warn about duplicate stdin, got stderr: {}",
+            stderr
+        );
     }
 }
