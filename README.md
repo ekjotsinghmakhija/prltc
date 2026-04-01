@@ -18,7 +18,7 @@
   <a href="https://www.github.com/ekjotsinghmakhija/prltc">Website</a> &bull;
   <a href="#installation">Install</a> &bull;
   <a href="docs/TROUBLESHOOTING.md">Troubleshooting</a> &bull;
-  <a href="docs/contributing/ARCHITECTURE.md">Architecture</a> &bull;
+  <a href="ARCHITECTURE.md">Architecture</a> &bull;
   
 </p>
 
@@ -199,6 +199,18 @@ prltc pip list                    # Python packages (auto-detect uv)
 prltc pip outdated                # Outdated packages
 prltc bundle install              # Ruby gems (strip Using lines)
 prltc prisma generate             # Schema generation (no ASCII art)
+```
+
+### AWS
+```bash
+prltc aws sts get-caller-identity # One-line identity
+prltc aws ec2 describe-instances  # Compact instance list
+prltc aws lambda list-functions   # Name/runtime/memory (strips secrets)
+prltc aws logs get-log-events     # Timestamped messages only
+prltc aws cloudformation describe-stack-events  # Failures first
+prltc aws dynamodb scan           # Unwraps type annotations
+prltc aws iam list-roles          # Strips policy documents
+prltc aws s3 ls                   # Truncated with tee recovery
 ```
 
 ### Containers
@@ -419,6 +431,7 @@ Blocked on upstream BeforeToolCallback support ([mistral-vibe#531](https://githu
 | `rspec` / `bundle exec rspec` | `prltc rspec` |
 | `rubocop` / `bundle exec rubocop` | `prltc rubocop` |
 | `bundle install/update` | `prltc bundle ...` |
+| `aws sts/ec2/lambda/...` | `prltc aws ...` |
 | `docker ps/images/logs` | `prltc docker ...` |
 | `kubectl get/logs` | `prltc kubectl ...` |
 | `curl` | `prltc curl` |
@@ -466,7 +479,7 @@ brew uninstall prltc           # If installed via Homebrew
 
 - **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Fix common issues
 - **[INSTALL.md](INSTALL.md)** - Detailed installation guide
-- **[ARCHITECTURE.md](docs/contributing/ARCHITECTURE.md)** - Technical architecture
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture
 - **[SECURITY.md](SECURITY.md)** - Security policy and PR review process
 - **[AUDIT_GUIDE.md](docs/AUDIT_GUIDE.md)** - Token savings analytics guide
 
@@ -501,7 +514,3 @@ Join the community on .
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
-## Disclaimer
-
-See [DISCLAIMER.md](DISCLAIMER.md).
