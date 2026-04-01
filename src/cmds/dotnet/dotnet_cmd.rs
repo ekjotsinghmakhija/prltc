@@ -8,7 +8,7 @@
 
 use crate::binlog;
 use crate::core::tracking;
-use crate::core::utils::{exit_code_from_output, resolved_command, truncate};
+use crate::core::utils::{resolved_command, truncate};
 use crate::dotnet_format_report;
 use crate::dotnet_trx;
 use anyhow::{Context, Result};
@@ -24,19 +24,19 @@ const DOTNET_CLI_UI_LANGUAGE: &str = "DOTNET_CLI_UI_LANGUAGE";
 const DOTNET_CLI_UI_LANGUAGE_VALUE: &str = "en-US";
 static TEMP_PATH_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-pub fn run_build(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run_build(args: &[String], verbose: u8) -> Result<()> {
     run_dotnet_with_binlog("build", args, verbose)
 }
 
-pub fn run_test(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run_test(args: &[String], verbose: u8) -> Result<()> {
     run_dotnet_with_binlog("test", args, verbose)
 }
 
-pub fn run_restore(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run_restore(args: &[String], verbose: u8) -> Result<()> {
     run_dotnet_with_binlog("restore", args, verbose)
 }
 
-pub fn run_format(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run_format(args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
     let (report_path, cleanup_report_path) = resolve_format_report_path(args);
     let mut cmd = resolved_command("dotnet");
@@ -75,10 +75,14 @@ pub fn run_format(args: &[String], verbose: u8) -> Result<i32> {
         }
     }
 
-    Ok(exit_code_from_output(&output, "dotnet"))
+    if !output.status.success() {
+        std::process::exit(output.status.code().unwrap_or(1));
+    }
+
+    Ok(())
 }
 
-pub fn run_passthrough(args: &[OsString], verbose: u8) -> Result<i32> {
+pub fn run_passthrough(args: &[OsString], verbose: u8) -> Result<()> {
     if args.is_empty() {
         anyhow::bail!("dotnet: no subcommand specified");
     }
@@ -115,10 +119,14 @@ pub fn run_passthrough(args: &[OsString], verbose: u8) -> Result<i32> {
         &raw,
     );
 
-    Ok(exit_code_from_output(&output, "dotnet"))
+    if !output.status.success() {
+        std::process::exit(output.status.code().unwrap_or(1));
+    }
+
+    Ok(())
 }
 
-fn run_dotnet_with_binlog(subcommand: &str, args: &[String], verbose: u8) -> Result<i32> {
+fn run_dotnet_with_binlog(subcommand: &str, args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
     let binlog_path = build_binlog_path(subcommand);
     let should_expect_binlog = subcommand != "test" || has_binlog_arg(args);
@@ -259,7 +267,11 @@ fn run_dotnet_with_binlog(subcommand: &str, args: &[String], verbose: u8) -> Res
         eprintln!("Binlog cleaned up: {}", binlog_path.display());
     }
 
-    Ok(exit_code_from_output(&output, "dotnet"))
+    if !output.status.success() {
+        std::process::exit(output.status.code().unwrap_or(1));
+    }
+
+    Ok(())
 }
 
 fn build_binlog_path(subcommand: &str) -> PathBuf {

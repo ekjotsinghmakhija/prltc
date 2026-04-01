@@ -7,10 +7,7 @@
 //! Filters Graphite (gt) CLI output for stacking workflows.
 
 use crate::core::tracking;
-use crate::core::utils::{
-    exit_code_from_output, exit_code_from_status, ok_confirmation, resolved_command, strip_ansi,
-    truncate,
-};
+use crate::core::utils::{ok_confirmation, resolved_command, strip_ansi, truncate};
 use anyhow::{Context, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -34,7 +31,7 @@ fn run_gt_filtered(
     verbose: u8,
     tee_label: &str,
     filter_fn: fn(&str) -> String,
-) -> Result<i32> {
+) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = resolved_command("gt");
@@ -61,7 +58,7 @@ fn run_gt_filtered(
     let stderr = String::from_utf8_lossy(&cmd_output.stderr);
     let raw = format!("{}\n{}", stdout, stderr);
 
-    let exit_code = exit_code_from_output(&cmd_output, "gt");
+    let exit_code = cmd_output.status.code().unwrap_or(1);
 
     let clean = strip_ansi(stdout.trim());
     let output = if verbose > 0 {
@@ -88,14 +85,18 @@ fn run_gt_filtered(
     let prltc_label = format!("prltc {}", label);
     timer.track(&label, &prltc_label, &raw, &output);
 
-    Ok(exit_code)
+    if !cmd_output.status.success() {
+        std::process::exit(exit_code);
+    }
+
+    Ok(())
 }
 
 fn filter_identity(input: &str) -> String {
     input.to_string()
 }
 
-pub fn run_log(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run_log(args: &[String], verbose: u8) -> Result<()> {
     match args.first().map(|s| s.as_str()) {
         Some("short") => run_gt_filtered(
             &["log", "short"],
@@ -115,27 +116,27 @@ pub fn run_log(args: &[String], verbose: u8) -> Result<i32> {
     }
 }
 
-pub fn run_submit(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run_submit(args: &[String], verbose: u8) -> Result<()> {
     run_gt_filtered(&["submit"], args, verbose, "gt_submit", filter_gt_submit)
 }
 
-pub fn run_sync(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run_sync(args: &[String], verbose: u8) -> Result<()> {
     run_gt_filtered(&["sync"], args, verbose, "gt_sync", filter_gt_sync)
 }
 
-pub fn run_restack(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run_restack(args: &[String], verbose: u8) -> Result<()> {
     run_gt_filtered(&["restack"], args, verbose, "gt_restack", filter_gt_restack)
 }
 
-pub fn run_create(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run_create(args: &[String], verbose: u8) -> Result<()> {
     run_gt_filtered(&["create"], args, verbose, "gt_create", filter_gt_create)
 }
 
-pub fn run_branch(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run_branch(args: &[String], verbose: u8) -> Result<()> {
     run_gt_filtered(&["branch"], args, verbose, "gt_branch", filter_identity)
 }
 
-pub fn run_other(args: &[OsString], verbose: u8) -> Result<i32> {
+pub fn run_other(args: &[OsString], verbose: u8) -> Result<()> {
     if args.is_empty() {
         anyhow::bail!("gt: no subcommand specified");
     }
@@ -174,7 +175,7 @@ pub fn run_other(args: &[OsString], verbose: u8) -> Result<i32> {
     }
 }
 
-fn passthrough_gt(subcommand: &str, args: &[String], verbose: u8) -> Result<i32> {
+fn passthrough_gt(subcommand: &str, args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = resolved_command("gt");
@@ -201,7 +202,11 @@ fn passthrough_gt(subcommand: &str, args: &[String], verbose: u8) -> Result<i32>
         &format!("prltc gt {} (passthrough)", args_str),
     );
 
-    Ok(exit_code_from_status(&status, "gt"))
+    if !status.success() {
+        std::process::exit(status.code().unwrap_or(1));
+    }
+
+    Ok(())
 }
 
 const MAX_LOG_ENTRIES: usize = 15;

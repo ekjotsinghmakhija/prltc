@@ -10,9 +10,9 @@
 //! `rails test`, filtering down to failures/errors and the summary line.
 //! Uses `ruby_exec("rake")` to auto-detect `bundle exec`.
 
-use crate::core::runner;
-use crate::core::utils::{ruby_exec, strip_ansi};
-use anyhow::Result;
+use crate::core::tracking;
+use crate::core::utils::{exit_code_from_output, ruby_exec, strip_ansi};
+use anyhow::{Context, Result};
 
 /// Decide whether to use `rake test` or `rails test` based on args.
 ///
@@ -52,7 +52,9 @@ fn looks_like_test_path(arg: &str) -> bool {
         || path.contains("_spec.rb")
 }
 
-pub fn run(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run(args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     let (tool, effective_args) = select_runner(args);
     let mut cmd = ruby_exec(tool);
     for arg in &effective_args {
@@ -67,13 +69,39 @@ pub fn run(args: &[String], verbose: u8) -> Result<i32> {
         );
     }
 
-    runner::run_filtered(
-        cmd,
-        "rake",
-        &args.join(" "),
-        filter_minitest_output,
-        runner::RunOptions::with_tee("rake"),
-    )
+    let output = cmd
+        .output()
+        .context("Failed to run rake. Is it installed? Try: gem install rake")?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let raw = format!("{}\n{}", stdout, stderr);
+
+    let filtered = filter_minitest_output(&raw);
+
+    let exit_code = exit_code_from_output(&output, "rake");
+    if let Some(hint) = crate::core::tee::tee_and_hint(&raw, "rake", exit_code) {
+        println!("{}\n{}", filtered, hint);
+    } else {
+        println!("{}", filtered);
+    }
+
+    if !stderr.trim().is_empty() && verbose > 0 {
+        eprintln!("{}", stderr.trim());
+    }
+
+    timer.track(
+        &format!("rake {}", args.join(" ")),
+        &format!("prltc rake {}", args.join(" ")),
+        &raw,
+        &filtered,
+    );
+
+    if !output.status.success() {
+        std::process::exit(exit_code);
+    }
+
+    Ok(())
 }
 
 #[derive(Debug, PartialEq)]

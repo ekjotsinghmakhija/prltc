@@ -91,7 +91,7 @@ fn detect_linter(args: &[String]) -> (&str, bool) {
     }
 }
 
-pub fn run(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run(args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     let skip = strip_pm_prefix(args);
@@ -187,7 +187,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<i32> {
                 stderr.lines().take(5).collect::<Vec<_>>().join("\n")
             );
         }
-        return Ok(crate::core::utils::exit_code_from_output(&output, "eslint"));
+        return Ok(());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -228,10 +228,10 @@ pub fn run(args: &[String], verbose: u8) -> Result<i32> {
     );
 
     if !output.status.success() {
-        return Ok(crate::core::utils::exit_code_from_output(&output, "eslint"));
+        std::process::exit(output.status.code().unwrap_or(1));
     }
 
-    Ok(0)
+    Ok(())
 }
 
 /// Filter ESLint JSON output - group by rule and file

@@ -221,13 +221,13 @@ pub enum VitestCommand {
     Run,
 }
 
-pub fn run(cmd: VitestCommand, args: &[String], verbose: u8) -> Result<i32> {
+pub fn run(cmd: VitestCommand, args: &[String], verbose: u8) -> Result<()> {
     match cmd {
         VitestCommand::Run => run_vitest(args, verbose),
     }
 }
 
-fn run_vitest(args: &[String], verbose: u8) -> Result<i32> {
+fn run_vitest(args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = package_manager_exec("vitest");
@@ -277,10 +277,8 @@ fn run_vitest(args: &[String], verbose: u8) -> Result<i32> {
 
     timer.track("vitest run", "prltc vitest run", &combined, &filtered);
 
-    if !output.status.success() {
-        return Ok(exit_code);
-    }
-    Ok(0)
+    // Propagate original exit code
+    std::process::exit(exit_code)
 }
 
 #[cfg(test)]

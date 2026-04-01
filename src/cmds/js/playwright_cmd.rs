@@ -246,7 +246,7 @@ fn extract_failures_regex(output: &str) -> Vec<TestFailure> {
     failures
 }
 
-pub fn run(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run(args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     // Skip `which playwright` — it can find pyenv shims or other non-Node
@@ -338,10 +338,10 @@ pub fn run(args: &[String], verbose: u8) -> Result<i32> {
 
     // Preserve exit code for CI/CD
     if !output.status.success() {
-        return Ok(exit_code);
+        std::process::exit(exit_code);
     }
 
-    Ok(0)
+    Ok(())
 }
 
 #[cfg(test)]
