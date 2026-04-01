@@ -18,7 +18,7 @@
   <a href="https://www.github.com/ekjotsinghmakhija/prltc">官网</a> &bull;
   <a href="#安装">安装</a> &bull;
   <a href="docs/TROUBLESHOOTING.md">故障排除</a> &bull;
-  <a href="ARCHITECTURE.md">架构</a> &bull;
+  <a href="docs/contributing/ARCHITECTURE.md">架构</a> &bull;
   
 </p>
 
@@ -154,7 +154,7 @@ prltc discover                    # 发现遗漏的节省机会
 
 - **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - 解决常见问题
 - **[INSTALL.md](INSTALL.md)** - 详细安装指南
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - 技术架构
+- **[ARCHITECTURE.md](docs/contributing/ARCHITECTURE.md)** - 技术架构
 
 ## 贡献
 
@@ -165,3 +165,7 @@ prltc discover                    # 发现遗漏的节省机会
 ## 许可证
 
 MIT 许可证 - 详见 [LICENSE](LICENSE)。
+
+## 免责声明
+
+详见 [DISCLAIMER.md](DISCLAIMER.md)。
