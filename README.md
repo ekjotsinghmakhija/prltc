@@ -18,7 +18,7 @@
   <a href="https://www.github.com/ekjotsinghmakhija/prltc">Website</a> &bull;
   <a href="#installation">Install</a> &bull;
   <a href="docs/TROUBLESHOOTING.md">Troubleshooting</a> &bull;
-  <a href="docs/contributing/ARCHITECTURE.md">Architecture</a> &bull;
+  <a href="ARCHITECTURE.md">Architecture</a> &bull;
   
 </p>
 
@@ -466,7 +466,7 @@ brew uninstall prltc           # If installed via Homebrew
 
 - **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Fix common issues
 - **[INSTALL.md](INSTALL.md)** - Detailed installation guide
-- **[ARCHITECTURE.md](docs/contributing/ARCHITECTURE.md)** - Technical architecture
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture
 - **[SECURITY.md](SECURITY.md)** - Security policy and PR review process
 - **[AUDIT_GUIDE.md](docs/AUDIT_GUIDE.md)** - Token savings analytics guide
 
@@ -501,7 +501,3 @@ Join the community on .
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
-## Disclaimer
-
-See [DISCLAIMER.md](DISCLAIMER.md).
