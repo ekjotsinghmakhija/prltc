@@ -6,6 +6,12 @@ triggers:
   - "how to structure"
   - "best pattern for"
   - "refactor to pattern"
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+effort: medium
+tags: [rust, design-patterns, architecture, newtype, builder, prltc]
 ---
 
 # PRLTC Rust Design Patterns

@@ -291,7 +291,7 @@ pub enum PnpmCommand {
     Install { packages: Vec<String> },
 }
 
-pub fn run(cmd: PnpmCommand, args: &[String], verbose: u8) -> Result<i32> {
+pub fn run(cmd: PnpmCommand, args: &[String], verbose: u8) -> Result<()> {
     match cmd {
         PnpmCommand::List { depth } => run_list(depth, args, verbose),
         PnpmCommand::Outdated => run_outdated(args, verbose),
@@ -299,7 +299,7 @@ pub fn run(cmd: PnpmCommand, args: &[String], verbose: u8) -> Result<i32> {
     }
 }
 
-fn run_list(depth: usize, args: &[String], verbose: u8) -> Result<i32> {
+fn run_list(depth: usize, args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = resolved_command("pnpm");
@@ -316,7 +316,7 @@ fn run_list(depth: usize, args: &[String], verbose: u8) -> Result<i32> {
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         eprint!("{}", stderr);
-        return Ok(crate::core::utils::exit_code_from_output(&output, "pnpm"));
+        std::process::exit(output.status.code().unwrap_or(1));
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -353,10 +353,10 @@ fn run_list(depth: usize, args: &[String], verbose: u8) -> Result<i32> {
         &filtered,
     );
 
-    Ok(0)
+    Ok(())
 }
 
-fn run_outdated(args: &[String], verbose: u8) -> Result<i32> {
+fn run_outdated(args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = resolved_command("pnpm");
@@ -404,10 +404,10 @@ fn run_outdated(args: &[String], verbose: u8) -> Result<i32> {
 
     timer.track("pnpm outdated", "prltc pnpm outdated", &combined, &filtered);
 
-    Ok(0)
+    Ok(())
 }
 
-fn run_install(packages: &[String], args: &[String], verbose: u8) -> Result<i32> {
+fn run_install(packages: &[String], args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     // Validate package names to prevent command injection
@@ -441,7 +441,7 @@ fn run_install(packages: &[String], args: &[String], verbose: u8) -> Result<i32>
 
     if !output.status.success() {
         eprint!("{}", stderr);
-        return Ok(crate::core::utils::exit_code_from_output(&output, "pnpm"));
+        std::process::exit(output.status.code().unwrap_or(1));
     }
 
     let combined = format!("{}{}", stdout, stderr);
@@ -456,7 +456,7 @@ fn run_install(packages: &[String], args: &[String], verbose: u8) -> Result<i32>
         &filtered,
     );
 
-    Ok(0)
+    Ok(())
 }
 
 /// Filter pnpm install output - remove progress bars, keep summary
@@ -498,8 +498,28 @@ fn filter_pnpm_install(output: &str) -> String {
     }
 }
 
-pub fn run_passthrough(args: &[OsString], verbose: u8) -> Result<i32> {
-    crate::core::runner::run_passthrough("pnpm", args, verbose)
+/// Runs an unsupported pnpm subcommand by passing it through directly
+pub fn run_passthrough(args: &[OsString], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
+    if verbose > 0 {
+        eprintln!("pnpm passthrough: {:?}", args);
+    }
+    let status = resolved_command("pnpm")
+        .args(args)
+        .status()
+        .context("Failed to run pnpm")?;
+
+    let args_str = tracking::args_display(args);
+    timer.track_passthrough(
+        &format!("pnpm {}", args_str),
+        &format!("prltc pnpm {} (passthrough)", args_str),
+    );
+
+    if !status.success() {
+        std::process::exit(status.code().unwrap_or(1));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

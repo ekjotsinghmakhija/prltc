@@ -6,13 +6,43 @@
 
 //! Filters directory listings into a compact tree format.
 
-use super::constants::NOISE_DIRS;
-use crate::core::runner::{self, RunOptions};
+use crate::core::tracking;
 use crate::core::utils::resolved_command;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::io::IsTerminal;
 
-pub fn run(args: &[String], verbose: u8) -> Result<i32> {
+/// Noise directories commonly excluded from LLM context
+const NOISE_DIRS: &[&str] = &[
+    "node_modules",
+    ".git",
+    "target",
+    "__pycache__",
+    ".next",
+    "dist",
+    "build",
+    ".cache",
+    ".turbo",
+    ".vercel",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".tox",
+    ".venv",
+    "venv",
+    "coverage",
+    ".nyc_output",
+    ".DS_Store",
+    "Thumbs.db",
+    ".idea",
+    ".vscode",
+    ".vs",
+    "*.egg-info",
+    ".eggs",
+];
+
+pub fn run(args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
+    // Separate flags from paths
     let show_all = args
         .iter()
         .any(|a| (a.starts_with('-') && !a.starts_with("--") && a.contains('a')) || a == "--all");
@@ -28,10 +58,13 @@ pub fn run(args: &[String], verbose: u8) -> Result<i32> {
         .map(|s| s.as_str())
         .collect();
 
+    // Build ls -la + any extra flags the user passed (e.g. -R)
+    // Strip -l, -a, -h (we handle all of these ourselves)
     let mut cmd = resolved_command("ls");
     cmd.arg("-la");
     for flag in &flags {
         if flag.starts_with("--") {
+            // Long flags: skip --all (already handled)
             if *flag != "--all" {
                 cmd.arg(flag);
             }
@@ -47,6 +80,7 @@ pub fn run(args: &[String], verbose: u8) -> Result<i32> {
         }
     }
 
+    // Add paths (default to "." if none)
     if paths.is_empty() {
         cmd.arg(".");
     } else {
@@ -55,45 +89,52 @@ pub fn run(args: &[String], verbose: u8) -> Result<i32> {
         }
     }
 
+    let output = cmd.output().context("Failed to run ls")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        eprint!("{}", stderr);
+        std::process::exit(output.status.code().unwrap_or(1));
+    }
+
+    let raw = String::from_utf8_lossy(&output.stdout).to_string();
+    let (entries, summary) = compact_ls(&raw, show_all);
+
+    // Only show summary in interactive mode (not when piped)
+    let is_tty = std::io::stdout().is_terminal();
+    let filtered = if is_tty {
+        format!("{}{}", entries, summary)
+    } else {
+        entries
+    };
+
+    if verbose > 0 {
+        eprintln!(
+            "Chars: {} → {} ({}% reduction)",
+            raw.len(),
+            filtered.len(),
+            if !raw.is_empty() {
+                100 - (filtered.len() * 100 / raw.len())
+            } else {
+                0
+            }
+        );
+    }
+
     let target_display = if paths.is_empty() {
         ".".to_string()
     } else {
         paths.join(" ")
     };
+    print!("{}", filtered);
+    timer.track(
+        &format!("ls -la {}", target_display),
+        "prltc ls",
+        &raw,
+        &filtered,
+    );
 
-    runner::run_filtered(
-        cmd,
-        "ls",
-        &format!("-la {}", target_display),
-        |raw| {
-            let (entries, summary) = compact_ls(raw, show_all);
-
-            // Only show summary in interactive mode (not when piped)
-            let is_tty = std::io::stdout().is_terminal();
-            let filtered = if is_tty {
-                format!("{}{}", entries, summary)
-            } else {
-                entries
-            };
-
-            if verbose > 0 {
-                eprintln!(
-                    "Chars: {} → {} ({}% reduction)",
-                    raw.len(),
-                    filtered.len(),
-                    if !raw.is_empty() {
-                        100 - (filtered.len() * 100 / raw.len())
-                    } else {
-                        0
-                    }
-                );
-            }
-            filtered
-        },
-        RunOptions::stdout_only()
-            .early_exit_on_failure()
-            .no_trailing_newline(),
-    )
+    Ok(())
 }
 
 /// Format bytes into human-readable size
@@ -179,7 +220,7 @@ fn compact_ls(raw: &str, show_all: bool) -> (String, String) {
     }
 
     // Summary line (separate so caller can suppress when piped)
-    let mut summary = format!("\n📊 {} files, {} dirs", files.len(), dirs.len());
+    let mut summary = format!("\nSummary: {} files, {} dirs", files.len(), dirs.len());
     if !by_ext.is_empty() {
         let mut ext_counts: Vec<_> = by_ext.iter().collect();
         ext_counts.sort_by(|a, b| b.1.cmp(a.1));
@@ -267,7 +308,7 @@ mod tests {
                      -rw-r--r--  1 user  staff  5678 Jan  1 12:00 lib.rs\n\
                      -rw-r--r--  1 user  staff   100 Jan  1 12:00 Cargo.toml\n";
         let (_entries, summary) = compact_ls(input, false);
-        assert!(summary.contains("📊 3 files, 1 dirs"));
+        assert!(summary.contains("Summary: 3 files, 1 dirs"));
         assert!(summary.contains(".rs"));
         assert!(summary.contains(".toml"));
     }
@@ -305,8 +346,14 @@ mod tests {
                      drwxr-xr-x  2 user  staff    64 Jan  1 12:00 src\n\
                      -rw-r--r--  1 user  staff  1234 Jan  1 12:00 main.rs\n";
         let (entries, summary) = compact_ls(input, false);
-        assert!(!entries.contains("📊"), "entries must not contain summary");
-        assert!(summary.contains("📊"), "summary must contain the icon");
+        assert!(
+            !entries.contains("Summary:"),
+            "entries must not contain summary"
+        );
+        assert!(
+            summary.contains("Summary:"),
+            "summary must contain the icon"
+        );
     }
 
     #[test]

@@ -7,9 +7,9 @@
 //! Filters golangci-lint output, grouping issues by rule.
 
 use crate::core::config;
-use crate::core::runner;
+use crate::core::tracking;
 use crate::core::utils::{resolved_command, truncate};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -86,7 +86,9 @@ pub(crate) fn detect_major_version() -> u32 {
     }
 }
 
-pub fn run(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run(args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     let version = detect_major_version();
 
     let mut cmd = resolved_command("golangci-lint");
@@ -121,25 +123,49 @@ pub fn run(args: &[String], verbose: u8) -> Result<i32> {
         }
     }
 
-    let exit_code = runner::run_filtered(
-        cmd,
-        "golangci-lint",
-        &args.join(" "),
-        |stdout| {
-            // v2 outputs JSON on first line + trailing text; v1 outputs just JSON
-            let json_output = if version >= 2 {
-                stdout.lines().next().unwrap_or("")
-            } else {
-                stdout
-            };
-            filter_golangci_json(json_output, version)
-        },
-        crate::core::runner::RunOptions::stdout_only(),
+    let output = cmd.output().context(
+        "Failed to run golangci-lint. Is it installed? Try: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest",
     )?;
 
-    // golangci-lint: exit 0 = clean, exit 1 = lint issues found (not an error),
-    // exit 2+ = config/build error, None = killed by signal (OOM, SIGKILL)
-    Ok(if exit_code == 1 { 0 } else { exit_code })
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let raw = format!("{}\n{}", stdout, stderr);
+
+    // v2 outputs JSON on first line + trailing text; v1 outputs just JSON
+    let json_output = if version >= 2 {
+        stdout.lines().next().unwrap_or("")
+    } else {
+        &*stdout
+    };
+
+    let filtered = filter_golangci_json(json_output, version);
+
+    println!("{}", filtered);
+
+    // Always forward stderr (config errors, missing linters, etc.)
+    if !stderr.trim().is_empty() {
+        eprintln!("{}", stderr.trim());
+    }
+
+    timer.track(
+        &format!("golangci-lint {}", args.join(" ")),
+        &format!("prltc golangci-lint {}", args.join(" ")),
+        &raw,
+        &filtered,
+    );
+
+    // golangci-lint: exit 0 = clean, exit 1 = lint issues, exit 2+ = config/build error
+    // None = killed by signal (OOM, SIGKILL) — always fatal
+    match output.status.code() {
+        Some(0) | Some(1) => Ok(()),
+        Some(code) => {
+            std::process::exit(code);
+        }
+        None => {
+            eprintln!("golangci-lint: killed by signal");
+            std::process::exit(130);
+        }
+    }
 }
 
 /// Filter golangci-lint JSON output - group by linter and file

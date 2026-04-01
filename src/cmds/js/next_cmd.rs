@@ -6,12 +6,14 @@
 
 //! Filters Next.js build output down to route metrics and bundle sizes.
 
-use crate::core::runner;
+use crate::core::tracking;
 use crate::core::utils::{resolved_command, strip_ansi, tool_exists, truncate};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use regex::Regex;
 
-pub fn run(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run(args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     // Try next directly first, fallback to npx if not found
     let next_exists = tool_exists("next");
 
@@ -34,13 +36,25 @@ pub fn run(args: &[String], verbose: u8) -> Result<i32> {
         eprintln!("Running: {} build", tool);
     }
 
-    runner::run_filtered(
-        cmd,
-        "next build",
-        &args.join(" "),
-        |raw| filter_next_build(raw),
-        runner::RunOptions::default(),
-    )
+    let output = cmd
+        .output()
+        .context("Failed to run next build (try: npm install -g next)")?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let raw = format!("{}\n{}", stdout, stderr);
+
+    let filtered = filter_next_build(&raw);
+
+    println!("{}", filtered);
+
+    timer.track("next build", "prltc next build", &raw, &filtered);
+
+    // Preserve exit code for CI/CD
+    if !output.status.success() {
+        std::process::exit(output.status.code().unwrap_or(1));
+    }
+
+    Ok(())
 }
 
 /// Filter Next.js build output - extract routes, bundles, warnings

@@ -10,10 +10,7 @@
 //! Specialized filters for high-frequency commands (STS, S3, EC2, ECS, RDS, CloudFormation).
 
 use crate::core::tracking;
-use crate::core::utils::{
-    exit_code_from_output, exit_code_from_status, join_with_overflow, resolved_command,
-    truncate_iso_date,
-};
+use crate::core::utils::{join_with_overflow, resolved_command, truncate_iso_date};
 use crate::json_cmd;
 use anyhow::{Context, Result};
 use serde_json::Value;
@@ -22,7 +19,7 @@ const MAX_ITEMS: usize = 20;
 const JSON_COMPRESS_DEPTH: usize = 4;
 
 /// Run an AWS CLI command with token-optimized output
-pub fn run(subcommand: &str, args: &[String], verbose: u8) -> Result<i32> {
+pub fn run(subcommand: &str, args: &[String], verbose: u8) -> Result<()> {
     // Build the full sub-path: e.g. "sts" + ["get-caller-identity"] -> "sts get-caller-identity"
     let full_sub = if args.is_empty() {
         subcommand.to_string()
@@ -67,7 +64,7 @@ fn is_structured_operation(args: &[String]) -> bool {
 }
 
 /// Generic strategy: force --output json for structured ops, compress via json_cmd schema
-fn run_generic(subcommand: &str, args: &[String], verbose: u8, full_sub: &str) -> Result<i32> {
+fn run_generic(subcommand: &str, args: &[String], verbose: u8, full_sub: &str) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = resolved_command("aws");
@@ -104,7 +101,7 @@ fn run_generic(subcommand: &str, args: &[String], verbose: u8, full_sub: &str) -
             &stderr,
         );
         eprintln!("{}", stderr.trim());
-        return Ok(exit_code_from_output(&output, "aws"));
+        std::process::exit(output.status.code().unwrap_or(1));
     }
 
     let filtered = match json_cmd::filter_json_string(&raw, JSON_COMPRESS_DEPTH) {
@@ -126,7 +123,7 @@ fn run_generic(subcommand: &str, args: &[String], verbose: u8, full_sub: &str) -
         &filtered,
     );
 
-    Ok(0)
+    Ok(())
 }
 
 fn run_aws_json(
@@ -172,36 +169,36 @@ fn run_aws_json(
     Ok((stdout, stderr, output.status))
 }
 
-fn run_aws_filtered(
-    sub_args: &[&str],
-    extra_args: &[String],
-    verbose: u8,
-    filter_fn: fn(&str) -> Option<String>,
-) -> Result<i32> {
+fn run_sts_identity(extra_args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
-    let label = format!("aws {}", sub_args.join(" "));
-    let prltc_label = format!("prltc {}", label);
-    let (raw, stderr, status) = run_aws_json(sub_args, extra_args, verbose)?;
+    let (raw, stderr, status) = run_aws_json(&["sts", "get-caller-identity"], extra_args, verbose)?;
+
     if !status.success() {
-        timer.track(&label, &prltc_label, &stderr, &stderr);
-        return Ok(exit_code_from_status(&status, "aws"));
+        timer.track(
+            "aws sts get-caller-identity",
+            "prltc aws sts get-caller-identity",
+            &stderr,
+            &stderr,
+        );
+        std::process::exit(status.code().unwrap_or(1));
     }
-    let filtered = filter_fn(&raw).unwrap_or_else(|| raw.clone());
+
+    let filtered = match filter_sts_identity(&raw) {
+        Some(f) => f,
+        None => raw.clone(),
+    };
     println!("{}", filtered);
-    timer.track(&label, &prltc_label, &raw, &filtered);
-    Ok(0)
+
+    timer.track(
+        "aws sts get-caller-identity",
+        "prltc aws sts get-caller-identity",
+        &raw,
+        &filtered,
+    );
+    Ok(())
 }
 
-fn run_sts_identity(extra_args: &[String], verbose: u8) -> Result<i32> {
-    run_aws_filtered(
-        &["sts", "get-caller-identity"],
-        extra_args,
-        verbose,
-        filter_sts_identity,
-    )
-}
-
-fn run_s3_ls(extra_args: &[String], verbose: u8) -> Result<i32> {
+fn run_s3_ls(extra_args: &[String], verbose: u8) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     // s3 ls doesn't support --output json, run as-is and filter text
@@ -222,68 +219,191 @@ fn run_s3_ls(extra_args: &[String], verbose: u8) -> Result<i32> {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         timer.track("aws s3 ls", "prltc aws s3 ls", &stderr, &stderr);
         eprintln!("{}", stderr.trim());
-        return Ok(exit_code_from_output(&output, "aws"));
+        std::process::exit(output.status.code().unwrap_or(1));
     }
 
     let filtered = filter_s3_ls(&raw);
     println!("{}", filtered);
 
     timer.track("aws s3 ls", "prltc aws s3 ls", &raw, &filtered);
-    Ok(0)
+    Ok(())
 }
 
-fn run_ec2_describe(extra_args: &[String], verbose: u8) -> Result<i32> {
-    run_aws_filtered(
-        &["ec2", "describe-instances"],
-        extra_args,
-        verbose,
-        filter_ec2_instances,
-    )
+fn run_ec2_describe(extra_args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+    let (raw, stderr, status) = run_aws_json(&["ec2", "describe-instances"], extra_args, verbose)?;
+
+    if !status.success() {
+        timer.track(
+            "aws ec2 describe-instances",
+            "prltc aws ec2 describe-instances",
+            &stderr,
+            &stderr,
+        );
+        std::process::exit(status.code().unwrap_or(1));
+    }
+
+    let filtered = match filter_ec2_instances(&raw) {
+        Some(f) => f,
+        None => raw.clone(),
+    };
+    println!("{}", filtered);
+
+    timer.track(
+        "aws ec2 describe-instances",
+        "prltc aws ec2 describe-instances",
+        &raw,
+        &filtered,
+    );
+    Ok(())
 }
 
-fn run_ecs_list_services(extra_args: &[String], verbose: u8) -> Result<i32> {
-    run_aws_filtered(
-        &["ecs", "list-services"],
-        extra_args,
-        verbose,
-        filter_ecs_list_services,
-    )
+fn run_ecs_list_services(extra_args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+    let (raw, stderr, status) = run_aws_json(&["ecs", "list-services"], extra_args, verbose)?;
+
+    if !status.success() {
+        timer.track(
+            "aws ecs list-services",
+            "prltc aws ecs list-services",
+            &stderr,
+            &stderr,
+        );
+        std::process::exit(status.code().unwrap_or(1));
+    }
+
+    let filtered = match filter_ecs_list_services(&raw) {
+        Some(f) => f,
+        None => raw.clone(),
+    };
+    println!("{}", filtered);
+
+    timer.track(
+        "aws ecs list-services",
+        "prltc aws ecs list-services",
+        &raw,
+        &filtered,
+    );
+    Ok(())
 }
 
-fn run_ecs_describe_services(extra_args: &[String], verbose: u8) -> Result<i32> {
-    run_aws_filtered(
-        &["ecs", "describe-services"],
-        extra_args,
-        verbose,
-        filter_ecs_describe_services,
-    )
+fn run_ecs_describe_services(extra_args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+    let (raw, stderr, status) = run_aws_json(&["ecs", "describe-services"], extra_args, verbose)?;
+
+    if !status.success() {
+        timer.track(
+            "aws ecs describe-services",
+            "prltc aws ecs describe-services",
+            &stderr,
+            &stderr,
+        );
+        std::process::exit(status.code().unwrap_or(1));
+    }
+
+    let filtered = match filter_ecs_describe_services(&raw) {
+        Some(f) => f,
+        None => raw.clone(),
+    };
+    println!("{}", filtered);
+
+    timer.track(
+        "aws ecs describe-services",
+        "prltc aws ecs describe-services",
+        &raw,
+        &filtered,
+    );
+    Ok(())
 }
 
-fn run_rds_describe(extra_args: &[String], verbose: u8) -> Result<i32> {
-    run_aws_filtered(
-        &["rds", "describe-db-instances"],
-        extra_args,
-        verbose,
-        filter_rds_instances,
-    )
+fn run_rds_describe(extra_args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+    let (raw, stderr, status) =
+        run_aws_json(&["rds", "describe-db-instances"], extra_args, verbose)?;
+
+    if !status.success() {
+        timer.track(
+            "aws rds describe-db-instances",
+            "prltc aws rds describe-db-instances",
+            &stderr,
+            &stderr,
+        );
+        std::process::exit(status.code().unwrap_or(1));
+    }
+
+    let filtered = match filter_rds_instances(&raw) {
+        Some(f) => f,
+        None => raw.clone(),
+    };
+    println!("{}", filtered);
+
+    timer.track(
+        "aws rds describe-db-instances",
+        "prltc aws rds describe-db-instances",
+        &raw,
+        &filtered,
+    );
+    Ok(())
 }
 
-fn run_cfn_list_stacks(extra_args: &[String], verbose: u8) -> Result<i32> {
-    run_aws_filtered(
-        &["cloudformation", "list-stacks"],
-        extra_args,
-        verbose,
-        filter_cfn_list_stacks,
-    )
+fn run_cfn_list_stacks(extra_args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+    let (raw, stderr, status) =
+        run_aws_json(&["cloudformation", "list-stacks"], extra_args, verbose)?;
+
+    if !status.success() {
+        timer.track(
+            "aws cloudformation list-stacks",
+            "prltc aws cloudformation list-stacks",
+            &stderr,
+            &stderr,
+        );
+        std::process::exit(status.code().unwrap_or(1));
+    }
+
+    let filtered = match filter_cfn_list_stacks(&raw) {
+        Some(f) => f,
+        None => raw.clone(),
+    };
+    println!("{}", filtered);
+
+    timer.track(
+        "aws cloudformation list-stacks",
+        "prltc aws cloudformation list-stacks",
+        &raw,
+        &filtered,
+    );
+    Ok(())
 }
 
-fn run_cfn_describe_stacks(extra_args: &[String], verbose: u8) -> Result<i32> {
-    run_aws_filtered(
-        &["cloudformation", "describe-stacks"],
-        extra_args,
-        verbose,
-        filter_cfn_describe_stacks,
-    )
+fn run_cfn_describe_stacks(extra_args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+    let (raw, stderr, status) =
+        run_aws_json(&["cloudformation", "describe-stacks"], extra_args, verbose)?;
+
+    if !status.success() {
+        timer.track(
+            "aws cloudformation describe-stacks",
+            "prltc aws cloudformation describe-stacks",
+            &stderr,
+            &stderr,
+        );
+        std::process::exit(status.code().unwrap_or(1));
+    }
+
+    let filtered = match filter_cfn_describe_stacks(&raw) {
+        Some(f) => f,
+        None => raw.clone(),
+    };
+    println!("{}", filtered);
+
+    timer.track(
+        "aws cloudformation describe-stacks",
+        "prltc aws cloudformation describe-stacks",
+        &raw,
+        &filtered,
+    );
+    Ok(())
 }
 
 // --- Filter functions (all use serde_json::Value for resilience) ---

@@ -11,9 +11,9 @@
 //! when the user specifies a custom format, or when injected JSON output fails
 //! to parse.
 
-use crate::core::runner;
-use crate::core::utils::ruby_exec;
-use anyhow::Result;
+use crate::core::tracking;
+use crate::core::utils::{exit_code_from_output, ruby_exec};
+use anyhow::{Context, Result};
 use serde::Deserialize;
 
 // ── JSON structures matching RuboCop's --format json output ─────────────────
@@ -56,13 +56,17 @@ struct RubocopSummary {
 
 // ── Public entry point ───────────────────────────────────────────────────────
 
-pub fn run(args: &[String], verbose: u8) -> Result<i32> {
+pub fn run(args: &[String], verbose: u8) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
     let mut cmd = ruby_exec("rubocop");
 
+    // Detect autocorrect mode
     let is_autocorrect = args
         .iter()
         .any(|a| a == "-a" || a == "-A" || a == "--auto-correct" || a == "--auto-correct-all");
 
+    // Inject --format json unless the user already specified a format
     let has_format = args
         .iter()
         .any(|a| a.starts_with("--format") || a.starts_with("-f"));
@@ -77,19 +81,46 @@ pub fn run(args: &[String], verbose: u8) -> Result<i32> {
         eprintln!("Running: rubocop {}", args.join(" "));
     }
 
-    runner::run_filtered(
-        cmd,
-        "rubocop",
-        &args.join(" "),
-        move |stdout| {
-            if has_format || is_autocorrect {
-                filter_rubocop_text(stdout)
-            } else {
-                filter_rubocop_json(stdout)
-            }
-        },
-        runner::RunOptions::stdout_only().tee("rubocop"),
-    )
+    let output = cmd.output().context(
+        "Failed to run rubocop. Is it installed? Try: gem install rubocop or add it to your Gemfile",
+    )?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let raw = format!("{}\n{}", stdout, stderr);
+
+    let exit_code = exit_code_from_output(&output, "rubocop");
+
+    let filtered = if stdout.trim().is_empty() && !output.status.success() {
+        "RuboCop: FAILED (no stdout, see stderr below)".to_string()
+    } else if has_format || is_autocorrect {
+        filter_rubocop_text(&stdout)
+    } else {
+        filter_rubocop_json(&stdout)
+    };
+
+    if let Some(hint) = crate::core::tee::tee_and_hint(&raw, "rubocop", exit_code) {
+        println!("{}\n{}", filtered, hint);
+    } else {
+        println!("{}", filtered);
+    }
+
+    if !stderr.trim().is_empty() && (!output.status.success() || verbose > 0) {
+        eprintln!("{}", stderr.trim());
+    }
+
+    timer.track(
+        &format!("rubocop {}", args.join(" ")),
+        &format!("prltc rubocop {}", args.join(" ")),
+        &raw,
+        &filtered,
+    );
+
+    if !output.status.success() {
+        std::process::exit(exit_code);
+    }
+
+    Ok(())
 }
 
 // ── JSON filtering ───────────────────────────────────────────────────────────
