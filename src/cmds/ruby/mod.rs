@@ -4,4 +4,8 @@
  * Proprietary Clean Room Implementation
  */
 
-automod::dir!(pub "src/cmds/ruby");
+//! Ruby ecosystem filters.
+
+pub mod rake_cmd;
+pub mod rspec_cmd;
+pub mod rubocop_cmd;

@@ -12,7 +12,6 @@
 /// - `wc -w file.py`  → `96`
 /// - `wc -c file.py`  → `978`
 /// - `wc -l *.py`     → table with common path prefix stripped
-use crate::core::runner::{self, RunOptions};
 use crate::core::utils::resolved_command;
 use anyhow::Result;
 
@@ -27,12 +26,12 @@ pub fn run(args: &[String], verbose: u8) -> Result<i32> {
     }
 
     let mode = detect_mode(args);
-    runner::run_filtered(
+    crate::core::runner::run_filtered(
         cmd,
         "wc",
         &args.join(" "),
         |stdout| filter_wc_output(stdout, &mode),
-        RunOptions::stdout_only(),
+        crate::core::runner::RunOptions::stdout_only(),
     )
 }
 
