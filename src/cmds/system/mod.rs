@@ -6,6 +6,7 @@
 
 //! General-purpose system command filters.
 
+pub mod constants;
 pub mod deps;
 pub mod env_cmd;
 pub mod find_cmd;
