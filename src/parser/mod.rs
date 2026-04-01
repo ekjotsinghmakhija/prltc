@@ -13,7 +13,6 @@
 //!
 //! The three-tier system ensures PRLTC never returns false data silently.
 
-pub mod error;
 pub mod formatter;
 pub mod types;
 

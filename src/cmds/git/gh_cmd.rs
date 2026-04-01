@@ -10,7 +10,9 @@
 //! Focuses on extracting essential information from JSON outputs.
 
 use crate::core::tracking;
-use crate::core::utils::{ok_confirmation, resolved_command, truncate};
+use crate::core::utils::{
+    exit_code_from_output, exit_code_from_status, ok_confirmation, resolved_command, truncate,
+};
 use crate::git;
 use anyhow::{Context, Result};
 use lazy_static::lazy_static;
@@ -167,7 +169,7 @@ fn extract_identifier_and_extra_args(args: &[String]) -> Option<(String, Vec<Str
 }
 
 /// Run a gh command with token-optimized output
-pub fn run(subcommand: &str, args: &[String], verbose: u8, ultra_compact: bool) -> Result<()> {
+pub fn run(subcommand: &str, args: &[String], verbose: u8, ultra_compact: bool) -> Result<i32> {
     // When user explicitly passes --json, they want raw gh JSON output, not PRLTC filtering
     if has_json_flag(args) {
         return run_passthrough("gh", subcommand, args);
@@ -186,7 +188,7 @@ pub fn run(subcommand: &str, args: &[String], verbose: u8, ultra_compact: bool) 
     }
 }
 
-fn run_pr(args: &[String], verbose: u8, ultra_compact: bool) -> Result<()> {
+fn run_pr(args: &[String], verbose: u8, ultra_compact: bool) -> Result<i32> {
     if args.is_empty() {
         return run_passthrough("gh", "pr", args);
     }
@@ -205,7 +207,7 @@ fn run_pr(args: &[String], verbose: u8, ultra_compact: bool) -> Result<()> {
     }
 }
 
-fn list_prs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
+fn list_prs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = resolved_command("gh");
@@ -228,7 +230,7 @@ fn list_prs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         timer.track("gh pr list", "prltc gh pr list", &stderr, &stderr);
         eprintln!("{}", stderr.trim());
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "gh"));
     }
 
     let json: Value =
@@ -286,7 +288,7 @@ fn list_prs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
     }
 
     timer.track("gh pr list", "prltc gh pr list", &raw, &filtered);
-    Ok(())
+    Ok(0)
 }
 
 fn should_passthrough_pr_view(extra_args: &[String]) -> bool {
@@ -301,7 +303,7 @@ fn should_passthrough_issue_view(extra_args: &[String]) -> bool {
         .any(|a| a == "--json" || a == "--jq" || a == "--web" || a == "--comments")
 }
 
-fn view_pr(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
+fn view_pr(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let (pr_number, extra_args) = match extract_identifier_and_extra_args(args) {
@@ -339,7 +341,7 @@ fn view_pr(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
             &stderr,
         );
         eprintln!("{}", stderr.trim());
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "gh"));
     }
 
     let json: Value =
@@ -475,10 +477,10 @@ fn view_pr(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
         &raw,
         &filtered,
     );
-    Ok(())
+    Ok(0)
 }
 
-fn pr_checks(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<()> {
+fn pr_checks(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let (pr_number, extra_args) = match extract_identifier_and_extra_args(args) {
@@ -504,7 +506,7 @@ fn pr_checks(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<()> 
             &stderr,
         );
         eprintln!("{}", stderr.trim());
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "gh"));
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -563,10 +565,10 @@ fn pr_checks(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<()> 
         &raw,
         &filtered,
     );
-    Ok(())
+    Ok(0)
 }
 
-fn pr_status(_verbose: u8, _ultra_compact: bool) -> Result<()> {
+fn pr_status(_verbose: u8, _ultra_compact: bool) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = resolved_command("gh");
@@ -584,7 +586,7 @@ fn pr_status(_verbose: u8, _ultra_compact: bool) -> Result<()> {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         timer.track("gh pr status", "prltc gh pr status", &stderr, &stderr);
         eprintln!("{}", stderr.trim());
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "gh"));
     }
 
     let json: Value =
@@ -607,10 +609,10 @@ fn pr_status(_verbose: u8, _ultra_compact: bool) -> Result<()> {
     }
 
     timer.track("gh pr status", "prltc gh pr status", &raw, &filtered);
-    Ok(())
+    Ok(0)
 }
 
-fn run_issue(args: &[String], verbose: u8, ultra_compact: bool) -> Result<()> {
+fn run_issue(args: &[String], verbose: u8, ultra_compact: bool) -> Result<i32> {
     if args.is_empty() {
         return run_passthrough("gh", "issue", args);
     }
@@ -622,7 +624,7 @@ fn run_issue(args: &[String], verbose: u8, ultra_compact: bool) -> Result<()> {
     }
 }
 
-fn list_issues(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
+fn list_issues(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = resolved_command("gh");
@@ -639,7 +641,7 @@ fn list_issues(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()>
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         timer.track("gh issue list", "prltc gh issue list", &stderr, &stderr);
         eprintln!("{}", stderr.trim());
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "gh"));
     }
 
     let json: Value =
@@ -681,10 +683,10 @@ fn list_issues(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()>
     }
 
     timer.track("gh issue list", "prltc gh issue list", &raw, &filtered);
-    Ok(())
+    Ok(0)
 }
 
-fn view_issue(args: &[String], _verbose: u8) -> Result<()> {
+fn view_issue(args: &[String], _verbose: u8) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let (issue_number, extra_args) = match extract_identifier_and_extra_args(args) {
@@ -723,7 +725,7 @@ fn view_issue(args: &[String], _verbose: u8) -> Result<()> {
             &stderr,
         );
         eprintln!("{}", stderr.trim());
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "gh"));
     }
 
     let json: Value =
@@ -781,10 +783,10 @@ fn view_issue(args: &[String], _verbose: u8) -> Result<()> {
         &raw,
         &filtered,
     );
-    Ok(())
+    Ok(0)
 }
 
-fn run_workflow(args: &[String], verbose: u8, ultra_compact: bool) -> Result<()> {
+fn run_workflow(args: &[String], verbose: u8, ultra_compact: bool) -> Result<i32> {
     if args.is_empty() {
         return run_passthrough("gh", "run", args);
     }
@@ -796,7 +798,7 @@ fn run_workflow(args: &[String], verbose: u8, ultra_compact: bool) -> Result<()>
     }
 }
 
-fn list_runs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
+fn list_runs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = resolved_command("gh");
@@ -819,7 +821,7 @@ fn list_runs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         timer.track("gh run list", "prltc gh run list", &stderr, &stderr);
         eprintln!("{}", stderr.trim());
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "gh"));
     }
 
     let json: Value =
@@ -876,7 +878,7 @@ fn list_runs(args: &[String], _verbose: u8, ultra_compact: bool) -> Result<()> {
     }
 
     timer.track("gh run list", "prltc gh run list", &raw, &filtered);
-    Ok(())
+    Ok(0)
 }
 
 /// Check if run view args should bypass filtering and pass through directly.
@@ -888,7 +890,7 @@ fn should_passthrough_run_view(extra_args: &[String]) -> bool {
         .any(|a| a == "--log-failed" || a == "--log" || a == "--json")
 }
 
-fn view_run(args: &[String], _verbose: u8) -> Result<()> {
+fn view_run(args: &[String], _verbose: u8) -> Result<i32> {
     let (run_id, extra_args) = match extract_identifier_and_extra_args(args) {
         Some(result) => result,
         None => return Err(anyhow::anyhow!("Run ID required")),
@@ -919,7 +921,7 @@ fn view_run(args: &[String], _verbose: u8) -> Result<()> {
             &stderr,
         );
         eprintln!("{}", stderr.trim());
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "gh"));
     }
 
     // Parse output and show only failures
@@ -960,10 +962,10 @@ fn view_run(args: &[String], _verbose: u8) -> Result<()> {
         &raw,
         &filtered,
     );
-    Ok(())
+    Ok(0)
 }
 
-fn run_repo(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<()> {
+fn run_repo(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<i32> {
     // Parse subcommand (default to "view")
     let (subcommand, rest_args) = if args.is_empty() {
         ("view", args)
@@ -996,7 +998,7 @@ fn run_repo(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<()> {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         timer.track("gh repo view", "prltc gh repo view", &stderr, &stderr);
         eprintln!("{}", stderr.trim());
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "gh"));
     }
 
     let json: Value =
@@ -1037,10 +1039,10 @@ fn run_repo(args: &[String], _verbose: u8, _ultra_compact: bool) -> Result<()> {
     print!("{}", line);
 
     timer.track("gh repo view", "prltc gh repo view", &raw, &filtered);
-    Ok(())
+    Ok(0)
 }
 
-fn pr_create(args: &[String], _verbose: u8) -> Result<()> {
+fn pr_create(args: &[String], _verbose: u8) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = resolved_command("gh");
@@ -1056,7 +1058,7 @@ fn pr_create(args: &[String], _verbose: u8) -> Result<()> {
     if !output.status.success() {
         timer.track("gh pr create", "prltc gh pr create", &stderr, &stderr);
         eprintln!("{}", stderr.trim());
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "gh"));
     }
 
     // gh pr create outputs the URL on success
@@ -1075,10 +1077,10 @@ fn pr_create(args: &[String], _verbose: u8) -> Result<()> {
     println!("{}", filtered);
 
     timer.track("gh pr create", "prltc gh pr create", &stdout, &filtered);
-    Ok(())
+    Ok(0)
 }
 
-fn pr_merge(args: &[String], _verbose: u8) -> Result<()> {
+fn pr_merge(args: &[String], _verbose: u8) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let mut cmd = resolved_command("gh");
@@ -1094,7 +1096,7 @@ fn pr_merge(args: &[String], _verbose: u8) -> Result<()> {
     if !output.status.success() {
         timer.track("gh pr merge", "prltc gh pr merge", &stderr, &stderr);
         eprintln!("{}", stderr.trim());
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "gh"));
     }
 
     // Extract PR number from args (first non-flag arg)
@@ -1121,7 +1123,7 @@ fn pr_merge(args: &[String], _verbose: u8) -> Result<()> {
     };
 
     timer.track("gh pr merge", "prltc gh pr merge", &raw, &filtered);
-    Ok(())
+    Ok(0)
 }
 
 /// Flags that change `gh pr diff` output from unified diff to a different format.
@@ -1136,7 +1138,7 @@ fn has_non_diff_format_flag(args: &[String]) -> bool {
     })
 }
 
-fn pr_diff(args: &[String], _verbose: u8) -> Result<()> {
+fn pr_diff(args: &[String], _verbose: u8) -> Result<i32> {
     // --no-compact: pass full diff through (gh CLI doesn't know this flag, strip it)
     let no_compact = args.iter().any(|a| a == "--no-compact");
     let gh_args: Vec<String> = args
@@ -1166,7 +1168,7 @@ fn pr_diff(args: &[String], _verbose: u8) -> Result<()> {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         timer.track("gh pr diff", "prltc gh pr diff", &stderr, &stderr);
         eprintln!("{}", stderr.trim());
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "gh"));
     }
 
     let filtered = if raw.trim().is_empty() {
@@ -1180,11 +1182,11 @@ fn pr_diff(args: &[String], _verbose: u8) -> Result<()> {
     };
 
     timer.track("gh pr diff", "prltc gh pr diff", &raw, &filtered);
-    Ok(())
+    Ok(0)
 }
 
 /// Generic PR action handler for comment/edit
-fn pr_action(action: &str, args: &[String], _verbose: u8) -> Result<()> {
+fn pr_action(action: &str, args: &[String], _verbose: u8) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
     let subcmd = &args[0];
 
@@ -1208,7 +1210,7 @@ fn pr_action(action: &str, args: &[String], _verbose: u8) -> Result<()> {
             &stderr,
         );
         eprintln!("{}", stderr.trim());
-        std::process::exit(output.status.code().unwrap_or(1));
+        return Ok(exit_code_from_output(&output, "gh"));
     }
 
     // Extract PR number from args (skip args[0] which is the subcommand)
@@ -1234,10 +1236,10 @@ fn pr_action(action: &str, args: &[String], _verbose: u8) -> Result<()> {
         &raw,
         &filtered,
     );
-    Ok(())
+    Ok(0)
 }
 
-fn run_api(args: &[String], _verbose: u8) -> Result<()> {
+fn run_api(args: &[String], _verbose: u8) -> Result<i32> {
     // gh api is an explicit/advanced command — the user knows what they asked for.
     // Converting JSON to a schema destroys all values and forces Claude to re-fetch.
     // Passthrough preserves the full response and tracks metrics at 0% savings.
@@ -1245,7 +1247,7 @@ fn run_api(args: &[String], _verbose: u8) -> Result<()> {
 }
 
 /// Pass through a command with base args + extra args, tracking as passthrough.
-fn run_passthrough_with_extra(cmd: &str, base_args: &[&str], extra_args: &[String]) -> Result<()> {
+fn run_passthrough_with_extra(cmd: &str, base_args: &[&str], extra_args: &[String]) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let mut command = resolved_command(cmd);
@@ -1269,14 +1271,10 @@ fn run_passthrough_with_extra(cmd: &str, base_args: &[&str], extra_args: &[Strin
     );
     timer.track_passthrough(&full_cmd, &format!("prltc {} (passthrough)", full_cmd));
 
-    if !status.success() {
-        std::process::exit(status.code().unwrap_or(1));
-    }
-
-    Ok(())
+    Ok(exit_code_from_status(&status, "gh"))
 }
 
-fn run_passthrough(cmd: &str, subcommand: &str, args: &[String]) -> Result<()> {
+fn run_passthrough(cmd: &str, subcommand: &str, args: &[String]) -> Result<i32> {
     let timer = tracking::TimedExecution::start();
 
     let mut command = resolved_command(cmd);
@@ -1295,11 +1293,7 @@ fn run_passthrough(cmd: &str, subcommand: &str, args: &[String]) -> Result<()> {
         &format!("prltc {} {} {} (passthrough)", cmd, subcommand, args_str),
     );
 
-    if !status.success() {
-        std::process::exit(status.code().unwrap_or(1));
-    }
-
-    Ok(())
+    Ok(exit_code_from_status(&status, "gh"))
 }
 
 #[cfg(test)]
