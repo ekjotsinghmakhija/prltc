@@ -6,6 +6,7 @@
 
 //! Raw output recovery -- saves unfiltered output to disk on command failure.
 
+use super::constants::PRLTC_DATA_DIR;
 use crate::core::config::Config;
 use std::path::PathBuf;
 
@@ -52,7 +53,7 @@ fn get_tee_dir(config: &Config) -> Option<PathBuf> {
     }
 
     // Default: ~/.local/share/prltc/tee/
-    dirs::data_local_dir().map(|d| d.join("prltc").join("tee"))
+    dirs::data_local_dir().map(|d| d.join(PRLTC_DATA_DIR).join("tee"))
 }
 
 /// Rotate old tee files: keep only the last `max_files`, delete oldest.

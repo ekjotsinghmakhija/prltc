@@ -18,6 +18,7 @@
 //!
 //! Reference: SA-2025-PRLTC-001 (Finding F-01)
 
+use super::constants::{CLAUDE_DIR, HOOKS_SUBDIR, REWRITE_HOOK_FILE};
 use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -75,7 +76,7 @@ pub fn store_hash(hook_path: &Path) -> Result<()> {
     let filename = hook_path
         .file_name()
         .and_then(|n| n.to_str())
-        .unwrap_or("prltc-rewrite.sh");
+        .unwrap_or(REWRITE_HOOK_FILE);
 
     let content = format!("{}  {}\n", hash, filename);
 
@@ -187,7 +188,11 @@ fn read_stored_hash(path: &Path) -> Result<String> {
 /// Resolve the default hook path (~/.claude/hooks/prltc-rewrite.sh)
 pub fn resolve_hook_path() -> Result<PathBuf> {
     dirs::home_dir()
-        .map(|h| h.join(".claude").join("hooks").join("prltc-rewrite.sh"))
+        .map(|h| {
+            h.join(CLAUDE_DIR)
+                .join(HOOKS_SUBDIR)
+                .join(REWRITE_HOOK_FILE)
+        })
         .context("Cannot determine home directory. Is $HOME set?")
 }
 
