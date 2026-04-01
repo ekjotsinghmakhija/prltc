@@ -903,7 +903,7 @@ dependencies = [
 
 [[package]]
 name = "prltc"
-version = "0.34.1"
+version = "0.34.2"
 dependencies = [
  "anyhow",
  "automod",
