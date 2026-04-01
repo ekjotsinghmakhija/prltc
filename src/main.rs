@@ -90,9 +90,8 @@ enum Commands {
 
     /// Read file with intelligent filtering
     Read {
-        /// Files to read (supports multiple, like cat)
-        #[arg(required = true, num_args = 1..)]
-        files: Vec<PathBuf>,
+        /// File to read
+        file: PathBuf,
         /// Filter: none (default, full content), minimal, aggressive
         #[arg(short, long, default_value = "none")]
         level: core::filter::FilterLevel,
@@ -1252,38 +1251,26 @@ fn run_cli() -> Result<i32> {
 
         Commands::Tree { args } => tree::run(&args, cli.verbose)?,
 
-        // ISSUE #989: support multiple files (cat file1 file2 → prltc read file1 file2)
         Commands::Read {
-            files,
+            file,
             level,
             max_lines,
             tail_lines,
             line_numbers,
         } => {
-            let mut had_error = false;
-            for file in &files {
-                let result = if file == Path::new("-") {
-                    read::run_stdin(level, max_lines, tail_lines, line_numbers, cli.verbose)
-                } else {
-                    read::run(
-                        file,
-                        level,
-                        max_lines,
-                        tail_lines,
-                        line_numbers,
-                        cli.verbose,
-                    )
-                };
-                if let Err(e) = result {
-                    eprintln!("cat: {}: {}", file.display(), e.root_cause());
-                    had_error = true;
-                }
-            }
-            if had_error {
-                1
+            if file == Path::new("-") {
+                read::run_stdin(level, max_lines, tail_lines, line_numbers, cli.verbose)?;
             } else {
-                0
+                read::run(
+                    &file,
+                    level,
+                    max_lines,
+                    tail_lines,
+                    line_numbers,
+                    cli.verbose,
+                )?;
             }
+            0
         }
 
         Commands::Smart {
@@ -1986,37 +1973,21 @@ fn run_cli() -> Result<i32> {
                 eprintln!("Proxy mode: {} {}", cmd_name, cmd_args.join(" "));
             }
 
-            // ISSUE #897: ChildGuard kills child on error/panic to prevent
-            // orphan processes that caused a 514GB memory leak + kernel panic.
-            struct ChildGuard(std::process::Child);
-            impl Drop for ChildGuard {
-                fn drop(&mut self) {
-                    let _ = self.0.kill();
-                    let _ = self.0.wait();
-                }
-            }
-
-            let mut child = ChildGuard(
-                core::utils::resolved_command(cmd_name.as_ref())
-                    .args(&cmd_args)
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .spawn()
-                    .context(format!("Failed to execute command: {}", cmd_name))?,
-            );
+            let mut child = core::utils::resolved_command(cmd_name.as_ref())
+                .args(&cmd_args)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .context(format!("Failed to execute command: {}", cmd_name))?;
 
             let stdout_pipe = child
-                .0
                 .stdout
                 .take()
                 .context("Failed to capture child stdout")?;
             let stderr_pipe = child
-                .0
                 .stderr
                 .take()
                 .context("Failed to capture child stderr")?;
-
-            const CAP: usize = 1_048_576;
 
             let stdout_handle = thread::spawn(move || -> std::io::Result<Vec<u8>> {
                 let mut reader = stdout_pipe;
@@ -2028,10 +1999,7 @@ fn run_cli() -> Result<i32> {
                     if count == 0 {
                         break;
                     }
-                    if captured.len() < CAP {
-                        let take = count.min(CAP - captured.len());
-                        captured.extend_from_slice(&buf[..take]);
-                    }
+                    captured.extend_from_slice(&buf[..count]);
                     let mut out = std::io::stdout().lock();
                     out.write_all(&buf[..count])?;
                     out.flush()?;
@@ -2050,10 +2018,7 @@ fn run_cli() -> Result<i32> {
                     if count == 0 {
                         break;
                     }
-                    if captured.len() < CAP {
-                        let take = count.min(CAP - captured.len());
-                        captured.extend_from_slice(&buf[..take]);
-                    }
+                    captured.extend_from_slice(&buf[..count]);
                     let mut err = std::io::stderr().lock();
                     err.write_all(&buf[..count])?;
                     err.flush()?;
@@ -2063,7 +2028,6 @@ fn run_cli() -> Result<i32> {
             });
 
             let status = child
-                .0
                 .wait()
                 .context(format!("Failed waiting for command: {}", cmd_name))?;
 
