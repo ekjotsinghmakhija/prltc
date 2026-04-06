@@ -2,7 +2,7 @@
 name = "prltc"
 version = "0.35.0"
 edition = "2021"
-authors = ["Patrick Szymkowiak"]
+authors = ["Ekjot Singh"]
 description = "Rust Token Killer - High-performance CLI proxy to minimize LLM token consumption"
 license = "MIT"
 homepage = "https://www.github.com/ekjotsinghmakhija/prltc"
@@ -52,8 +52,8 @@ strip = true
 
 # cargo-deb configuration
 [package.metadata.deb]
-maintainer = "Patrick Szymkowiak"
-copyright = "2024 Patrick Szymkowiak"
+maintainer = "Ekjot Singh"
+copyright = "2026 Ekjot Singh"
 license-file = ["LICENSE", "0"]
 extended-description = "prltc filters and compresses command outputs before they reach your LLM context, saving 60-90% of tokens."
 section = "utility"

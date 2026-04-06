@@ -1,74 +1,16 @@
 name: CD
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 on:
-  workflow_dispatch:
   push:
     branches: [main]
-
-concurrency:
-  group: cd-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-
-permissions:
-  contents: write
-  pull-requests: write
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   release-please:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
           release-type: rust
           package-name: prltc
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
           target-branch: main
-
-  build-release:
-    name: Build and upload release assets
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
-    uses: ./.github/workflows/release.yml
-    with:
-      tag: ${{ needs.release-please.outputs.tag_name }}
-    permissions:
-      contents: write
-    secrets: inherit
-
-  update-latest-tag:
-    name: Update 'latest' tag
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    needs: [release-please, build-release]
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-          fetch-tags: true
-
-      - name: Update latest tag
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -fa latest -m "Latest stable release (${{ needs.release-please.outputs.tag_name }})"
-          git push origin latest --force

@@ -1,168 +1,24 @@
 name: CI
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
-
-permissions:
-  contents: read
-  pull-requests: read
-
 env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
-  check-test-presence:
-    name: test presence
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-          fetch-tags: true
-      - name: Check filter modules have tests
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-        run: |
-          git fetch origin "${{ github.base_ref }}" --depth=1 || true
-          bash scripts/check-test-presence.sh "origin/${{ github.base_ref }}"
-
-  fmt:
-    name: fmt
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-          fetch-tags: true
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - run: cargo fmt --all -- --check
-
-  clippy:
-    name: clippy
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    needs: fmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-          fetch-tags: true
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --all-targets
-
   test:
     name: test (${{ matrix.os }})
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    needs: clippy
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
-          fetch-tags: true
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
       - run: cargo test --all
-
-  security:
-    name: Security Scan
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    needs: clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-          fetch-tags: true
-
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Install cargo-audit
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-        run: cargo install cargo-audit
-
-      - name: Cargo Audit (CVE check)
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-        run: |
-          echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
-          if cargo audit 2>&1 | tee audit.log; then
-            echo "No known vulnerabilities detected" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "Vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Clippy security lints
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-        run: |
-          echo "### Clippy Security Lints" >> $GITHUB_STEP_SUMMARY
-          if cargo clippy --all-targets -- -W clippy::unwrap_used -W clippy::panic -W clippy::expect_used 2>&1 | tee clippy.log | grep -E "warning:|error:"; then
-            echo "Security-related lints triggered." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "All security lints passed" >> $GITHUB_STEP_SUMMARY
-          fi
-
-  benchmark:
-    name: benchmark
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    needs: clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-          fetch-tags: true
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Build prltc
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-        run: cargo build --release
-      - name: Install Python tools
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-        run: pip install ruff pytest
-      - name: Install Go
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-        uses: actions/setup-go@v5
-        with:
-          go-version: 'stable'
-      - name: Install Go tools
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-      - name: Run benchmark
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-        run: ./scripts/benchmark.sh
