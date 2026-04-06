@@ -19,17 +19,17 @@ use super::constants::{
 use super::integrity;
 
 // Embedded hook script (guards before set -euo pipefail)
-const REWRITE_HOOK: &str = include_str!("../../hooks/claude/prltc-rewrite.sh");
+const REWRITE_HOOK: &str = include_str!("../../hooks/claude/rtk-rewrite.sh");
 
 // Embedded Cursor hook script (preToolUse format)
-const CURSOR_REWRITE_HOOK: &str = include_str!("../../hooks/cursor/prltc-rewrite.sh");
+const CURSOR_REWRITE_HOOK: &str = include_str!("../../hooks/cursor/rtk-rewrite.sh");
 
 // Embedded OpenCode plugin (auto-rewrite)
-const OPENCODE_PLUGIN: &str = include_str!("../../hooks/opencode/prltc.ts");
+const OPENCODE_PLUGIN: &str = include_str!("../../hooks/opencode/rtk.ts");
 
 // Embedded slim PRLTC awareness instructions
-const PRLTC_SLIM: &str = include_str!("../../hooks/claude/prltc-awareness.md");
-const PRLTC_SLIM_CODEX: &str = include_str!("../../hooks/codex/prltc-awareness.md");
+const PRLTC_SLIM: &str = include_str!("../../hooks/claude/rtk-awareness.md");
+const PRLTC_SLIM_CODEX: &str = include_str!("../../hooks/codex/rtk-awareness.md");
 
 /// Template written by `prltc init` when no filters.toml exists yet.
 const FILTERS_TEMPLATE: &str = r#"# Project-local PRLTC filters — commit this file with your repo.
@@ -1124,7 +1124,10 @@ fn run_claude_md_mode(global: bool, verbose: u8, install_opencode: bool) -> Resu
         match action {
             RtkBlockUpsert::Added => {
                 fs::write(&path, new_content)?;
-                println!("[ok] Added prltc instructions to existing {}", path.display());
+                println!(
+                    "[ok] Added prltc instructions to existing {}",
+                    path.display()
+                );
             }
             RtkBlockUpsert::Updated => {
                 fs::write(&path, new_content)?;
@@ -1443,7 +1446,9 @@ fn patch_agents_md(path: &Path, prltc_md_ref: &str, verbose: u8) -> Result<bool>
             eprintln!("{} reference already present in AGENTS.md", prltc_md_ref);
         }
         // ISSUE #892: Migrate old relative @PRLTC.md to absolute path if needed
-        if prltc_md_ref != PRLTC_MD_REF && content.contains(PRLTC_MD_REF) && !content.contains(prltc_md_ref)
+        if prltc_md_ref != PRLTC_MD_REF
+            && content.contains(PRLTC_MD_REF)
+            && !content.contains(prltc_md_ref)
         {
             content = content.replace(PRLTC_MD_REF, prltc_md_ref);
             atomic_write(path, &content)
@@ -2045,7 +2050,9 @@ fn show_claude_config() -> Result<()> {
 
     println!("\nUsage:");
     println!("  prltc init              # Full injection into local CLAUDE.md");
-    println!("  prltc init -g           # Hook + PRLTC.md + @PRLTC.md + settings.json (recommended)");
+    println!(
+        "  prltc init -g           # Hook + PRLTC.md + @PRLTC.md + settings.json (recommended)"
+    );
     println!("  prltc init -g --auto-patch    # Same as above but no prompt");
     println!("  prltc init -g --no-patch      # Skip settings.json (manual setup)");
     println!("  prltc init -g --uninstall     # Remove all PRLTC artifacts");
@@ -2108,7 +2115,9 @@ fn show_codex_config() -> Result<()> {
 
     println!("\nUsage:");
     println!("  prltc init --codex              # Configure local AGENTS.md + PRLTC.md");
-    println!("  prltc init -g --codex           # Configure ~/.codex/AGENTS.md + ~/.codex/PRLTC.md");
+    println!(
+        "  prltc init -g --codex           # Configure ~/.codex/AGENTS.md + ~/.codex/PRLTC.md"
+    );
     println!("  prltc init -g --codex --uninstall  # Remove global Codex PRLTC artifacts");
 
     Ok(())
