@@ -1,4 +1,6 @@
 name: Release
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
   workflow_call:
@@ -34,6 +36,8 @@ env:
 jobs:
   build:
     name: Build ${{ matrix.target }}
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -62,17 +66,24 @@ jobs:
 
     steps:
       - name: Checkout
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
+          fetch-tags: true
 
       - name: Install Rust
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
       - name: Install cross-compilation tools
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         if: matrix.cross
         run: |
           sudo apt-get update
@@ -80,18 +91,24 @@ jobs:
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
       - name: Install musl tools
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         if: matrix.musl
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools
 
       - name: Build
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: cargo build --release --target ${{ matrix.target }}
         env:
           PRLTC_TELEMETRY_URL: ${{ vars.PRLTC_TELEMETRY_URL }}
           PRLTC_TELEMETRY_TOKEN: ${{ secrets.PRLTC_TELEMETRY_TOKEN }}
 
       - name: Package (Unix)
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         if: matrix.os != 'windows-latest'
         run: |
           cd target/${{ matrix.target }}/release
@@ -99,6 +116,8 @@ jobs:
           cd ../../..
 
       - name: Package (Windows)
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         if: matrix.os == 'windows-latest'
         run: |
           cd target/${{ matrix.target }}/release
@@ -106,89 +125,134 @@ jobs:
           cd ../../..
 
       - name: Upload artifact
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         uses: actions/upload-artifact@v4
         with:
           name: prltc-${{ matrix.target }}
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
           path: prltc-${{ matrix.target }}.${{ matrix.archive }}
 
   build-deb:
     name: Build DEB package
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
+          fetch-tags: true
 
       - name: Install Rust
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-deb
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: cargo install cargo-deb
 
       - name: Build DEB
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: cargo deb
         env:
           PRLTC_TELEMETRY_URL: ${{ vars.PRLTC_TELEMETRY_URL }}
           PRLTC_TELEMETRY_TOKEN: ${{ secrets.PRLTC_TELEMETRY_TOKEN }}
 
       - name: Upload DEB
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         uses: actions/upload-artifact@v4
         with:
           name: prltc-deb
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
           path: target/debian/*.deb
 
   build-rpm:
     name: Build RPM package
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     runs-on: ubuntu-latest
     container: fedora:latest
     steps:
       - name: Checkout
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
+          fetch-tags: true
 
       - name: Install dependencies
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: |
           dnf install -y rust cargo rpm-build
 
       - name: Install cargo-generate-rpm
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: cargo install cargo-generate-rpm
 
       - name: Build release
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: cargo build --release
         env:
           PRLTC_TELEMETRY_URL: ${{ vars.PRLTC_TELEMETRY_URL }}
           PRLTC_TELEMETRY_TOKEN: ${{ secrets.PRLTC_TELEMETRY_TOKEN }}
 
       - name: Generate RPM
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: cargo generate-rpm
 
       - name: Upload RPM
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         uses: actions/upload-artifact@v4
         with:
           name: prltc-rpm
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
           path: target/generate-rpm/*.rpm
 
   release:
     name: Create Release
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     needs: [build, build-deb, build-rpm]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
+          fetch-tags: true
 
       - name: Download all artifacts
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
       - name: Get version
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         id: version
         run: |
           TAG="${{ inputs.tag }}"
@@ -198,11 +262,15 @@ jobs:
           echo "version=$TAG" >> $GITHUB_OUTPUT
 
       - name: Flatten artifacts
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: |
           mkdir -p release
           find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.deb" -o -name "*.rpm" \) -exec cp {} release/ \;
 
       - name: Create version-agnostic package names
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: |
           cd release
           for f in *.deb; do
@@ -213,14 +281,20 @@ jobs:
           done
 
       - name: Create checksums
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: |
           cd release
           sha256sum * > checksums.txt
 
       - name: Upload Release Assets
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version }}
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
           files: release/*
           prerelease: ${{ inputs.prerelease }}
         env:
@@ -228,11 +302,15 @@ jobs:
 
   notify-discord:
     name: Notify Discord
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     needs: [release]
     if: ${{ !inputs.prerelease }}
     runs-on: ubuntu-latest
     steps:
       - name: Get version
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         id: version
         run: |
           TAG="${{ inputs.tag }}"
@@ -242,6 +320,8 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Send Discord notification
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         env:
           DISCORD_WEBHOOK: ${{ secrets.PRLTC_DISCORD_RELEASE }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -262,11 +342,15 @@ jobs:
 
   homebrew:
     name: Update Homebrew formula
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     needs: [release]
     if: ${{ !inputs.prerelease }}
     runs-on: ubuntu-latest
     steps:
       - name: Get version
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         id: version
         run: |
           TAG="${{ inputs.tag }}"
@@ -278,6 +362,8 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Download checksums
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: |
           gh release download "${{ steps.version.outputs.tag }}" \
             --repo ekjotsinghmakhija/prltc \
@@ -286,6 +372,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Parse checksums
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         id: sha
         run: |
           echo "mac_arm=$(grep aarch64-apple-darwin.tar.gz checksums.txt | head -1 | awk '{print $1}')" >> $GITHUB_OUTPUT
@@ -294,6 +382,8 @@ jobs:
           echo "linux_intel=$(grep x86_64-unknown-linux-musl.tar.gz checksums.txt | head -1 | awk '{print $1}')" >> $GITHUB_OUTPUT
 
       - name: Generate formula
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: |
           cat > prltc.rb << 'FORMULA'
           class Rtk < Formula
@@ -353,6 +443,8 @@ jobs:
           sed -i 's/^          //' prltc.rb
 
       - name: Push to homebrew-tap
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: |
           CONTENT=$(base64 -w 0 prltc.rb)
           SHA=$(gh api repos/ekjotsinghmakhija/homebrew-tap/contents/Formula/prltc.rb --jq '.sha' 2>/dev/null || echo "")
